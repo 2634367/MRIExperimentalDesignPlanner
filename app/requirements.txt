@@ -1,0 +1,17 @@
+# Pinned, so the first build is reproducible and does not silently resolve to
+# newer versions. Every package here ships prebuilt wheels for Alpine
+# (musllinux) as well as glibc Linux, macOS, and Windows, so installing them
+# never needs a compiler -- the Dockerfile enforces that with --only-binary.
+#
+# Plain uvicorn, not uvicorn[standard]: uvloop and httptools would add speed
+# this app does not need, and more native code to trust.
+starlette==1.9.0
+uvicorn==0.54.0
+PyYAML==6.0.3
+PyNaCl==1.6.2
+bcrypt==5.0.0
+# Reads the size and format of uploaded pictures (app/core/images.py).
+Pillow==12.3.0
+# Writes report.xlsx (app/core/report.py). Pure Python, like its one
+# dependency et-xmlfile.
+openpyxl==3.1.5

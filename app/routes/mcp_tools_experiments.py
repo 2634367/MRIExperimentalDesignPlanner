@@ -1,0 +1,92 @@
+"""MCP tools for experiments: list them, read one, save one.
+
+They share their bodies with the HTTP routes in experiments.py (list_rows,
+open_row, save_row), so an agent sees exactly what the browser sees and is
+refused for the same reasons. A save needs the revision it was made from,
+like the browser's, so an agent cannot silently overwrite a person's edit.
+
+Deliberately missing: deleting an experiment, and making share links (a
+credential). Those need a browser session.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+from app.mcp.registry import Call, Refusal, Registry, Tool
+from app.models.experiments import BadDocumentError, NoSuchExperimentError, RevisionConflictError
+from app.routes.experiments import list_rows, open_row, save_row
+
+ID_SCHEMA = {"type": "string", "description": "The experiment's id, from list_experiments."}
+
+
+def list_experiments(call: Call) -> dict[str, Any]:
+    call.bind({})
+    return {"experiments": list_rows(call.store, call.actor.user.id)}
+
+
+def get_experiment(call: Call) -> dict[str, Any]:
+    args = call.bind({"experiment_id": str})
+    try:
+        return open_row(call.store, args["experiment_id"], call.actor.user.id)
+    except NoSuchExperimentError:
+        raise Refusal("no such experiment") from None
+
+
+def save_experiment(call: Call) -> dict[str, Any]:
+    args = call.bind({"experiment_id": str, "doc": dict, "base_revision": int})
+    try:
+        return save_row(call.store, args["experiment_id"], call.actor.user.id, args["doc"], args["base_revision"])
+    except NoSuchExperimentError:
+        raise Refusal("no such experiment") from None
+    except BadDocumentError as refusal:
+        raise Refusal(str(refusal)) from None
+    except RevisionConflictError as stale:
+        raise Refusal(f"{stale} -- read it again with get_experiment (now revision {stale.current}) and reapply the change") from None
+
+
+def register(registry: Registry) -> None:
+    registry.register(Tool(
+        name="list_experiments",
+        title="List experiments",
+        description="Every experiment this account owns or can edit: id, name, owner, editors, revision and when it last changed.",
+        call=list_experiments,
+        read_only=True,
+    ))
+    registry.register(Tool(
+        name="get_experiment",
+        title="Read an experiment",
+        description=(
+            "One experiment's full design document (doc) and its revision. The doc holds scanner settings, display "
+            "defaults, the hours budget, media (pictures by sha256), prompt lists (columns + items), trial_types "
+            "(phases with durations and layers; a layer value written {column} is filled from the trial's prompt item), "
+            "runs (blocks of trial types) and sessions (steps)."
+        ),
+        call=get_experiment,
+        input_schema={
+            "type": "object",
+            "properties": {"experiment_id": ID_SCHEMA},
+            "required": ["experiment_id"],
+            "additionalProperties": False,
+        },
+        read_only=True,
+    ))
+    registry.register(Tool(
+        name="save_experiment",
+        title="Save an experiment",
+        description=(
+            "Replace an experiment's design document. Send the whole doc as returned by get_experiment, changed, "
+            "with base_revision set to the revision it came from. Refused if it has changed since; read it again "
+            "and reapply. Anyone with the experiment open in a browser sees the change on their next save conflict."
+        ),
+        call=save_experiment,
+        input_schema={
+            "type": "object",
+            "properties": {
+                "experiment_id": ID_SCHEMA,
+                "doc": {"type": "object", "description": "The whole design document."},
+                "base_revision": {"type": "integer", "minimum": 1},
+            },
+            "required": ["experiment_id", "doc", "base_revision"],
+            "additionalProperties": False,
+        },
+    ))

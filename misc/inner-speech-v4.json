@@ -1,0 +1,6652 @@
+{
+ "format_version": 1,
+ "name": "Inner Speech Decoding — V4",
+ "notes": "V4, built 2026-11-02 from the Inner Speech preliminary doc (Aims, Pitfalls, Procedure, Standard and Control Questions tabs). Hard limit: 100 scanner hours; session counts leave about 8% in reserve. Session 1 (consent, training, answering the full bank for ground truth) is outside the scanner and not counted. Design rules: one answer cue (large cross) for every condition so the cue carries no label; yes/no balanced within each standard category (one trial type per category); controls separate answer from question (opposite, no prompt yes/no, neutral \"ready\", read only, ambiguous); jittered prompt-to-cue delay; item and columns logged with every trial for item-held-out validation.",
+ "scanner": {
+  "tr": 2,
+  "trigger_key": "5",
+  "dummy_volumes": 4
+ },
+ "budget": {
+  "hours_available": 100,
+  "participants": 1
+ },
+ "lists": [
+  {
+   "id": "list_v40001",
+   "name": "Questions",
+   "notes": "V4 bank: 40 items per standard category (General Knowledge, Arithmetic, Rhyme Judgment and Category are 20 yes / 20 no; arithmetic answers are computed), 40 Biographical and 40 Emotional with answers recorded per participant (Biographical in the training session, Emotional at each session's debrief), and 30 Ambiguous. Item id and every column are logged with each trial, so analyses can hold items out.",
+   "columns": [
+    {
+     "key": "text",
+     "label": "Text",
+     "type": "text"
+    },
+    {
+     "key": "category",
+     "label": "Category",
+     "type": "text"
+    },
+    {
+     "key": "answer",
+     "label": "Answer",
+     "type": "text"
+    }
+   ],
+   "items": [
+    {
+     "id": "i_v40002",
+     "values": {
+      "text": "Is fire hot ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40003",
+     "values": {
+      "text": "Is the sun a star ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40004",
+     "values": {
+      "text": "Is water wet ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40005",
+     "values": {
+      "text": "Is snow cold ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40006",
+     "values": {
+      "text": "Do birds have feathers ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40007",
+     "values": {
+      "text": "Is the ocean salty ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40008",
+     "values": {
+      "text": "Do cows give milk ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40009",
+     "values": {
+      "text": "Is grass green ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40010",
+     "values": {
+      "text": "Does the moon orbit the Earth ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40011",
+     "values": {
+      "text": "Do plants need sunlight ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40012",
+     "values": {
+      "text": "Is ice frozen water ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40013",
+     "values": {
+      "text": "Do bees make honey ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40014",
+     "values": {
+      "text": "Is the Earth round ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40015",
+     "values": {
+      "text": "Do fish live in water ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40016",
+     "values": {
+      "text": "Is a year twelve months long ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40017",
+     "values": {
+      "text": "Is gold a metal ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40018",
+     "values": {
+      "text": "Do spiders have eight legs ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40019",
+     "values": {
+      "text": "Does the sun rise in the east ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40020",
+     "values": {
+      "text": "Is the Pacific an ocean ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40021",
+     "values": {
+      "text": "Do people need oxygen ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40022",
+     "values": {
+      "text": "Is ice warm ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40023",
+     "values": {
+      "text": "Is the sky green ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40024",
+     "values": {
+      "text": "Do cats lay eggs ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40025",
+     "values": {
+      "text": "Is the sun cold ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40026",
+     "values": {
+      "text": "Is sugar salty ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40027",
+     "values": {
+      "text": "Can pigs fly ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40028",
+     "values": {
+      "text": "Is the moon made of cheese ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40029",
+     "values": {
+      "text": "Does the sun set in the north ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40030",
+     "values": {
+      "text": "Is a week ten days long ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40031",
+     "values": {
+      "text": "Do trees walk ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40032",
+     "values": {
+      "text": "Is lead lighter than air ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40033",
+     "values": {
+      "text": "Do dogs have wings ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40034",
+     "values": {
+      "text": "Is coal white ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40035",
+     "values": {
+      "text": "Do horses lay eggs ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40036",
+     "values": {
+      "text": "Is milk black ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40037",
+     "values": {
+      "text": "Is the Earth flat ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40038",
+     "values": {
+      "text": "Do rocks grow on trees ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40039",
+     "values": {
+      "text": "Is a minute an hour long ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40040",
+     "values": {
+      "text": "Do worms have bones ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40041",
+     "values": {
+      "text": "Is rain made of sand ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40042",
+     "values": {
+      "text": "Is 8 odd ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40043",
+     "values": {
+      "text": "Is 11 even ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40044",
+     "values": {
+      "text": "Is 25 odd ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40045",
+     "values": {
+      "text": "Is 9 minus 4 equal to 5 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40046",
+     "values": {
+      "text": "Is 14 odd ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40047",
+     "values": {
+      "text": "Is 6 times 2 equal to 12 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40048",
+     "values": {
+      "text": "Is 7 times 6 equal to 40 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40049",
+     "values": {
+      "text": "Is 5 plus 2 equal to 8 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40050",
+     "values": {
+      "text": "Is 5 plus 4 equal to 9 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40051",
+     "values": {
+      "text": "Is 25 greater than 7 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40052",
+     "values": {
+      "text": "Is 7 times 8 equal to 55 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40053",
+     "values": {
+      "text": "Is 17 even ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40054",
+     "values": {
+      "text": "Is 3 plus 6 equal to 9 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40055",
+     "values": {
+      "text": "Is 6 plus 5 equal to 11 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40056",
+     "values": {
+      "text": "Is 6 times 8 equal to 48 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40057",
+     "values": {
+      "text": "Is 2 plus 3 equal to 5 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40058",
+     "values": {
+      "text": "Is 19 greater than 35 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40059",
+     "values": {
+      "text": "Is 9 times 7 equal to 63 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40060",
+     "values": {
+      "text": "Is 14 greater than 6 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40061",
+     "values": {
+      "text": "Is 9 minus 5 equal to 4 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40062",
+     "values": {
+      "text": "Is 8 plus 7 equal to 14 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40063",
+     "values": {
+      "text": "Is 3 plus 2 equal to 6 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40064",
+     "values": {
+      "text": "Is 5 times 3 equal to 15 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40065",
+     "values": {
+      "text": "Is 2 minus 2 equal to 0 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40066",
+     "values": {
+      "text": "Is 30 odd ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40067",
+     "values": {
+      "text": "Is 7 plus 2 equal to 9 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40068",
+     "values": {
+      "text": "Is 4 plus 8 equal to 10 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40069",
+     "values": {
+      "text": "Is 5 plus 9 equal to 14 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40070",
+     "values": {
+      "text": "Is 8 plus 4 equal to 12 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40071",
+     "values": {
+      "text": "Is 13 odd ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40072",
+     "values": {
+      "text": "Is 16 odd ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40073",
+     "values": {
+      "text": "Is 6 plus 3 equal to 9 ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40074",
+     "values": {
+      "text": "Is 15 even ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40075",
+     "values": {
+      "text": "Is 5 even ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40076",
+     "values": {
+      "text": "Is 3 odd ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40077",
+     "values": {
+      "text": "Is 21 even ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40078",
+     "values": {
+      "text": "Is 10 odd ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40079",
+     "values": {
+      "text": "Is 5 plus 5 equal to 12 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40080",
+     "values": {
+      "text": "Is 3 plus 8 equal to 9 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40081",
+     "values": {
+      "text": "Is 8 minus 7 equal to 2 ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40082",
+     "values": {
+      "text": "Does cat rhyme with hat ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40083",
+     "values": {
+      "text": "Does dog rhyme with log ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40084",
+     "values": {
+      "text": "Does tree rhyme with sea ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40085",
+     "values": {
+      "text": "Does cake rhyme with lake ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40086",
+     "values": {
+      "text": "Does moon rhyme with spoon ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40087",
+     "values": {
+      "text": "Does ring rhyme with sing ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40088",
+     "values": {
+      "text": "Does bell rhyme with well ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40089",
+     "values": {
+      "text": "Does rain rhyme with train ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40090",
+     "values": {
+      "text": "Does star rhyme with car ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40091",
+     "values": {
+      "text": "Does light rhyme with night ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40092",
+     "values": {
+      "text": "Does boat rhyme with coat ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40093",
+     "values": {
+      "text": "Does mouse rhyme with house ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40094",
+     "values": {
+      "text": "Does bed rhyme with red ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40095",
+     "values": {
+      "text": "Does fish rhyme with dish ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40096",
+     "values": {
+      "text": "Does book rhyme with cook ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40097",
+     "values": {
+      "text": "Does hand rhyme with sand ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40098",
+     "values": {
+      "text": "Does bear rhyme with chair ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40099",
+     "values": {
+      "text": "Does snow rhyme with glow ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40100",
+     "values": {
+      "text": "Does king rhyme with wing ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40101",
+     "values": {
+      "text": "Does pen rhyme with ten ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40102",
+     "values": {
+      "text": "Does dog rhyme with cup ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40103",
+     "values": {
+      "text": "Does book rhyme with lamp ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40104",
+     "values": {
+      "text": "Does tree rhyme with door ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40105",
+     "values": {
+      "text": "Does sun rhyme with fork ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40106",
+     "values": {
+      "text": "Does cat rhyme with milk ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40107",
+     "values": {
+      "text": "Does ring rhyme with shoe ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40108",
+     "values": {
+      "text": "Does bell rhyme with rope ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40109",
+     "values": {
+      "text": "Does rain rhyme with desk ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40110",
+     "values": {
+      "text": "Does star rhyme with leaf ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40111",
+     "values": {
+      "text": "Does light rhyme with bread ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40112",
+     "values": {
+      "text": "Does boat rhyme with sock ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40113",
+     "values": {
+      "text": "Does mouse rhyme with tent ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40114",
+     "values": {
+      "text": "Does bed rhyme with kite ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40115",
+     "values": {
+      "text": "Does fish rhyme with clock ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40116",
+     "values": {
+      "text": "Does hand rhyme with rug ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40117",
+     "values": {
+      "text": "Does goat rhyme with bin ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40118",
+     "values": {
+      "text": "Does bear rhyme with mop ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40119",
+     "values": {
+      "text": "Does king rhyme with bowl ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40120",
+     "values": {
+      "text": "Does pen rhyme with tub ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40121",
+     "values": {
+      "text": "Does moon rhyme with gift ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40122",
+     "values": {
+      "text": "Is a triangle a shape ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40123",
+     "values": {
+      "text": "Is a rose a flower ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40124",
+     "values": {
+      "text": "Is a dog an animal ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40125",
+     "values": {
+      "text": "Is an apple a fruit ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40126",
+     "values": {
+      "text": "Is a carrot a vegetable ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40127",
+     "values": {
+      "text": "Is a hammer a tool ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40128",
+     "values": {
+      "text": "Is a piano an instrument ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40129",
+     "values": {
+      "text": "Is an oak a tree ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40130",
+     "values": {
+      "text": "Is an eagle a bird ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40131",
+     "values": {
+      "text": "Is a shark a fish ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40132",
+     "values": {
+      "text": "Is red a colour ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40133",
+     "values": {
+      "text": "Is a chair furniture ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40134",
+     "values": {
+      "text": "Is a car a vehicle ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40135",
+     "values": {
+      "text": "Is Monday a day ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40136",
+     "values": {
+      "text": "Is July a month ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40137",
+     "values": {
+      "text": "Is a salmon a fish ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40138",
+     "values": {
+      "text": "Is a square a shape ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40139",
+     "values": {
+      "text": "Is a violin an instrument ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40140",
+     "values": {
+      "text": "Is a tulip a flower ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40141",
+     "values": {
+      "text": "Is a wrench a tool ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_v40142",
+     "values": {
+      "text": "Is a carrot a vehicle ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40143",
+     "values": {
+      "text": "Is a hammer an animal ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40144",
+     "values": {
+      "text": "Is a rose a tool ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40145",
+     "values": {
+      "text": "Is an apple a bird ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40146",
+     "values": {
+      "text": "Is a piano a fruit ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40147",
+     "values": {
+      "text": "Is an oak a fish ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40148",
+     "values": {
+      "text": "Is an eagle a vegetable ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40149",
+     "values": {
+      "text": "Is a shark a flower ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40150",
+     "values": {
+      "text": "Is a chair a colour ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40151",
+     "values": {
+      "text": "Is a car a month ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40152",
+     "values": {
+      "text": "Is Monday a shape ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40153",
+     "values": {
+      "text": "Is July an animal ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40154",
+     "values": {
+      "text": "Is a salmon furniture ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40155",
+     "values": {
+      "text": "Is a violin a tree ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40156",
+     "values": {
+      "text": "Is a tulip a vehicle ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40157",
+     "values": {
+      "text": "Is a wrench a fruit ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40158",
+     "values": {
+      "text": "Is a triangle a bird ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40159",
+     "values": {
+      "text": "Is a banana a tool ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40160",
+     "values": {
+      "text": "Is a spoon an animal ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40161",
+     "values": {
+      "text": "Is a cloud a vegetable ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_v40162",
+     "values": {
+      "text": "Is your father’s name Paul ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40163",
+     "values": {
+      "text": "Were you born in winter ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40164",
+     "values": {
+      "text": "Do you have a sister ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40165",
+     "values": {
+      "text": "Do you have a brother ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40166",
+     "values": {
+      "text": "Do you live in a city ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40167",
+     "values": {
+      "text": "Were you born in Ohio ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40168",
+     "values": {
+      "text": "Do you own a car ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40169",
+     "values": {
+      "text": "Do you have a pet ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40170",
+     "values": {
+      "text": "Is your mother’s name Mary ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40171",
+     "values": {
+      "text": "Did you go to college ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40172",
+     "values": {
+      "text": "Are you left-handed ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40173",
+     "values": {
+      "text": "Do you wear glasses ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40174",
+     "values": {
+      "text": "Have you been to Europe ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40175",
+     "values": {
+      "text": "Do you speak Spanish ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40176",
+     "values": {
+      "text": "Is your favourite colour blue ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40177",
+     "values": {
+      "text": "Do you play an instrument ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40178",
+     "values": {
+      "text": "Were you born before 1990 ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40179",
+     "values": {
+      "text": "Do you have children ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40180",
+     "values": {
+      "text": "Have you lived abroad ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40181",
+     "values": {
+      "text": "Do you drink coffee ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40182",
+     "values": {
+      "text": "Is your birthday in summer ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40183",
+     "values": {
+      "text": "Do you live alone ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40184",
+     "values": {
+      "text": "Did you grow up on a farm ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40185",
+     "values": {
+      "text": "Do you have a middle name ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40186",
+     "values": {
+      "text": "Have you broken a bone ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40187",
+     "values": {
+      "text": "Can you swim ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40188",
+     "values": {
+      "text": "Do you like spicy food ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40189",
+     "values": {
+      "text": "Have you flown in a plane ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40190",
+     "values": {
+      "text": "Is your first name longer than five letters ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40191",
+     "values": {
+      "text": "Do you own a bicycle ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40192",
+     "values": {
+      "text": "Did you play sports in school ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40193",
+     "values": {
+      "text": "Do you have a tattoo ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40194",
+     "values": {
+      "text": "Were you the oldest child ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40195",
+     "values": {
+      "text": "Do you cook at home ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40196",
+     "values": {
+      "text": "Have you seen the ocean ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40197",
+     "values": {
+      "text": "Do you work at a university ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40198",
+     "values": {
+      "text": "Do you have a garden ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40199",
+     "values": {
+      "text": "Have you run a marathon ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40200",
+     "values": {
+      "text": "Do you read before bed ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40201",
+     "values": {
+      "text": "Do you live near a river ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40202",
+     "values": {
+      "text": "Are you uncomfortable ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40203",
+     "values": {
+      "text": "Are you tired ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40204",
+     "values": {
+      "text": "Do you feel calm ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40205",
+     "values": {
+      "text": "Are you hungry ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40206",
+     "values": {
+      "text": "Are you cold ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40207",
+     "values": {
+      "text": "Are you thirsty ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40208",
+     "values": {
+      "text": "Are you bored ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40209",
+     "values": {
+      "text": "Do you feel anxious ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40210",
+     "values": {
+      "text": "Are you happy right now ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40211",
+     "values": {
+      "text": "Are you relaxed ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40212",
+     "values": {
+      "text": "Do you feel sleepy ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40213",
+     "values": {
+      "text": "Are you warm ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40214",
+     "values": {
+      "text": "Do you feel restless ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40215",
+     "values": {
+      "text": "Are you in pain ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40216",
+     "values": {
+      "text": "Do you feel alert ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40217",
+     "values": {
+      "text": "Are you stressed ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40218",
+     "values": {
+      "text": "Do you feel content ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40219",
+     "values": {
+      "text": "Are you nervous ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40220",
+     "values": {
+      "text": "Do you feel focused ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40221",
+     "values": {
+      "text": "Are you excited ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40222",
+     "values": {
+      "text": "Do you feel sad ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40223",
+     "values": {
+      "text": "Are you comfortable ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40224",
+     "values": {
+      "text": "Do you feel rested ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40225",
+     "values": {
+      "text": "Are you frustrated ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40226",
+     "values": {
+      "text": "Do you feel safe ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40227",
+     "values": {
+      "text": "Are you annoyed ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40228",
+     "values": {
+      "text": "Do you feel energetic ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40229",
+     "values": {
+      "text": "Are you worried ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40230",
+     "values": {
+      "text": "Do you feel peaceful ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40231",
+     "values": {
+      "text": "Are you itchy ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40232",
+     "values": {
+      "text": "Do you feel dizzy ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40233",
+     "values": {
+      "text": "Are you lonely ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40234",
+     "values": {
+      "text": "Do you feel confident ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40235",
+     "values": {
+      "text": "Are you impatient ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40236",
+     "values": {
+      "text": "Do you feel cheerful ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40237",
+     "values": {
+      "text": "Are you curious ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40238",
+     "values": {
+      "text": "Do you feel heavy ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40239",
+     "values": {
+      "text": "Are you distracted ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40240",
+     "values": {
+      "text": "Do you feel hopeful ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40241",
+     "values": {
+      "text": "Are you sore ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_v40242",
+     "values": {
+      "text": "Is a whale a fish ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40243",
+     "values": {
+      "text": "Is a tomato a vegetable ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40244",
+     "values": {
+      "text": "Is a bat a bird ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40245",
+     "values": {
+      "text": "Is a peanut a nut ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40246",
+     "values": {
+      "text": "Is Pluto a planet ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40247",
+     "values": {
+      "text": "Is a strawberry a berry ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40248",
+     "values": {
+      "text": "Is a hot dog a sandwich ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40249",
+     "values": {
+      "text": "Is glass a liquid ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40250",
+     "values": {
+      "text": "Is a virus alive ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40251",
+     "values": {
+      "text": "Is a cucumber a fruit ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40252",
+     "values": {
+      "text": "Is a koala a bear ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40253",
+     "values": {
+      "text": "Is a jellyfish a fish ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40254",
+     "values": {
+      "text": "Is a starfish a fish ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40255",
+     "values": {
+      "text": "Is a seahorse a fish ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40256",
+     "values": {
+      "text": "Is a pumpkin a fruit ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40257",
+     "values": {
+      "text": "Is a mushroom a plant ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40258",
+     "values": {
+      "text": "Is coffee a bean ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40259",
+     "values": {
+      "text": "Is soup a drink ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40260",
+     "values": {
+      "text": "Is cereal a soup ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40261",
+     "values": {
+      "text": "Is a dolphin a fish ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40262",
+     "values": {
+      "text": "Is a pickle a vegetable ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40263",
+     "values": {
+      "text": "Is a coconut a nut ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40264",
+     "values": {
+      "text": "Is a cashew a nut ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40265",
+     "values": {
+      "text": "Is a tortoise a turtle ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40266",
+     "values": {
+      "text": "Is chess a sport ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40267",
+     "values": {
+      "text": "Is a tablet a computer ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40268",
+     "values": {
+      "text": "Is a moth a butterfly ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40269",
+     "values": {
+      "text": "Is rice a grass ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40270",
+     "values": {
+      "text": "Is a banana a herb ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_v40271",
+     "values": {
+      "text": "Is a crocodile a dinosaur ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    }
+   ]
+  }
+ ],
+ "trial_types": [
+  {
+   "id": "tt_v40282",
+   "name": "Q · General Knowledge",
+   "color": "#4c78a8",
+   "notes": "Standard question, General Knowledge only; yes and no balanced within the category.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40274",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40273",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40275",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40272",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40277",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40276",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40279",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40278",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40281",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40280",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40293",
+   "name": "Q · Arithmetic",
+   "color": "#f58518",
+   "notes": "Standard question, Arithmetic only; yes and no balanced within the category.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "Arithmetic"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40285",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40284",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40286",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40283",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40288",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40287",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40290",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40289",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40292",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40291",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40304",
+   "name": "Q · Rhyme Judgment",
+   "color": "#54a24b",
+   "notes": "Standard question, Rhyme Judgment only; yes and no balanced within the category.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "Rhyme Judgment"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40296",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40295",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40297",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40294",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40299",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40298",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40301",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40300",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40303",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40302",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40315",
+   "name": "Q · Category",
+   "color": "#e45756",
+   "notes": "Standard question, Category only; yes and no balanced within the category.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "Category"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40307",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40306",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40308",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40305",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40310",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40309",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40312",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40311",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40314",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40313",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40326",
+   "name": "Q · Biographical",
+   "color": "#72b7b2",
+   "notes": "Standard question, Biographical only; yes and no balanced within the category.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "Biographical"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40318",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40317",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40319",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40316",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40321",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40320",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40323",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40322",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40325",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40324",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40337",
+   "name": "Q · Emotional",
+   "color": "#b279a2",
+   "notes": "Standard question, Emotional only; yes and no balanced within the category.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40329",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40328",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40330",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40327",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40332",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40331",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40334",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40333",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40336",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40335",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40349",
+   "name": "Control · Opposite answer",
+   "color": "#d62728",
+   "notes": "Answer the opposite of the true answer: the yes/no word without its meaning.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "category",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40341",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40340",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40342",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40338",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      },
+      {
+       "id": "l_v40339",
+       "kind": "text",
+       "text": "Answer: the opposite",
+       "pos": [
+        0,
+        -0.15
+       ],
+       "height": 0.04,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40344",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40343",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40346",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40345",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40348",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40347",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40361",
+   "name": "Control · Neutral (ready)",
+   "color": "#17becf",
+   "notes": "Read the question, answer the constant word \"ready\".",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "category",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40353",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40352",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40354",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40350",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      },
+      {
+       "id": "l_v40351",
+       "kind": "text",
+       "text": "Answer: ready",
+       "pos": [
+        0,
+        -0.15
+       ],
+       "height": 0.04,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40356",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40355",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40358",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40357",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40360",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40359",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40373",
+   "name": "Control · No answer",
+   "color": "#7f7f7f",
+   "notes": "Read the question only, no inner speech.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "category",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40365",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40364",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40366",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40362",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      },
+      {
+       "id": "l_v40363",
+       "kind": "text",
+       "text": "Read only – no answer",
+       "pos": [
+        0,
+        -0.15
+       ],
+       "height": 0.04,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40368",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40367",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40370",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40369",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40372",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40371",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40384",
+   "name": "Control · No prompt – yes",
+   "color": "#2ca02c",
+   "notes": "No question to read; answer \"yes\".",
+   "list": "",
+   "filter": {
+    "column": "",
+    "values": []
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40376",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40375",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40377",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40374",
+       "kind": "text",
+       "text": "Answer: yes",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40379",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40378",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40381",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40380",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40383",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40382",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40395",
+   "name": "Control · No prompt – no",
+   "color": "#8c564b",
+   "notes": "No question to read; answer \"no\".",
+   "list": "",
+   "filter": {
+    "column": "",
+    "values": []
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40387",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40386",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40388",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40385",
+       "kind": "text",
+       "text": "Answer: no",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40390",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40389",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40392",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40391",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40394",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40393",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40406",
+   "name": "Control · Ambiguous",
+   "color": "#bcbd22",
+   "notes": "Questions with no clear yes/no answer (whale/fish).",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "Ambiguous Category"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40398",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40397",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40399",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40396",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40401",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40400",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40403",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40402",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40405",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40404",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40419",
+   "name": "Check · Button press",
+   "color": "#393b79",
+   "notes": "A standard question, then the answer on the button box (1 = yes, 2 = no) to check covert answers.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "category",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40409",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40408",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40410",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40407",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40412",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40411",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40414",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40413",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40416",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40415",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40418",
+     "name": "Button",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_v40417",
+       "kind": "text",
+       "text": "1 = yes        2 = no",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.05,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [
+       "1",
+       "2"
+      ],
+      "ends_phase": true
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40430",
+   "name": "Aim 1 · Yes question",
+   "color": "#1f77b4",
+   "notes": "Aim 1 blocked design: only questions whose answer is yes.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "answer",
+    "values": [
+     "yes"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "category",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40422",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40421",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40423",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40420",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40425",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40424",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40427",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40426",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40429",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40428",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40441",
+   "name": "Aim 1 · No question",
+   "color": "#ff7f0e",
+   "notes": "Aim 1 blocked design: only questions whose answer is no.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "answer",
+    "values": [
+     "no"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "category",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40433",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40432",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40434",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40431",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40436",
+     "name": "Delay",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40435",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40438",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40437",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40440",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 5,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40439",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40448",
+   "name": "Localizer · yes",
+   "color": "#3182bd",
+   "notes": "Cued repetition block: repeat \"yes\" while the cross is shown.",
+   "list": "",
+   "filter": {
+    "column": "",
+    "values": []
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40443",
+     "name": "Cue",
+     "duration": {
+      "kind": "fixed",
+      "value": 2
+     },
+     "layers": [
+      {
+       "id": "l_v40442",
+       "kind": "text",
+       "text": "yes",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.1,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40445",
+     "name": "Repetition",
+     "duration": {
+      "kind": "fixed",
+      "value": 16
+     },
+     "layers": [
+      {
+       "id": "l_v40444",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40447",
+     "name": "Rest",
+     "duration": {
+      "kind": "fixed",
+      "value": 12
+     },
+     "layers": [
+      {
+       "id": "l_v40446",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40455",
+   "name": "Localizer · no",
+   "color": "#e6550d",
+   "notes": "Cued repetition block: repeat \"no\" while the cross is shown.",
+   "list": "",
+   "filter": {
+    "column": "",
+    "values": []
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40450",
+     "name": "Cue",
+     "duration": {
+      "kind": "fixed",
+      "value": 2
+     },
+     "layers": [
+      {
+       "id": "l_v40449",
+       "kind": "text",
+       "text": "no",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.1,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40452",
+     "name": "Repetition",
+     "duration": {
+      "kind": "fixed",
+      "value": 16
+     },
+     "layers": [
+      {
+       "id": "l_v40451",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40454",
+     "name": "Rest",
+     "duration": {
+      "kind": "fixed",
+      "value": 12
+     },
+     "layers": [
+      {
+       "id": "l_v40453",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40462",
+   "name": "Localizer · ready",
+   "color": "#31a354",
+   "notes": "Cued repetition block: repeat \"ready\" while the cross is shown.",
+   "list": "",
+   "filter": {
+    "column": "",
+    "values": []
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40457",
+     "name": "Cue",
+     "duration": {
+      "kind": "fixed",
+      "value": 2
+     },
+     "layers": [
+      {
+       "id": "l_v40456",
+       "kind": "text",
+       "text": "ready",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.1,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40459",
+     "name": "Repetition",
+     "duration": {
+      "kind": "fixed",
+      "value": 16
+     },
+     "layers": [
+      {
+       "id": "l_v40458",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40461",
+     "name": "Rest",
+     "duration": {
+      "kind": "fixed",
+      "value": 12
+     },
+     "layers": [
+      {
+       "id": "l_v40460",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  },
+  {
+   "id": "tt_v40473",
+   "name": "Aim 3 · Separated calibration",
+   "color": "#636363",
+   "notes": "Fully separated trial (long wait and ITI), for long-delay reference data and FIR timing.",
+   "list": "list_v40001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_v40465",
+     "name": "Fixation",
+     "duration": {
+      "kind": "geometric",
+      "min": 2,
+      "max": 6,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40464",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40466",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40463",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40468",
+     "name": "Long wait",
+     "duration": {
+      "kind": "geometric",
+      "min": 10,
+      "max": 14,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40467",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_v40470",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_v40469",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_v40472",
+     "name": "ITI",
+     "duration": {
+      "kind": "geometric",
+      "min": 8,
+      "max": 12,
+      "p": 0.5,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_v40471",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    }
+   ]
+  }
+ ],
+ "runs": [
+  {
+   "id": "run_v40476",
+   "name": "Aim 1 — Block localizer",
+   "notes": "Cued repetition blocks (yes / no / ready, 3 each, shuffled) for individual ROI definition.",
+   "tr": 2,
+   "dummy_volumes": -1,
+   "card": {
+    "id": "EPI-TR2000-Task",
+    "label": "Task EPI - TR 2000 ms",
+    "tr": 2,
+    "seconds": 1439.9
+   },
+   "instructions": {
+    "enabled": true,
+    "layers": [
+     {
+      "id": "l_v40477",
+      "kind": "text",
+      "text": "When a word appears, repeat it silently at a constant pace for as long as the large cross is shown.",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.04,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_in": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40478",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_out": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40479",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "id": "b_v40474",
+     "name": "Localizer",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40448",
+       "count": 3
+      },
+      {
+       "trial_type": "tt_v40455",
+       "count": 3
+      },
+      {
+       "trial_type": "tt_v40462",
+       "count": 3
+      }
+     ],
+     "rest_after": {
+      "seconds": 0,
+      "layers": [
+       {
+        "id": "l_v40475",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "run_v40488",
+   "name": "Aim 1 — Blocked questions",
+   "notes": "Affirmative answers first, then negative, then the neutral and read-only controls, with rests between blocks (Aim 1 approach).",
+   "tr": 2,
+   "dummy_volumes": -1,
+   "card": {
+    "id": "EPI-TR2000-Task",
+    "label": "Task EPI - TR 2000 ms",
+    "tr": 2,
+    "seconds": 1439.9
+   },
+   "instructions": {
+    "enabled": true,
+    "layers": [
+     {
+      "id": "l_v40489",
+      "kind": "text",
+      "text": "When the answer cue (cross) appears and for the entire duration it is shown, answer clearly and silently in your internal voice with a constant pacing of either \"yes, yes, yes …\" or \"no, no, no …\".\n\n\"Answer: ready\" – repeat \"ready\".   \"Answer: the opposite\" – repeat the opposite answer.\n\"Read only – no answer\" – just read, no inner speech.   \"1 = yes  2 = no\" – press the button.",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.04,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_in": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40490",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_out": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40491",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "id": "b_v40480",
+     "name": "Yes answers",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40430",
+       "count": 8
+      }
+     ],
+     "rest_after": {
+      "seconds": 16,
+      "layers": [
+       {
+        "id": "l_v40481",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    },
+    {
+     "id": "b_v40482",
+     "name": "No answers",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40441",
+       "count": 8
+      }
+     ],
+     "rest_after": {
+      "seconds": 16,
+      "layers": [
+       {
+        "id": "l_v40483",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    },
+    {
+     "id": "b_v40484",
+     "name": "Neutral (ready)",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40361",
+       "count": 4
+      }
+     ],
+     "rest_after": {
+      "seconds": 16,
+      "layers": [
+       {
+        "id": "l_v40485",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    },
+    {
+     "id": "b_v40486",
+     "name": "Read only",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40373",
+       "count": 4
+      }
+     ],
+     "rest_after": {
+      "seconds": 0,
+      "layers": [
+       {
+        "id": "l_v40487",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "run_v40498",
+   "name": "Aim 2 — Question run",
+   "notes": "Event-related single-trial run for LSS betas: each third has one trial of every standard category plus controls; 31 trials.",
+   "tr": 1,
+   "dummy_volumes": -1,
+   "card": {
+    "id": "EPI-TR1000-Task",
+    "label": "Task EPI - TR 1000 ms",
+    "tr": 1,
+    "seconds": 1439.9
+   },
+   "instructions": {
+    "enabled": true,
+    "layers": [
+     {
+      "id": "l_v40499",
+      "kind": "text",
+      "text": "When the answer cue (cross) appears and for the entire duration it is shown, answer clearly and silently in your internal voice with a constant pacing of either \"yes, yes, yes …\" or \"no, no, no …\".\n\n\"Answer: ready\" – repeat \"ready\".   \"Answer: the opposite\" – repeat the opposite answer.\n\"Read only – no answer\" – just read, no inner speech.   \"1 = yes  2 = no\" – press the button.",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.04,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_in": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40500",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_out": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40501",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "id": "b_v40492",
+     "name": "Third 1",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40282",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40293",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40304",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40315",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40326",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40337",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40349",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40361",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40373",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40384",
+       "count": 1
+      }
+     ],
+     "rest_after": {
+      "seconds": 12,
+      "layers": [
+       {
+        "id": "l_v40493",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    },
+    {
+     "id": "b_v40494",
+     "name": "Third 2",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40282",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40293",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40304",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40315",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40326",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40337",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40349",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40361",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40373",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40395",
+       "count": 1
+      }
+     ],
+     "rest_after": {
+      "seconds": 12,
+      "layers": [
+       {
+        "id": "l_v40495",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    },
+    {
+     "id": "b_v40496",
+     "name": "Third 3",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40282",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40293",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40304",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40315",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40326",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40337",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40349",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40361",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40406",
+       "count": 2
+      },
+      {
+       "trial_type": "tt_v40419",
+       "count": 1
+      }
+     ],
+     "rest_after": {
+      "seconds": 0,
+      "layers": [
+       {
+        "id": "l_v40497",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "run_v40508",
+   "name": "Aim 3 — Compressed question run",
+   "notes": "The Aim 2 mix at TR 0.8 with the compressed prompt-to-cue delay; the bulk of Aim 3 data for the spatiotemporal models.",
+   "tr": 0.8,
+   "dummy_volumes": -1,
+   "card": {
+    "id": "EPI-TR800-Task",
+    "label": "Task EPI - TR 800 ms",
+    "tr": 0.8,
+    "seconds": 1536.7
+   },
+   "instructions": {
+    "enabled": true,
+    "layers": [
+     {
+      "id": "l_v40509",
+      "kind": "text",
+      "text": "When the answer cue (cross) appears and for the entire duration it is shown, answer clearly and silently in your internal voice with a constant pacing of either \"yes, yes, yes …\" or \"no, no, no …\".\n\n\"Answer: ready\" – repeat \"ready\".   \"Answer: the opposite\" – repeat the opposite answer.\n\"Read only – no answer\" – just read, no inner speech.   \"1 = yes  2 = no\" – press the button.",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.04,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_in": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40510",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_out": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40511",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "id": "b_v40502",
+     "name": "Third 1",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40282",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40293",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40304",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40315",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40326",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40337",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40349",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40361",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40373",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40384",
+       "count": 1
+      }
+     ],
+     "rest_after": {
+      "seconds": 12,
+      "layers": [
+       {
+        "id": "l_v40503",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    },
+    {
+     "id": "b_v40504",
+     "name": "Third 2",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40282",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40293",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40304",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40315",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40326",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40337",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40349",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40361",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40373",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40395",
+       "count": 1
+      }
+     ],
+     "rest_after": {
+      "seconds": 12,
+      "layers": [
+       {
+        "id": "l_v40505",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    },
+    {
+     "id": "b_v40506",
+     "name": "Third 3",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40282",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40293",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40304",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40315",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40326",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40337",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40349",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40361",
+       "count": 1
+      },
+      {
+       "trial_type": "tt_v40406",
+       "count": 2
+      },
+      {
+       "trial_type": "tt_v40419",
+       "count": 1
+      }
+     ],
+     "rest_after": {
+      "seconds": 0,
+      "layers": [
+       {
+        "id": "l_v40507",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "run_v40514",
+   "name": "Aim 3 — Separated calibration run",
+   "notes": "Session opener: 8 fully separated trials (long jittered wait and ITI), the long-delay reference and FIR timing data.",
+   "tr": 0.8,
+   "dummy_volumes": -1,
+   "card": {
+    "id": "EPI-TR800-Task",
+    "label": "Task EPI - TR 800 ms",
+    "tr": 0.8,
+    "seconds": 1536.7
+   },
+   "instructions": {
+    "enabled": true,
+    "layers": [
+     {
+      "id": "l_v40515",
+      "kind": "text",
+      "text": "When the answer cue (cross) appears and for the entire duration it is shown, answer clearly and silently in your internal voice with a constant pacing of either \"yes, yes, yes …\" or \"no, no, no …\".\n\n\"Answer: ready\" – repeat \"ready\".   \"Answer: the opposite\" – repeat the opposite answer.\n\"Read only – no answer\" – just read, no inner speech.   \"1 = yes  2 = no\" – press the button.",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.04,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_in": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40516",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_out": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_v40517",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "id": "b_v40512",
+     "name": "Calibration",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_v40473",
+       "count": 8
+      }
+     ],
+     "rest_after": {
+      "seconds": 0,
+      "layers": [
+       {
+        "id": "l_v40513",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "sessions": [
+  {
+   "id": "ses_v40518",
+   "name": "Aim 1 — GLM session",
+   "count": 4,
+   "notes": "Localizers and the blocked yes/no design for the univariate GLM and individual ROIs; one event-related run as early Aim 2 data.",
+   "auto_break_minutes": 1,
+   "steps": [
+    {
+     "id": "st_v40519",
+     "kind": "break",
+     "run": "",
+     "name": "MRI safety screening",
+     "minutes": 6,
+     "card": null
+    },
+    {
+     "id": "st_v40520",
+     "kind": "break",
+     "run": "",
+     "name": "Positioning, coil, respiration belt and pulse oximeter",
+     "minutes": 5,
+     "card": null
+    },
+    {
+     "id": "st_v40521",
+     "kind": "break",
+     "run": "",
+     "name": "Cadence reminder",
+     "minutes": 4,
+     "card": null
+    },
+    {
+     "id": "st_v40522",
+     "kind": "scan",
+     "run": "",
+     "name": "Survey-Localizer",
+     "minutes": 0.45,
+     "card": {
+      "id": "Survey-Localizer",
+      "label": "Survey / Localizer",
+      "tr": 0,
+      "seconds": 27
+     }
+    },
+    {
+     "id": "st_v40523",
+     "kind": "scan",
+     "run": "",
+     "name": "SENSE-Reference",
+     "minutes": 0.41,
+     "card": {
+      "id": "SENSE-Reference",
+      "label": "SENSE Reference",
+      "tr": 0,
+      "seconds": 24.4
+     }
+    },
+    {
+     "id": "st_v40524",
+     "kind": "scan",
+     "run": "",
+     "name": "T1-Anatomical-MPRAGE",
+     "minutes": 6.42,
+     "card": {
+      "id": "T1-Anatomical-MPRAGE",
+      "label": "T1 Anatomical (MPRAGE)",
+      "tr": 0,
+      "seconds": 384.9
+     }
+    },
+    {
+     "id": "st_v40525",
+     "kind": "scan",
+     "run": "",
+     "name": "EPI-SBRef",
+     "minutes": 0.46,
+     "card": {
+      "id": "EPI-SBRef",
+      "label": "Single-Band Reference",
+      "tr": 4,
+      "seconds": 27.9
+     }
+    },
+    {
+     "id": "st_v40526",
+     "kind": "scan",
+     "run": "",
+     "name": "Field-Map-Reverse-PE",
+     "minutes": 0.46,
+     "card": {
+      "id": "Field-Map-Reverse-PE",
+      "label": "Field Map (Reverse PE)",
+      "tr": 4,
+      "seconds": 27.9
+     }
+    },
+    {
+     "id": "st_v40527",
+     "kind": "run",
+     "run": "run_v40476",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40528",
+     "kind": "run",
+     "run": "run_v40476",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40529",
+     "kind": "run",
+     "run": "run_v40488",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40530",
+     "kind": "run",
+     "run": "run_v40488",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40531",
+     "kind": "run",
+     "run": "run_v40488",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40532",
+     "kind": "run",
+     "run": "run_v40498",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40533",
+     "kind": "break",
+     "run": "",
+     "name": "Debrief: unanswerable trials, state (Emotional) answers",
+     "minutes": 3,
+     "card": null
+    }
+   ]
+  },
+  {
+   "id": "ses_v40534",
+   "name": "Aim 2 — MVPA session",
+   "count": 34,
+   "notes": "Five event-related question runs at TR 1.0 for single-trial classifiers.",
+   "auto_break_minutes": 1,
+   "steps": [
+    {
+     "id": "st_v40535",
+     "kind": "break",
+     "run": "",
+     "name": "MRI safety screening",
+     "minutes": 6,
+     "card": null
+    },
+    {
+     "id": "st_v40536",
+     "kind": "break",
+     "run": "",
+     "name": "Positioning, coil, respiration belt and pulse oximeter",
+     "minutes": 5,
+     "card": null
+    },
+    {
+     "id": "st_v40537",
+     "kind": "break",
+     "run": "",
+     "name": "Cadence reminder",
+     "minutes": 4,
+     "card": null
+    },
+    {
+     "id": "st_v40538",
+     "kind": "scan",
+     "run": "",
+     "name": "Survey-Localizer",
+     "minutes": 0.45,
+     "card": {
+      "id": "Survey-Localizer",
+      "label": "Survey / Localizer",
+      "tr": 0,
+      "seconds": 27
+     }
+    },
+    {
+     "id": "st_v40539",
+     "kind": "scan",
+     "run": "",
+     "name": "SENSE-Reference",
+     "minutes": 0.41,
+     "card": {
+      "id": "SENSE-Reference",
+      "label": "SENSE Reference",
+      "tr": 0,
+      "seconds": 24.4
+     }
+    },
+    {
+     "id": "st_v40540",
+     "kind": "scan",
+     "run": "",
+     "name": "T1-Anatomical-MPRAGE",
+     "minutes": 6.42,
+     "card": {
+      "id": "T1-Anatomical-MPRAGE",
+      "label": "T1 Anatomical (MPRAGE)",
+      "tr": 0,
+      "seconds": 384.9
+     }
+    },
+    {
+     "id": "st_v40541",
+     "kind": "scan",
+     "run": "",
+     "name": "EPI-SBRef",
+     "minutes": 0.46,
+     "card": {
+      "id": "EPI-SBRef",
+      "label": "Single-Band Reference",
+      "tr": 4,
+      "seconds": 27.9
+     }
+    },
+    {
+     "id": "st_v40542",
+     "kind": "scan",
+     "run": "",
+     "name": "Field-Map-Reverse-PE",
+     "minutes": 0.46,
+     "card": {
+      "id": "Field-Map-Reverse-PE",
+      "label": "Field Map (Reverse PE)",
+      "tr": 4,
+      "seconds": 27.9
+     }
+    },
+    {
+     "id": "st_v40543",
+     "kind": "run",
+     "run": "run_v40498",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40544",
+     "kind": "run",
+     "run": "run_v40498",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40545",
+     "kind": "run",
+     "run": "run_v40498",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40546",
+     "kind": "run",
+     "run": "run_v40498",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40547",
+     "kind": "run",
+     "run": "run_v40498",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40548",
+     "kind": "break",
+     "run": "",
+     "name": "Debrief: unanswerable trials, state (Emotional) answers",
+     "minutes": 3,
+     "card": null
+    }
+   ]
+  },
+  {
+   "id": "ses_v40549",
+   "name": "Aim 3 — Time-series session",
+   "count": 32,
+   "notes": "A separated calibration run, then five compressed question runs at TR 0.8.",
+   "auto_break_minutes": 1,
+   "steps": [
+    {
+     "id": "st_v40550",
+     "kind": "break",
+     "run": "",
+     "name": "MRI safety screening",
+     "minutes": 6,
+     "card": null
+    },
+    {
+     "id": "st_v40551",
+     "kind": "break",
+     "run": "",
+     "name": "Positioning, coil, respiration belt and pulse oximeter",
+     "minutes": 5,
+     "card": null
+    },
+    {
+     "id": "st_v40552",
+     "kind": "break",
+     "run": "",
+     "name": "Cadence reminder",
+     "minutes": 4,
+     "card": null
+    },
+    {
+     "id": "st_v40553",
+     "kind": "scan",
+     "run": "",
+     "name": "Survey-Localizer",
+     "minutes": 0.45,
+     "card": {
+      "id": "Survey-Localizer",
+      "label": "Survey / Localizer",
+      "tr": 0,
+      "seconds": 27
+     }
+    },
+    {
+     "id": "st_v40554",
+     "kind": "scan",
+     "run": "",
+     "name": "SENSE-Reference",
+     "minutes": 0.41,
+     "card": {
+      "id": "SENSE-Reference",
+      "label": "SENSE Reference",
+      "tr": 0,
+      "seconds": 24.4
+     }
+    },
+    {
+     "id": "st_v40555",
+     "kind": "scan",
+     "run": "",
+     "name": "T1-Anatomical-MPRAGE",
+     "minutes": 6.42,
+     "card": {
+      "id": "T1-Anatomical-MPRAGE",
+      "label": "T1 Anatomical (MPRAGE)",
+      "tr": 0,
+      "seconds": 384.9
+     }
+    },
+    {
+     "id": "st_v40556",
+     "kind": "scan",
+     "run": "",
+     "name": "EPI-SBRef",
+     "minutes": 0.46,
+     "card": {
+      "id": "EPI-SBRef",
+      "label": "Single-Band Reference",
+      "tr": 4,
+      "seconds": 27.9
+     }
+    },
+    {
+     "id": "st_v40557",
+     "kind": "scan",
+     "run": "",
+     "name": "Field-Map-Reverse-PE",
+     "minutes": 0.46,
+     "card": {
+      "id": "Field-Map-Reverse-PE",
+      "label": "Field Map (Reverse PE)",
+      "tr": 4,
+      "seconds": 27.9
+     }
+    },
+    {
+     "id": "st_v40558",
+     "kind": "run",
+     "run": "run_v40514",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40559",
+     "kind": "run",
+     "run": "run_v40508",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40560",
+     "kind": "run",
+     "run": "run_v40508",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40561",
+     "kind": "run",
+     "run": "run_v40508",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40562",
+     "kind": "run",
+     "run": "run_v40508",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40563",
+     "kind": "run",
+     "run": "run_v40508",
+     "name": "",
+     "minutes": 0,
+     "card": null
+    },
+    {
+     "id": "st_v40564",
+     "kind": "break",
+     "run": "",
+     "name": "Debrief: unanswerable trials, state (Emotional) answers",
+     "minutes": 3,
+     "card": null
+    }
+   ]
+  }
+ ]
+}

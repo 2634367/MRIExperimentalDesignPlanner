@@ -1,0 +1,1406 @@
+{
+ "format_version": 1,
+ "name": "Inner speech – standard and control questions",
+ "notes": "Built from the Standard Questions and Control Questions tabs of the Inner Speech preliminary doc.",
+ "scanner": {
+  "tr": 2,
+  "trigger_key": "5",
+  "dummy_volumes": 4
+ },
+ "budget": {
+  "hours_available": 120,
+  "participants": 1
+ },
+ "lists": [
+  {
+   "id": "list_ex0001",
+   "name": "Questions",
+   "notes": "Starter items: the first in each category is the doc's example; replace the rest with the real bank. Fill Biographical and Emotional answers after session 1 so balancing by answer stays yes/no.",
+   "columns": [
+    {
+     "key": "text",
+     "label": "Text",
+     "type": "text"
+    },
+    {
+     "key": "category",
+     "label": "Category",
+     "type": "text"
+    },
+    {
+     "key": "answer",
+     "label": "Answer",
+     "type": "text"
+    }
+   ],
+   "items": [
+    {
+     "id": "i_ex0002",
+     "values": {
+      "text": "Is fire hot ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0003",
+     "values": {
+      "text": "Is ice warm ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0004",
+     "values": {
+      "text": "Is the sky blue ?",
+      "category": "General Knowledge",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0005",
+     "values": {
+      "text": "Do fish breathe air ?",
+      "category": "General Knowledge",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0006",
+     "values": {
+      "text": "Is 8 odd ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0007",
+     "values": {
+      "text": "Is 7 odd ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0008",
+     "values": {
+      "text": "Is 3 plus 4 seven ?",
+      "category": "Arithmetic",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0009",
+     "values": {
+      "text": "Is 9 minus 5 two ?",
+      "category": "Arithmetic",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0010",
+     "values": {
+      "text": "Does cat rhyme with hat ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0011",
+     "values": {
+      "text": "Does dog rhyme with cup ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0012",
+     "values": {
+      "text": "Does tree rhyme with sea ?",
+      "category": "Rhyme Judgment",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0013",
+     "values": {
+      "text": "Does book rhyme with lamp ?",
+      "category": "Rhyme Judgment",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0014",
+     "values": {
+      "text": "Is a triangle a shape ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0015",
+     "values": {
+      "text": "Is a carrot a vehicle ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0016",
+     "values": {
+      "text": "Is a rose a flower ?",
+      "category": "Category",
+      "answer": "yes"
+     }
+    },
+    {
+     "id": "i_ex0017",
+     "values": {
+      "text": "Is a hammer an animal ?",
+      "category": "Category",
+      "answer": "no"
+     }
+    },
+    {
+     "id": "i_ex0018",
+     "values": {
+      "text": "Is your father’s name Paul ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0019",
+     "values": {
+      "text": "Were you born in winter ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0020",
+     "values": {
+      "text": "Do you have a sister ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0021",
+     "values": {
+      "text": "Do you live in a city ?",
+      "category": "Biographical",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0022",
+     "values": {
+      "text": "Are you uncomfortable ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0023",
+     "values": {
+      "text": "Are you tired ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0024",
+     "values": {
+      "text": "Do you feel calm ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0025",
+     "values": {
+      "text": "Are you hungry ?",
+      "category": "Emotional",
+      "answer": ""
+     }
+    },
+    {
+     "id": "i_ex0026",
+     "values": {
+      "text": "Is a whale a fish ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_ex0027",
+     "values": {
+      "text": "Is a tomato a vegetable ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    },
+    {
+     "id": "i_ex0028",
+     "values": {
+      "text": "Is a bat a bird ?",
+      "category": "Ambiguous Category",
+      "answer": "ambiguous"
+     }
+    }
+   ]
+  }
+ ],
+ "trial_types": [
+  {
+   "id": "tt_ex0030",
+   "name": "Standard",
+   "color": "#4c78a8",
+   "notes": "Every standard category. Duplicate with a narrower filter for one condition per category.",
+   "list": "list_ex0001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "answer",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_ex0032",
+     "name": "ITI",
+     "duration": {
+      "kind": "uniform",
+      "min": 3,
+      "max": 7,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0031",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0033",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_ex0029",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_ex0035",
+     "name": "Delay",
+     "duration": {
+      "kind": "uniform",
+      "min": 2,
+      "max": 6,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0034",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0037",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_ex0036",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    }
+   ]
+  },
+  {
+   "id": "tt_ex0039",
+   "name": "No prompt – yes",
+   "color": "#54a24b",
+   "notes": "Control: no question; answer \"yes\" through the cue.",
+   "list": "",
+   "filter": {
+    "column": "",
+    "values": []
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_ex0041",
+     "name": "ITI",
+     "duration": {
+      "kind": "uniform",
+      "min": 3,
+      "max": 7,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0040",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0042",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_ex0038",
+       "kind": "text",
+       "text": "Answer: yes",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_ex0044",
+     "name": "Delay",
+     "duration": {
+      "kind": "uniform",
+      "min": 2,
+      "max": 6,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0043",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0046",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_ex0045",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    }
+   ]
+  },
+  {
+   "id": "tt_ex0048",
+   "name": "No prompt – no",
+   "color": "#e45756",
+   "notes": "Control: no question; answer \"no\" through the cue.",
+   "list": "",
+   "filter": {
+    "column": "",
+    "values": []
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_ex0050",
+     "name": "ITI",
+     "duration": {
+      "kind": "uniform",
+      "min": 3,
+      "max": 7,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0049",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0051",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_ex0047",
+       "kind": "text",
+       "text": "Answer: no",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_ex0053",
+     "name": "Delay",
+     "duration": {
+      "kind": "uniform",
+      "min": 2,
+      "max": 6,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0052",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0055",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_ex0054",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    }
+   ]
+  },
+  {
+   "id": "tt_ex0058",
+   "name": "Neutral word",
+   "color": "#72b7b2",
+   "notes": "Control: any question; answer \"ready\".",
+   "list": "list_ex0001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_ex0060",
+     "name": "ITI",
+     "duration": {
+      "kind": "uniform",
+      "min": 3,
+      "max": 7,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0059",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0061",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_ex0056",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      },
+      {
+       "id": "l_ex0057",
+       "kind": "text",
+       "text": "Answer: ready",
+       "pos": [
+        0,
+        -0.15
+       ],
+       "height": 0.04,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_ex0063",
+     "name": "Delay",
+     "duration": {
+      "kind": "uniform",
+      "min": 2,
+      "max": 6,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0062",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0065",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_ex0064",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    }
+   ]
+  },
+  {
+   "id": "tt_ex0068",
+   "name": "Opposite answer",
+   "color": "#f58518",
+   "notes": "Control: any question; answer the opposite of the true answer.",
+   "list": "list_ex0001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_ex0070",
+     "name": "ITI",
+     "duration": {
+      "kind": "uniform",
+      "min": 3,
+      "max": 7,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0069",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0071",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_ex0066",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      },
+      {
+       "id": "l_ex0067",
+       "kind": "text",
+       "text": "Answer: the opposite",
+       "pos": [
+        0,
+        -0.15
+       ],
+       "height": 0.04,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_ex0073",
+     "name": "Delay",
+     "duration": {
+      "kind": "uniform",
+      "min": 2,
+      "max": 6,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0072",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0075",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_ex0074",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    }
+   ]
+  },
+  {
+   "id": "tt_ex0078",
+   "name": "No answer",
+   "color": "#b279a2",
+   "notes": "Control: read the question, no inner speech.",
+   "list": "list_ex0001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "General Knowledge",
+     "Arithmetic",
+     "Rhyme Judgment",
+     "Category",
+     "Biographical",
+     "Emotional"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_ex0080",
+     "name": "ITI",
+     "duration": {
+      "kind": "uniform",
+      "min": 3,
+      "max": 7,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0079",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0081",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_ex0076",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      },
+      {
+       "id": "l_ex0077",
+       "kind": "text",
+       "text": "Read only – no answer",
+       "pos": [
+        0,
+        -0.15
+       ],
+       "height": 0.04,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_ex0083",
+     "name": "Delay",
+     "duration": {
+      "kind": "uniform",
+      "min": 2,
+      "max": 6,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0082",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0085",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_ex0084",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    }
+   ]
+  },
+  {
+   "id": "tt_ex0087",
+   "name": "Ambiguous",
+   "color": "#9d755d",
+   "notes": "Control: questions with no clear yes/no answer.",
+   "list": "list_ex0001",
+   "filter": {
+    "column": "category",
+    "values": [
+     "Ambiguous Category"
+    ]
+   },
+   "order": "shuffle",
+   "balance_by": "",
+   "no_repeat": "session",
+   "phases": [
+    {
+     "id": "ph_ex0089",
+     "name": "ITI",
+     "duration": {
+      "kind": "uniform",
+      "min": 3,
+      "max": 7,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0088",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0090",
+     "name": "Prompt",
+     "duration": {
+      "kind": "fixed",
+      "value": 3
+     },
+     "layers": [
+      {
+       "id": "l_ex0086",
+       "kind": "text",
+       "text": "{text}",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.06,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    },
+    {
+     "id": "ph_ex0092",
+     "name": "Delay",
+     "duration": {
+      "kind": "uniform",
+      "min": 2,
+      "max": 6,
+      "snap_to_tr": false
+     },
+     "layers": [
+      {
+       "id": "l_ex0091",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.08,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": false
+    },
+    {
+     "id": "ph_ex0094",
+     "name": "Answer",
+     "duration": {
+      "kind": "fixed",
+      "value": 4
+     },
+     "layers": [
+      {
+       "id": "l_ex0093",
+       "kind": "text",
+       "text": "+",
+       "pos": [
+        0,
+        0
+       ],
+       "height": 0.16,
+       "color": "",
+       "wrap": 1.4,
+       "bold": false
+      }
+     ],
+     "response": {
+      "keys": [],
+      "ends_phase": false
+     },
+     "modelled": true
+    }
+   ]
+  }
+ ],
+ "runs": [
+  {
+   "id": "run_ex0095",
+   "name": "Questions run",
+   "notes": "",
+   "tr": 0,
+   "dummy_volumes": -1,
+   "card": null,
+   "instructions": {
+    "enabled": true,
+    "layers": [
+     {
+      "id": "l_ex0096",
+      "kind": "text",
+      "text": "When the answer cue (cross) appears and for the entire duration it is shown, answer clearly and silently in your internal voice with a constant pacing of either \"yes, yes, yes …\" or \"no, no, no …\".",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.045,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_in": {
+    "seconds": 10,
+    "layers": [
+     {
+      "id": "l_ex0097",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "lead_out": {
+    "seconds": 12,
+    "layers": [
+     {
+      "id": "l_ex0098",
+      "kind": "text",
+      "text": "+",
+      "pos": [
+       0,
+       0
+      ],
+      "height": 0.08,
+      "color": "",
+      "wrap": 1.4,
+      "bold": false
+     }
+    ]
+   },
+   "blocks": [
+    {
+     "id": "b_ex0099",
+     "name": "",
+     "repeat": 1,
+     "order": "shuffle",
+     "mix": [
+      {
+       "trial_type": "tt_ex0030",
+       "count": 12
+      },
+      {
+       "trial_type": "tt_ex0039",
+       "count": 2
+      },
+      {
+       "trial_type": "tt_ex0048",
+       "count": 2
+      },
+      {
+       "trial_type": "tt_ex0058",
+       "count": 2
+      },
+      {
+       "trial_type": "tt_ex0068",
+       "count": 2
+      },
+      {
+       "trial_type": "tt_ex0078",
+       "count": 2
+      },
+      {
+       "trial_type": "tt_ex0087",
+       "count": 2
+      }
+     ],
+     "rest_after": {
+      "seconds": 0,
+      "layers": [
+       {
+        "id": "l_ex0100",
+        "kind": "text",
+        "text": "+",
+        "pos": [
+         0,
+         0
+        ],
+        "height": 0.08,
+        "color": "",
+        "wrap": 1.4,
+        "bold": false
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "sessions": [
+  {
+   "id": "ses_ex0101",
+   "name": "Scan session",
+   "count": 1,
+   "notes": "",
+   "auto_break_minutes": 0,
+   "steps": [
+    {
+     "id": "st_ex0102",
+     "kind": "break",
+     "run": "",
+     "name": "Setup and cadence reminder",
+     "minutes": 10,
+     "card": null
+    },
+    {
+     "id": "st_ex0103",
+     "kind": "scan",
+     "run": "",
+     "name": "T1",
+     "minutes": 6,
+     "card": null
+    },
+    {
+     "id": "st_ex0104",
+     "kind": "run",
+     "run": "run_ex0095",
+     "name": "",
+     "minutes": 5,
+     "card": null
+    }
+   ]
+  }
+ ]
+}
