@@ -58,7 +58,7 @@ def main(argv=None):
                 record = player.record
                 record["participant"] = args.participant or plan.get("participant") or ""
                 print(f"[saved] {log.write_run(name, record)}", flush=True)
-                print(f"[saved] {log.write_events(name, player.rows, plan["segments"])}", flush=True)
+                print(f"[saved] {log.write_events(name, player.rows, plan['segments'])}", flush=True)
                 log.log("run_end", aborted=record["aborted"], duration=record.get("duration"))
             if status:
                 print("[quit] escape pressed -- stopping", flush=True)
