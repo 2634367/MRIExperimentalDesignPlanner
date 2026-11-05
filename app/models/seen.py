@@ -113,9 +113,11 @@ def add_runs(store: Store, experiment_id: str, summaries: Any) -> int:
 
 
 def add_folder(store: Store, experiment_id: str, folder: Path) -> int:
-    """Everything a finished launch left in folder, which is <launch>/data."""
+    """Everything a finished launch left in folder, which is <launch>/data.
+    Run records sit in a folder per start of the runner, or directly in data
+    from before that; the BIDS sidecars beside them summarise to nothing."""
     added = 0
-    for path in sorted(folder.glob("*.json")):
+    for path in sorted(folder.rglob("*.json")):
         try:
             summary = summarise(json.loads(path.read_text(encoding="utf-8")))
         except (OSError, ValueError):

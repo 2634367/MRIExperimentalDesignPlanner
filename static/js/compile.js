@@ -226,7 +226,7 @@ const Compile = {
 
   header( doc , experiment , run , options ) {
     const scan = Timing.scan( doc , run.tr === undefined ? null : run );
-    return {
+    const header = {
       format: this.FORMAT,
       experiment: { id: experiment.id || "" , name: doc.name.slice( 0 , 200 ) },
       run: { id: run.id , name: ( run.name || "" ).slice( 0 , 200 ) , label: options.label },
@@ -237,6 +237,9 @@ const Compile = {
       display: { background: doc.display.background , text_color: doc.display.text_color , font: doc.display.font },
       keys: { quit: doc.keys.quit.length ? doc.keys.quit : [ "escape" ] , advance: doc.keys.advance.length ? doc.keys.advance : [ "space" ] },
     };
+    // Which saved version of the design this came from, for the run record.
+    if ( options.revision > 0 ) header.revision = options.revision;
+    return header;
   },
 
   finish( doc , plan , segments ) {
@@ -349,8 +352,14 @@ const Compile = {
     const visit = options.visit > 0 ? options.visit : doc.sessions.indexOf( session ) + 1;
     const sessionNumber = String( visit ).padStart( 2 , "0" );
     const plans = [];
-    Timing.activeSteps( session ).filter( ( step ) => step.kind === "run" ).forEach( ( step ) => {
-      const run = doc.runs.find( ( r ) => r.id === step.run );
+    Timing.items( doc , session ).forEach( ( entry ) => {
+      // A break belongs to the run before it: both players show it on the
+      // screen between that run and the next.
+      if ( entry.kind === "break" && plans.length ) {
+        const before = plans[ plans.length - 1 ];
+        before.break_after = this.round( ( before.break_after || 0 ) + entry.seconds.mean );
+      }
+      const run = entry.kind === "run" ? entry.run : null;
       if ( !run ) return;
       picker.newRun();
       const label = "ses-" + sessionNumber + "_run-" + String( plans.length + 1 ).padStart( 2 , "0" );
@@ -359,6 +368,8 @@ const Compile = {
       plan.visit = visit;
       plans.push( plan );
     } );
+    // A break after the last run has no next run to wait for.
+    if ( plans.length ) delete plans[ plans.length - 1 ].break_after;
     plans.forEach( ( plan ) => { plan.warnings = picker.warnings; } );
     return plans;
   },

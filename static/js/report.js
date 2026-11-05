@@ -167,7 +167,7 @@ const Report = {
     if ( Doc.dirty ) await Doc.save();
     const doc = Doc.doc;
     const seed = Compile.newSeed();
-    const options = { seed: seed , scanner: "wait" };
+    const options = { seed: seed , scanner: "wait" , revision: Doc.revision };
     const experiment = { id: Doc.id };
     const plans = [];
     doc.runs.forEach( ( run ) => plans.push( ...Compile.runPlans( doc , experiment , run.id , options ) ) );

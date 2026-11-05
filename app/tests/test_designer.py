@@ -171,6 +171,7 @@ class MediaTest(DesignerTestCase):
 class PlanTest(unittest.TestCase):
     def test_a_good_plan_passes(self) -> None:
         plans.check_plans([plan("a" * 64)])
+        plans.check_plan({**plan("a" * 64), "break_after": 120, "revision": 7})
 
     def test_unknown_keys_and_bad_values_are_refused(self) -> None:
         bad = plan()

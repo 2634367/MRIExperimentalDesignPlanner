@@ -326,7 +326,8 @@ const Stage = {
     Display.render( this.screen , [] , this.context );
     const last = this.planIndex === this.plans.length - 1;
     const summary = I18n.get( "player.run_done" ).replace( "{label}" , this.plan.run.label ).replace( "{trials}" , trials ).replace( "{time}" , Timing.clock( t ) ).replace( "{responses}" , this.responses.length );
-    this.say( summary + "\n\n" + I18n.get( last ? "player.all_done" : "player.next_run" ).replace( "{keys}" , this.plan.keys.advance.join( "/" ) ) );
+    const pause = !last && this.plan.break_after ? "\n\n" + I18n.get( "player.break" ).replace( "{time}" , Timing.clock( this.plan.break_after ) ) : "";
+    this.say( summary + pause + "\n\n" + I18n.get( last ? "player.all_done" : "player.next_run" ).replace( "{keys}" , this.plan.keys.advance.join( "/" ) ) );
   },
 
   // Instructions dismissed, or on to the next run.

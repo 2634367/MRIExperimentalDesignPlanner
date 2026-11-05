@@ -887,6 +887,7 @@ player:
   paused: "paused"
   drift: "mean onset error"
   run_done: "{label} finished: {trials} trials in {time}, {responses} key presses recorded."
+  break: "Break: {time}"
   next_run: "Press {keys} (or click) for the next run."
   all_done: "All done. Press {keys} (or click) to close."
 
@@ -910,6 +911,7 @@ problems:
   limit_run: "{run} can run to {minutes} min, over your {limit} min limit."
   limit_session: "{session} can run to {minutes} min, over your {limit} min limit."
   limit_runs: "{session} has {runs} runs, over your limit of {limit}."
+  response_is_trigger: "{trial} answers with {key}, which is also the scanner trigger, so PsychoPy will refuse to run it. Pick another key."
   template_no_list: "{where}: {token} needs a prompt list, but this trial type draws from none."
   template_no_column: "{where}: {token} is not a column of {list}."
   template_not_image: "{where}: {token} is not a picture column."

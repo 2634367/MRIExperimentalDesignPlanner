@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import ast
 import io
+import json
 import sys
+import tempfile
 import tokenize
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -16,7 +19,7 @@ from unittest import mock
 from app.core.psychopy import RUNNER_DIR
 
 sys.path.insert(0, str(RUNNER_DIR))
-from fmri_runner import __main__ as runner, plan as plans  # noqa: E402
+from fmri_runner import __main__ as runner, keys as key_reading, log as logging_, plan as plans  # noqa: E402
 from fmri_runner.readout import Readout  # noqa: E402
 
 OLDEST_PYTHON = (3, 9)
@@ -130,6 +133,12 @@ class ArgumentsTest(unittest.TestCase):
         args = runner.arguments(["p.json", "--pilot", "--scanner", "simulate", "--blocks", "3"])
         self.assertEqual((args.blocks, args.scanner), (3, "simulate"))
 
+    def test_from_run_starts_at_one_and_must_be_a_run(self) -> None:
+        self.assertEqual(runner.arguments(["plans"]).from_run, 1)
+        self.assertEqual(runner.arguments(["plans", "--from-run", "3"]).from_run, 3)
+        with self.assertRaises(SystemExit), mock.patch("sys.stderr"):
+            runner.arguments(["plans", "--from-run", "0"])
+
     def test_the_default_still_waits_for_the_scanner(self) -> None:
         self.assertEqual(runner.arguments(["p.json"]).scanner, "wait")
 
@@ -144,6 +153,75 @@ class ArgumentsTest(unittest.TestCase):
         self.assertIsNone(runner.pause_key_problem(plan, "space"))
         for key, meaning in (("5", "trigger"), ("escape", "quit"), ("1", "response")):
             self.assertIn(meaning, runner.pause_key_problem(plan, key))
+
+
+class KeysTest(unittest.TestCase):
+    def test_keys_can_be_heard_with_another_app_in_front(self) -> None:
+        reader = types.SimpleNamespace(device=types.SimpleNamespace(muteOutsidePsychopy=True))
+        key_reading.hear_other_apps(reader)
+        self.assertFalse(reader.device.muteOutsidePsychopy)
+
+    def test_an_older_psychopy_without_the_switch_is_left_alone(self) -> None:
+        key_reading.hear_other_apps(types.SimpleNamespace())
+        key_reading.hear_other_apps(types.SimpleNamespace(device=object()))
+
+    def test_only_a_digit_has_a_number_pad_twin(self) -> None:
+        self.assertEqual(key_reading.trigger_names("5"), ["5", "num_5"])
+        self.assertEqual(key_reading.trigger_names("t"), ["t"])
+
+    def test_a_response_on_the_trigger_key_is_refused(self) -> None:
+        plan = sample_plan()
+        plan["scanner"]["trigger_key"] = "5"
+        self.assertIsNone(runner.trigger_key_problem(plan))
+        plan["segments"][0]["response"] = {"keys": ["num_5"]}
+        self.assertIn("num_5", runner.trigger_key_problem(plan))
+
+
+class ResultsTest(unittest.TestCase):
+    def setUp(self) -> None:
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.out = Path(folder.name)
+        self.log = logging_.Log(self.out)
+
+    def plan(self, label: str = "ses-01_run-02", **extra: object) -> dict:
+        return {"run": {"label": label}, "experiment": {"name": "Inner Speech: v2"}, **extra}
+
+    def test_names_are_bids_names(self) -> None:
+        self.assertEqual(self.log.name_for(self.plan(), "P-01"), "sub-P01_ses-01_task-InnerSpeechv2_run-02")
+        self.assertEqual(self.log.name_for(self.plan("run-03"), ""), "sub-anon_task-InnerSpeechv2_run-03")
+
+    def test_a_pilot_cannot_pass_for_a_whole_run(self) -> None:
+        name = self.log.name_for(self.plan(pilot_blocks=2), "P01")
+        self.assertEqual(name, "sub-P01_ses-01_task-InnerSpeechv2_acq-pilot_run-02")
+
+    def test_a_trial_preview_has_a_name_too(self) -> None:
+        self.assertEqual(self.log.name_for(self.plan("trial-ab_c"), "P01"), "sub-P01_task-InnerSpeechv2_acq-trialabc")
+
+    def test_starting_again_never_shares_a_folder_and_finds_the_last_attempt(self) -> None:
+        name = self.log.name_for(self.plan(), "P01")
+        self.log.open_events(name).close()
+        again = logging_.Log(self.out)
+        self.assertNotEqual(again.dir, self.log.dir)
+        self.assertEqual(again.earlier_results(name), [self.log.dir / f"{name}_events.tsv"])
+        self.assertEqual(self.log.earlier_results(name), [])
+
+    def test_a_row_is_on_disk_before_the_run_ends(self) -> None:
+        events = self.log.open_events("sub-a", [{"item_values": {"answer": "yes"}}])
+        self.addCleanup(events.close)
+        events.write({"onset": 1.5, "trial_type": "t", "block": 2, "item_answer": "yes"})
+        lines = events.path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
+        row = dict(zip(lines[0].split("\t"), lines[1].split("\t")))
+        self.assertEqual((row["onset"], row["block"], row["item_answer"], row["item"]), ("1.5", "2", "yes", "n/a"))
+
+    def test_the_sidecar_explains_every_column(self) -> None:
+        segments = [{"item_values": {"answer": "yes"}}]
+        path = self.log.write_sidecar("sub-a", segments, {"aborted": True, "psychopy": "2026.2.2"})
+        sidecar = json.loads(path.read_text(encoding="utf-8"))
+        self.assertTrue(set(logging_.TSV_COLUMNS) | {"item_answer"} <= set(sidecar))
+        self.assertTrue(sidecar["Aborted"])
+        self.assertEqual(path.name, "sub-a_events.json")
 
 
 class KeyboardTest(unittest.TestCase):

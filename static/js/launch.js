@@ -56,7 +56,7 @@ const RunDialog = {
     const compile = () => {
       try {
         plans = spec.build( {
-          seed: state.seed , participant: state.participant , scanner: state.scanner , blocks: state.blocks,
+          seed: state.seed , participant: state.participant , scanner: state.scanner , blocks: state.blocks , revision: Doc.revision,
           visit: state.visit || state.nextVisit , seen: state.seen ? new Set( state.seen.items ) : null,
         } );
       } catch ( error ) {

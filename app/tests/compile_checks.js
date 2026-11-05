@@ -158,6 +158,35 @@ check( "a control share is the share asked for" , run( "mix[ 0 ].count" ) === 24
 run( "var off = JSON.parse( JSON.stringify( old ) ); var offBlock = off.sessions[ 0 ].blocks[ 0 ]; offBlock.enabled = false; var odoc = Legacy.convertDesign( off , [] ).doc;" );
 check( "a block switched off stays, switched off" , run( "odoc.sessions[ 0 ].steps.some( ( s ) => s.enabled === false )" ) );
 
+// Session breaks reach the screen between runs.
+run( `var bdoc = Schema.normalise( JSON.parse( JSON.stringify( idoc ) ) );
+  var brun = bdoc.runs[ 0 ];
+  var bses = bdoc.sessions[ 0 ];
+  bses.auto_break_minutes = 0;
+  bses.steps = [
+    { id: 'a' , kind: 'run' , run: brun.id , enabled: true } ,
+    { id: 'b' , kind: 'break' , minutes: 2 , enabled: true } ,
+    { id: 'c' , kind: 'break' , minutes: 1 , enabled: false } ,
+    { id: 'd' , kind: 'scan' , minutes: 5 , enabled: true } ,
+    { id: 'e' , kind: 'run' , run: brun.id , enabled: true } ,
+    { id: 'f' , kind: 'run' , run: brun.id , enabled: true } ,
+    { id: 'g' , kind: 'break' , minutes: 3 , enabled: true } ,
+  ];
+  var bplans = Compile.sessionPlans( bdoc , { id: 'x' , name: 'x' } , bses.id , { seed: 1 , participant: 'p' , scanner: 'wait' } );` );
+check( "a break step goes on the run before it" , run( "bplans[ 0 ].break_after" ) === 120 );
+check( "a run with no break after it has none" , run( "bplans[ 1 ].break_after" ) === undefined );
+check( "a break after the last run is dropped" , run( "bplans[ 2 ].break_after" ) === undefined );
+run( "bses.auto_break_minutes = 1.5; bses.steps = bses.steps.filter( ( s ) => s.kind === 'run' ); var aplans = Compile.sessionPlans( bdoc , { id: 'x' , name: 'x' } , bses.id , { seed: 1 , participant: 'p' , scanner: 'wait' } );" );
+check( "an automatic break does too" , run( "aplans[ 0 ].break_after" ) === 90 && run( "aplans[ 1 ].break_after" ) === 90 );
+
+// Which saved version a plan came from.
+check( "a plan says which revision it came from" , run( "Compile.sessionPlans( bdoc , { id: 'x' , name: 'x' } , bses.id , { seed: 1 , scanner: 'wait' , revision: 7 } )[ 0 ].revision" ) === 7 );
+check( "a plan with no saved revision has none" , run( "'revision' in aplans[ 0 ]" ) === false );
+
+// A response on the trigger key.
+run( "var vdoc = Schema.normalise( JSON.parse( JSON.stringify( idoc ) ) ); vdoc.scanner.trigger_key = '5'; vdoc.trial_types[ 0 ].phases[ 0 ].response.keys = [ 'num_5' ];" );
+check( "a response on the trigger key is an error" , run( "Validate.check( vdoc ).some( ( p ) => p.level === 'error' && p.text === 'problems.response_is_trigger' )" ) );
+
 if ( failures.length ) {
   console.log( failures.join( "\n" ) );
   process.exit( 1 );

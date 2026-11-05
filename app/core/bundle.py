@@ -32,6 +32,7 @@ RUN_SH = r"""#!/usr/bin/env bash
 #   ./run.sh --pilot                  the first 2 blocks, no scanner, in a window
 #   ./run.sh --screen 1               on the second display (--list-screens shows them)
 #   ./run.sh plans/run-02.json        just that run
+#   ./run.sh --from-run 3             start at the third run, after stopping
 #
 # Results go in data/.
 set -euo pipefail
@@ -62,6 +63,8 @@ RUN_BAT = r"""@echo off
 rem Runs every plan in plans\ with whichever Python has PsychoPy.
 rem   run.bat                          full screen, waits for the scanner trigger
 rem   run.bat --scanner none --windowed   a quick look, no scanner at all
+rem   run.bat plans\run-02.json          just that run
+rem   run.bat --from-run 3               start at the third run, after stopping
 setlocal
 cd /d "%~dp0"
 set "PYTHONPATH=%CD%\runner"
@@ -76,7 +79,16 @@ if "%PY%"=="" (
   echo PsychoPy was not found. Install it from https://www.psychopy.org/download.html
   exit /b 1
 )
-"%PY%" -m fmri_runner plans --out data --media media %*
+set "PLANS="
+set "ARGS="
+:args
+if "%~1"=="" goto run
+if /i "%~x1"==".json" (set PLANS=%PLANS% "%~1") else (set ARGS=%ARGS% "%~1")
+shift
+goto args
+:run
+if not defined PLANS set "PLANS=plans"
+"%PY%" -m fmri_runner %PLANS% --out data --media media %ARGS%
 """
 
 README = """{title}
@@ -99,6 +111,7 @@ Run it
                          keyboard (the runner does this itself, with a warning)
     --pilot              a quick check: first 2 blocks, no scanner, in a window
     --blocks N           only the first N blocks of each run
+    --from-run N         start at the Nth run, to carry on after stopping
     --debug              the pause key (space, or --pause-key) holds the run;
                          onsets then stop matching volumes, so not for real data
 
@@ -106,9 +119,10 @@ Run it
   falling back to the last fetched copy when there is no network:
     --planner URL --experiment ID --key-file key.txt --only ses-01
 
-  Escape quits. The trigger key is "{trigger}". Results are written to data/:
-  one <run>_events.tsv (BIDS-style onsets) and one <run>.json run record per
-  run, plus events.jsonl, an append-only log of everything that happened.
+  Escape quits and says how to carry on. The trigger key is "{trigger}".
+  Results go in data/<start time>/, so running again never overwrites anything:
+  per run, a BIDS <name>_events.tsv and <name>_events.json, and a <name>.json
+  run record. data/events.jsonl is an append-only log of everything that happened.
 
 What is in here
 {plans}

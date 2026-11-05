@@ -2,20 +2,24 @@
 
 Plays each plan in turn in one window. Between runs it waits for the advance
 key, so the operator can restart the scanner. Escape quits; whatever ran so
-far is still written to --out.
+far is still written to --out, and --from-run starts again where it stopped.
 
   --screen N        which display, numbered as --list-screens shows them
   --pilot           a quick look: first 2 blocks, no scanner, in a window
   --blocks N        only the first N blocks of each run
+  --from-run N      start at the Nth plan given
   --debug           the pause key holds the run (see schedule.py)
   --planner URL     fetch the last published plans (see fetch.py)
 """
 import argparse
 import ctypes
+import signal
 import sys
+import traceback
 from pathlib import Path
 
 from . import __version__, fetch, plan as plans
+from .keys import Abort, trigger_names
 
 PILOT_BLOCKS = 2
 IOKIT = "/System/Library/Frameworks/IOKit.framework/IOKit"
@@ -40,6 +44,7 @@ def arguments(argv):
     parser.add_argument("--screen", type=int, default=0, help="which display to use (default: 0, see --list-screens)")
     parser.add_argument("--list-screens", action="store_true", help="show the displays attached, then stop")
     parser.add_argument("--blocks", type=int, default=None, help="play only the first N blocks of each run")
+    parser.add_argument("--from-run", type=int, default=1, help="start at the Nth plan given, to carry on after stopping")
     parser.add_argument("--pilot", action="store_true",
                         help=f"a quick check: --blocks {PILOT_BLOCKS} --scanner none --windowed, unless you set those yourself")
     parser.add_argument("--debug", action="store_true", help="let the pause key hold the run; not for data you will analyse")
@@ -67,6 +72,8 @@ def arguments(argv):
         parser.error("give plan files or --planner, not both")
     if not args.plans and not args.list_screens and not fetching:
         parser.error("give at least one plan or folder")
+    if args.from_run < 1:
+        parser.error("--from-run must be at least 1")
     if args.blocks is not None and args.blocks < 1:
         parser.error("--blocks must be at least 1")
     if args.pilot:
@@ -130,6 +137,17 @@ def pause_key_problem(plan, key):
     return None
 
 
+def trigger_key_problem(plan):
+    """Waiting for the scanner, the trigger key is read as a pulse first, so a
+    response on the same key would never be recorded."""
+    names = trigger_names(str(plan["scanner"]["trigger_key"]))
+    for segment in plan["segments"]:
+        for name in (segment.get("response") or {}).get("keys") or []:
+            if name in names:
+                return f"{plan['run']['label']}: response key {name} is also the scanner trigger; pick another key"
+    return None
+
+
 def screen_problem(number, attached):
     """Asked for a display that is not there, PsychoPy quietly uses the first
     one, which at a scanner is the operator's. Better not to start."""
@@ -166,6 +184,14 @@ def main(argv=None):
     except (plans.PlanError, fetch.FetchError) as error:
         print(f"fmri_runner: {error}", file=sys.stderr)
         return 2
+    if args.from_run > len(loaded):
+        print(f"fmri_runner: --from-run {args.from_run}, but there are only {len(loaded)} plans", file=sys.stderr)
+        return 2
+    if args.scanner == "wait":
+        clashes = [problem for problem in (trigger_key_problem(plan) for plan in loaded) if problem]
+        if clashes:
+            print(f"fmri_runner: {clashes[0]}", file=sys.stderr)
+            return 2
     pause_keys = [args.pause_key] if args.debug else []
     if args.debug:
         clashes = [problem for problem in (pause_key_problem(plan, args.pause_key) for plan in loaded) if problem]
@@ -180,7 +206,7 @@ def main(argv=None):
     # PsychoPy only from here on, so --check runs anywhere.
     from .log import Log
     from .readout import Readout
-    from .schedule import BETWEEN_RUNS, Abort, Player, Window, screens
+    from .schedule import UNFINISHED, Player, Window, between_runs, screens
 
     problem = screen_problem(args.screen, screens())
     if problem:
@@ -193,34 +219,57 @@ def main(argv=None):
     if backend:
         log.log("keyboard", backend=backend)
     window = Window(loaded[0]["display"], args.windowed, args.screen, backend)
+    # Designer's Stop button: end like Escape, so the results are saved.
+    signal.signal(signal.SIGTERM, window.kb.stop)
     status = 0
+    next_run = args.from_run
     try:
         for number, plan in enumerate(loaded, start=1):
+            if number < args.from_run:
+                continue
+            next_run = number
             log.context = {"run": plan["run"]["label"], "experiment": plan["experiment"]["name"]}
             name = log.name_for(plan, args.participant)
+            for earlier in log.earlier_results(name):
+                print(f"[data] WARNING: {plan['run']['label']} already has results: {earlier}", flush=True)
             log.log("run_start", plan=plan["_path"], scanner=args.scanner, seed=plan["seed"])
             print(f"[run] {number}/{len(loaded)} {plan['run']['label']} ({args.scanner})", flush=True)
             player = Player(window, plan, log, args.scanner, Readout(plan, args.quiet), pause_keys)
+            record = player.record
+            record["participant"] = args.participant or plan.get("participant") or ""
+            # What is left if the runner dies too hard to save anything else.
+            log.write_run(name, dict(record, aborted=True, error=UNFINISHED))
+            events = log.open_events(name, plan["segments"])
             try:
-                player.play()
+                player.play(events.write)
             except Abort:
                 status = 1
             finally:
-                record = player.record
-                record["participant"] = args.participant or plan.get("participant") or ""
+                events.close()
                 print(f"[saved] {log.write_run(name, record)}", flush=True)
-                print(f"[saved] {log.write_events(name, player.rows, plan['segments'])}", flush=True)
+                print(f"[saved] {events.path}", flush=True)
+                log.write_sidecar(name, plan["segments"], record)
                 log.log("run_end", aborted=record["aborted"], duration=record.get("duration"))
+                print(player.summary(), flush=True)
             if status:
-                print("[quit] escape pressed -- stopping", flush=True)
                 break
+            next_run = number + 1
             if number < len(loaded):
+                pause = plan.get("break_after") or 0
+                if pause:
+                    print(f"[break] {pause / 60:g} min planned before the next run", flush=True)
                 keys = "/".join(plan["keys"]["advance"])
-                window.say(BETWEEN_RUNS.format(done=number, total=len(loaded), keys=keys), plan["keys"]["advance"], plan["keys"]["quit"])
+                window.say(between_runs(number, len(loaded), keys, pause), plan["keys"]["advance"], plan["keys"]["quit"])
     except Abort:
+        status = 1
+    except Exception:
+        traceback.print_exc()
         status = 1
     finally:
         window.close()
+    if status and next_run <= len(loaded):
+        print(f"[quit] stopped -- to start again at {loaded[next_run - 1]['run']['label']}, "
+              f"add --from-run {next_run} to the same command", flush=True)
     return status
 
 

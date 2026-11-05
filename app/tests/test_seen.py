@@ -52,6 +52,14 @@ class SeenTest(unittest.TestCase):
         self.assertEqual(seen.add_folder(self.store, "x", folder), 1)
         self.assertEqual(seen.read(self.store, "x", "01")["runs"], 1)
 
+    def test_records_in_a_folder_per_start_are_read_and_sidecars_skipped(self) -> None:
+        folder = Path(self.directory.name) / "data"
+        start = folder / "20261105T120000"
+        start.mkdir(parents=True)
+        (start / "sub-01_run-01.json").write_text(json.dumps(record()), encoding="utf-8")
+        (start / "sub-01_run-01_events.json").write_text(json.dumps({"onset": {"Units": "s"}}), encoding="utf-8")
+        self.assertEqual(seen.add_folder(self.store, "x", folder), 1)
+
     def test_uploads_for_another_experiment_are_ignored(self) -> None:
         self.assertEqual(seen.add_runs(self.store, "y", [seen.summarise(record())]), 0)
 

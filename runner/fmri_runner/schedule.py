@@ -22,24 +22,41 @@ remaining phase keeps its full length -- but a real scanner does not stop, so
 a paused run's onsets no longer line up with its volumes. For checking a task,
 not for data you will analyse. The record says "debug": true and lists every
 pause as {"at", "duration"}; duration is null if the run ended while paused.
+
+The wait for the scanner has no time limit, since the quit key always works,
+but the terminal says what it has seen and speaks up if nothing comes. Once
+the run is going, a silence of PULSE_GAP_TRS TRs is warned about once and the
+run carries on: a scanner that sends only its first pulse is not an error.
 """
+import psychopy
 from psychopy import core, visual
 from psychopy.hardware import keyboard
 
 from .display import Painter, draw_all
+from .keys import Abort, Keys, WindowKeys, hear_other_apps, press_time, trigger_names
 from .log import now_iso
 
 WAITING_TEXT = "Waiting for the scanner ({seen}/{total})"
 BETWEEN_RUNS = "Run {done} of {total} finished.\n\nPress {keys} for the next run."
+BETWEEN_RUNS_BREAK = "Run {done} of {total} finished.\n\nBreak: {length}.\n\nPress {keys} for the next run."
 PAUSED_TEXT = "paused -- press {keys} to resume"
-
-
-class Abort(Exception):
-    """The operator pressed the quit key."""
+NO_PULSE_WARNING_SECONDS = 30
+PULSE_GAP_TRS = 3
+DROPPED_FRAME = 1.5  # a flip this many frames after the last one missed at least one
+UNFINISHED = "the runner stopped before this run finished"
 
 
 def round4(value):
     return round(value, 4)
+
+
+def between_runs(done, total, keys, break_seconds=0):
+    """What the screen says between two runs, and the planned break if any.
+    The advance key still ends it: the operator decides when the next run starts."""
+    if not break_seconds:
+        return BETWEEN_RUNS.format(done=done, total=total, keys=keys)
+    length = f"{break_seconds / 60:g} min" if break_seconds >= 60 else f"{break_seconds:g} s"
+    return BETWEEN_RUNS_BREAK.format(done=done, total=total, keys=keys, length=length)
 
 
 def screens():
@@ -62,9 +79,17 @@ class Window:
         )
         self.win.mouseVisible = windowed
         self.frame = self.win.monitorFramePeriod or 1.0 / 60
-        self.kb = keyboard.Keyboard(backend=keyboard_backend) if keyboard_backend else keyboard.Keyboard()
+        self.kb = Keys(self._reader(keyboard_backend))
         self.text_color = display["text_color"]
         self.message = visual.TextStim(self.win, text="", height=0.04, color=self.text_color, colorSpace="hex", wrapWidth=1.4)
+
+    def _reader(self, backend):
+        if backend == "event":
+            from psychopy import event
+            return WindowKeys(event)
+        reader = keyboard.Keyboard(backend=backend) if backend else keyboard.Keyboard()
+        hear_other_apps(reader)
+        return reader
 
     def say(self, text, until_keys, quit_keys):
         self.message.text = text
@@ -92,7 +117,12 @@ class Player:
         self.scanner = plan["scanner"]
         self.quit_keys = list(plan["keys"]["quit"])
         self.advance_keys = list(plan["keys"]["advance"])
-        self.trigger = str(self.scanner["trigger_key"])
+        self.trigger_keys = trigger_names(str(self.scanner["trigger_key"]))
+        # Every key any segment answers with. All are read all the time: a key
+        # left unread would wait in the buffer for the next response window
+        # and count there, with a time from before it opened.
+        self.response_keys = sorted({key for segment in plan["segments"]
+                                     for key in (segment.get("response") or {}).get("keys") or []})
         self.painter = Painter(self.win, plan)
         self.readout = readout
         self.pause_keys = list(pause_keys)
@@ -100,7 +130,29 @@ class Player:
         self.pauses = []
         self.t0 = None
         self.triggers = []
+        self.presses = []
+        self.current = None
+        self.dummy_pulses = 0
+        self.last_pulse = None
+        self.gap_warned = False
+        self.pulse_gaps = []
+        self.last_flip = None
+        self.dropped_frames = 0
+        self.worst_frame = 0.0
         self.simulated_volume = 0
+        self.rows = []
+        self.record = {
+            "plan": {key: value for key, value in plan.items() if not key.startswith("_")},
+            "started": now_iso(),
+            "scanner_mode": scanner_mode,
+            "aborted": False,
+            "segments": [],
+            # Each item's id, once, from the moment it is about to go up, so a
+            # run stopped mid-trial still counts what the participant saw.
+            "shown_items": [],
+            "psychopy": getattr(psychopy, "__version__", None),
+            "frame_ms": round(window.frame * 1000, 3),
+        }
 
     def now(self):
         return core.getTime() - self.t0
@@ -108,30 +160,56 @@ class Player:
     # -- keys ---------------------------------------------------------------
 
     def _poll(self, response_keys=()):
-        """Drain the keyboard: log triggers, honour quit, and return the
-        response keys pressed, each with its time on the run clock."""
+        """Drain the keyboard: log triggers, honour quit, record every
+        response key, and return the ones this segment is listening for, each
+        with its time on the run clock."""
         pressed = []
-        names = [self.trigger] + self.quit_keys + list(response_keys)
+        names = self.trigger_keys + self.quit_keys
         if self.t0 is not None:
-            names += self.pause_keys
+            names = names + self.pause_keys + self.response_keys
         for key in self.kb.getKeys(names, waitRelease=False):
             if key.name in self.quit_keys:
                 raise Abort()
             if key.name in self.pause_keys:
                 self.pause_wanted = True
                 continue
-            at = key.tDown if getattr(key, "tDown", None) else core.getTime()
-            if key.name == self.trigger and self.t0 is not None and self.mode == "wait":
-                self.triggers.append(round4(at - self.t0))
+            if self.t0 is None:
                 continue
-            if key.name in response_keys:
-                pressed.append((key.name, round4(at - self.t0)))
+            at = press_time(key, core.getTime())
+            if key.name in self.trigger_keys and self.mode == "wait":
+                self._pulse(at)
+                continue
+            if key.name in self.response_keys:
+                t = round4(at - self.t0)
+                self.presses.append({"key": key.name, "t": t, "segment": self.current})
+                self.log.log("press", key=key.name, t=t, segment=self.current)
+                if key.name in response_keys:
+                    pressed.append((key.name, t))
         if self.mode == "simulate" and self.t0 is not None:
             volume = int(self.now() // self.scanner["tr"]) + 1
             while self.simulated_volume < volume:
                 self.simulated_volume += 1
                 self.triggers.append(round4((self.simulated_volume - 1) * self.scanner["tr"]))
+        if self.mode == "wait" and self.t0 is not None:
+            self._check_pulses()
         return pressed
+
+    def _pulse(self, at):
+        t = round4(at - self.t0)
+        self.triggers.append(t)
+        self.last_pulse = core.getTime()
+        self.gap_warned = False
+        self.log.log("pulse", t=t)
+
+    def _check_pulses(self):
+        silence = core.getTime() - self.last_pulse
+        if self.gap_warned or silence <= PULSE_GAP_TRS * self.scanner["tr"]:
+            return
+        self.gap_warned = True
+        t = round4(self.now())
+        self.pulse_gaps.append(t)
+        self.log.log("pulse_gap", t=t, silence=round4(silence))
+        self.readout.note(f"[scanner] WARNING: no pulse for {silence:.1f}s at {t:.1f}s -- the run carries on; check the scanner")
 
     # -- before t0 ----------------------------------------------------------
 
@@ -167,18 +245,28 @@ class Player:
             return
         pulses = []
         self.kb.clearEvents()
+        self.readout.note(f"[scanner] waiting for {needed} pulse(s) on key {self.trigger_keys[0]}")
+        warn_at = core.getTime() + NO_PULSE_WARNING_SECONDS
         while len(pulses) < needed:
             self.window.message.text = WAITING_TEXT.format(seen=len(pulses), total=needed)
             self.window.message.draw()
             self.win.flip()
-            for key in self.kb.getKeys([self.trigger] + self.quit_keys, waitRelease=False):
+            for key in self.kb.getKeys(self.trigger_keys + self.quit_keys, waitRelease=False):
                 if key.name in self.quit_keys:
                     raise Abort()
-                pulses.append((getattr(key, "tDown", None), core.getTime()))
+                pulses.append(press_time(key, core.getTime()))
                 self.log.log("dummy_trigger", index=len(pulses))
-        t_down, t_seen = pulses[-1]
+                warn_at = core.getTime() + NO_PULSE_WARNING_SECONDS
+                if len(pulses) < needed:
+                    self.readout.note(f"[scanner] pulse {len(pulses)}/{needed}")
+            if core.getTime() >= warn_at:
+                warn_at = core.getTime() + NO_PULSE_WARNING_SECONDS
+                self.readout.note(f"[scanner] WARNING: {len(pulses)}/{needed} pulses and nothing for "
+                                  f"{NO_PULSE_WARNING_SECONDS}s -- is the trigger on key {self.trigger_keys[0]}?")
         # The hardware timestamp, when it is in the same timebase.
-        self.t0 = t_down if t_down and abs(t_seen - t_down) < 0.1 else t_seen
+        self.t0 = pulses[-1]
+        self.dummy_pulses = len(pulses)
+        self.last_pulse = core.getTime()
         self.log.log("scan_start", mode="wait", pulses=needed)
 
     # -- the run --------------------------------------------------------------
@@ -200,15 +288,17 @@ class Player:
             draw_all(stims)
             label.draw()
             self.win.flip()
-            for key in self.kb.getKeys(self.pause_keys + self.quit_keys + [self.trigger], waitRelease=False):
+            for key in self.kb.getKeys(self.pause_keys + self.quit_keys + self.trigger_keys, waitRelease=False):
                 if key.name in self.quit_keys:
                     raise Abort()
                 if key.name in self.pause_keys:
                     waiting = False
                 elif self.mode == "wait":
-                    self.triggers.append(round4(core.getTime() - self.t0))
+                    self._pulse(core.getTime())
         held = core.getTime() - began
         self.t0 += held
+        self.last_flip = None
+        self.last_pulse = core.getTime()
         entry["duration"] = round4(held)
         self.log.log("resume", t=entry["at"], paused_for=entry["duration"])
         self.readout.note(f"[pause] resumed after {held:.1f}s -- onsets no longer line up with volumes")
@@ -225,11 +315,15 @@ class Player:
             # flip() returns when the frame went up, on the same clock as
             # core.getTime(): the truest onset there is.
             flipped = self.win.flip()
+            shown_at = flipped if flipped else core.getTime()
+            self._count_frame(shown_at)
             if onset is None:
-                onset = round4((flipped if flipped else core.getTime()) - self.t0)
+                onset = round4(shown_at - self.t0)
             self.readout.tick(self.now())
             for name, at in self._poll(keys):
-                if answered is None:
+                # A press from just before this screen went up answered the
+                # one before it; the record still has it.
+                if answered is None and at >= onset:
                     answered = {"key": name, "t": at, "rt": round4(at - onset)}
             if self.pause_wanted:
                 self._pause([] if answered is not None and response.get("ends_phase") else stims)
@@ -244,29 +338,52 @@ class Player:
                 break
         return onset, round4(self.now()), answered
 
-    def play(self):
+    def _count_frame(self, at):
+        if self.last_flip is not None:
+            interval = at - self.last_flip
+            self.worst_frame = max(self.worst_frame, interval)
+            if interval > self.window.frame * DROPPED_FRAME:
+                self.dropped_frames += 1
+        self.last_flip = at
+
+    def summary(self):
+        """One line for the operator: did this run do what was planned?"""
+        record = self.record
+        total = sum(1 for segment in self.plan["segments"] if segment["kind"] != "instructions")
+        answered = sum(1 for segment in record["segments"] if segment.get("response"))
+        parts = [f"{len(record['segments'])}/{total} segments", f"{answered} responses"]
+        pulses = record.get("pulses")
+        if pulses and pulses["expected"] is not None:
+            parts.append(f"{pulses['seen']}/{pulses['expected']} pulses")
+        if self.dropped_frames:
+            parts.append(f"{self.dropped_frames} dropped frames")
+        line = f"[done] {self.plan['run']['label']} {'stopped early' if record['aborted'] else 'finished'}: {', '.join(parts)}"
+        # One either way is the scanner stopping as the run ends.
+        if pulses and pulses["expected"] is not None and not record["aborted"] and abs(pulses["seen"] - pulses["expected"]) > 1:
+            line += " -- WARNING: pulses do not match the plan; check the scan covered the run"
+        return line
+
+    def play(self, write_row=None):
+        """write_row, if given, is called with each events row as it happens."""
         segments = self.plan["segments"]
         shown = [segment for segment in segments if segment["kind"] != "instructions"]
-        record = {
-            "plan": {key: value for key, value in self.plan.items() if not key.startswith("_")},
-            "started": now_iso(),
-            "scanner_mode": self.mode,
-            "aborted": False,
-            "segments": [],
-            # Each item's id, once, from the moment it is about to go up, so a
-            # run stopped mid-trial still counts what the participant saw.
-            "shown_items": [],
-        }
-        rows = []
+        record, rows = self.record, self.rows
         try:
             for segment in segments:
                 if segment["kind"] == "instructions":
                     self.instructions(segment)
+            if shown:
+                # Everything after this waits on the clock, so the first
+                # screen is built, and drawn once where nobody sees it, now.
+                draw_all(self.painter.stims(shown[0]["layers"]))
+                self.win.clearBuffer()
             self.wait_for_scanner()
-            if self.pause_keys:
-                # A press left over from before t0 must not pause frame one.
-                self.kb.getKeys(self.pause_keys, waitRelease=False)
+            leftovers = self.pause_keys + self.response_keys
+            if leftovers:
+                # A press from before t0 must not pause frame one or answer it.
+                self.kb.getKeys(leftovers, waitRelease=False)
             for index, segment in enumerate(shown):
+                self.current = index
                 stims = self.painter.stims(segment["layers"])
                 upcoming = shown[index + 1] if index + 1 < len(shown) else None
                 t_end = segment["onset"] + segment["duration"]
@@ -282,13 +399,15 @@ class Player:
                 self.log.log("segment", **{k: v for k, v in measured.items() if k != "response"},
                              trial=segment.get("trial"), item=segment.get("item"),
                              item_values=segment.get("item_values"),
-                             response=answered["key"] if answered else None)
+                             response=answered["key"] if answered else None,
+                             response_time=answered["rt"] if answered else None)
                 row = {
                     "onset": onset,
                     "duration": round4(offset - onset),
                     "trial_type": segment.get("trial_type") or segment["kind"],
                     "phase": segment.get("phase") or segment["label"],
                     "trial": segment.get("trial") + 1 if segment.get("trial") is not None else None,
+                    "block": segment.get("block") + 1 if segment.get("block") is not None else None,
                     "item": segment.get("item"),
                     "item_label": segment.get("item_label"),
                     "response": answered["key"] if answered else None,
@@ -298,17 +417,30 @@ class Player:
                 for key, value in (segment.get("item_values") or {}).items():
                     row.setdefault("item_" + key, value)
                 rows.append(row)
+                if write_row:
+                    write_row(row)
             record["duration"] = round4(self.now())
         except Abort:
             record["aborted"] = True
             record["duration"] = round4(self.now()) if self.t0 is not None else None
             self.log.log("aborted", t=record["duration"])
             raise
+        except Exception as error:
+            record["aborted"] = True
+            record["error"] = f"{type(error).__name__}: {error}"
+            record["duration"] = round4(self.now()) if self.t0 is not None else None
+            self.log.log("error", t=record["duration"], error=record["error"])
+            raise
         finally:
             record["ended"] = now_iso()
             record["triggers"] = self.triggers
+            record["presses"] = self.presses
+            record["dropped_frames"] = self.dropped_frames
+            record["worst_frame_ms"] = round(self.worst_frame * 1000, 3)
+            if self.mode == "wait":
+                record["pulses"] = {"seen": self.dummy_pulses + len(self.triggers), "expected": self.plan.get("volumes")}
+                record["pulse_gaps"] = self.pulse_gaps
             if self.pause_keys:
                 record["debug"] = True
                 record["pauses"] = self.pauses
-            self.record, self.rows = record, rows
         return record, rows

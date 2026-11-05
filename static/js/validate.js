@@ -174,6 +174,15 @@ const Validate = {
       }
     } );
 
+    // The runner reads the trigger key as a pulse first and refuses to start
+    // on such a design, so say so here, long before the scanner.
+    const trigger = String( doc.scanner.trigger_key );
+    const triggerNames = /^\d+$/.test( trigger ) ? [ trigger , "num_" + trigger ] : [ trigger ];
+    doc.trial_types.forEach( ( tt ) => tt.phases.forEach( ( phase ) => {
+      const clash = phase.response.keys.find( ( key ) => triggerNames.includes( key ) );
+      if ( clash ) say( "error" , "trials" , tt.id , "response_is_trigger" , { trial: named( tt , "trials.unnamed" ) , key: clash } );
+    } ) );
+
     const budget = Timing.budget( doc );
     if ( budget.available > 0 && budget.used > budget.available + 1e-9 ) {
       say( "warning" , "overview" , null , "over_budget" , { used: Timing.hours( budget.used ) , available: Timing.hours( budget.available ) } );

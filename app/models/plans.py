@@ -222,6 +222,8 @@ def check_plan(plan: Any) -> dict:
             "session": lambda v, w: _object(v, w, {"id": _string(64), "name": _string(MAX_NAME)}),
             "visit": _integer(1, 999),
             "pilot_blocks": _integer(1, MAX_SEGMENTS),
+            "break_after": _number(0, MAX_SECONDS),
+            "revision": _integer(1, 2**53),
         },
     )
     if not KEY.match(plan["scanner"]["trigger_key"]):
