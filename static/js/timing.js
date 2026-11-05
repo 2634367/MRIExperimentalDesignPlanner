@@ -97,6 +97,23 @@ const Timing = {
     };
   },
 
+  // The share of trials that land on a geometric wait's last rung, where the
+  // chance of the event on the next TR is no longer p but certain, so an
+  // ideal observer can anticipate it. null when there is no such rung.
+  anticipatable( d , tr ) {
+    if ( d.kind !== "geometric" ) return null;
+    const probs = this.geometric( d , tr ).probs;
+    return probs.length > 1 ? probs[ probs.length - 1 ] : null;
+  },
+
+  // A lead-in or lead-out's { min, mean, max }, and one draw of it.
+  leadSpan( lead , tr ) {
+    return lead.jitter ? this.span( lead.jitter , tr ) : { min: lead.seconds , mean: lead.seconds , max: lead.seconds };
+  },
+  leadDraw( lead , tr , rng ) {
+    return lead.jitter ? this.sample( lead.jitter , tr , rng ) : lead.seconds;
+  },
+
   trial( doc , trialType , tr ) {
     const step = tr || doc.scanner.tr;
     return ( trialType ? trialType.phases : [] ).reduce( ( sum , phase ) => this.add( sum , this.span( phase.duration , step ) ) , this.zero() );
@@ -113,7 +130,7 @@ const Timing = {
   run( doc , run ) {
     const scan = this.scan( doc , run );
     const tr = scan.tr;
-    let functional = { min: run.lead_in.seconds , mean: run.lead_in.seconds , max: run.lead_in.seconds };
+    let functional = this.leadSpan( run.lead_in , tr );
     const counts = {};
     let trials = 0;
     const blocks = [];
@@ -140,7 +157,7 @@ const Timing = {
       functional = this.add( functional , info.one );
       if ( index < repeats.length - 1 && info.rest > 0 ) functional = this.add( functional , { min: info.rest , mean: info.rest , max: info.rest } );
     } );
-    functional = this.add( functional , { min: run.lead_out.seconds , mean: run.lead_out.seconds , max: run.lead_out.seconds } );
+    functional = this.add( functional , this.leadSpan( run.lead_out , tr ) );
     const dummy = scan.dummy * tr;
     return {
       tr: tr,
@@ -154,14 +171,21 @@ const Timing = {
     };
   },
 
+  // The steps that happen. A step switched off stays in the design but
+  // takes no time and plays nothing, as if it were not there.
+  activeSteps( session ) {
+    return session.steps.filter( ( step ) => step.enabled !== false );
+  },
+
   // A session in console order: each step with its span, and the automatic
   // breaks (session.auto_break_minutes) between two run steps that sit
   // directly next to each other. An automatic break has step null.
   items( doc , session ) {
     const out = [];
     const brk = session.auto_break_minutes * 60;
-    session.steps.forEach( ( step , index ) => {
-      const previous = session.steps[ index - 1 ];
+    const steps = this.activeSteps( session );
+    steps.forEach( ( step , index ) => {
+      const previous = steps[ index - 1 ];
       if ( brk > 0 && step.kind === "run" && previous && previous.kind === "run" ) {
         out.push( { kind: "break" , step: null , auto: true , seconds: { min: brk , mean: brk , max: brk } , run: null } );
       }
@@ -208,6 +232,39 @@ const Timing = {
     } );
     const used = perParticipant * participants;
     return { rows: rows , perParticipant: perParticipant , used: used , available: doc.budget.hours_available , left: doc.budget.hours_available - used , counts: counts };
+  },
+
+  // Raw functional data: a run's dynamics at its card's size per volume (see
+  // Scanners.ref). A run with no such card cannot be sized, so it is counted
+  // rather than guessed at.
+  runBytes( doc , run ) {
+    const info = this.run( doc , run );
+    return ( run.card ? run.card.volume_bytes : 0 ) * Math.max( 0 , info.volumes.max - info.dummy );
+  },
+
+  sessionData( doc , session ) {
+    let bytes = 0;
+    let unsized = 0;
+    this.items( doc , session ).forEach( ( item ) => {
+      if ( !item.run ) return;
+      const size = this.runBytes( doc , item.run );
+      bytes += size;
+      if ( !size ) unsized += 1;
+    } );
+    return { bytes: bytes , unsized: unsized };
+  },
+
+  // Every session type at its count, for one participant and for all.
+  dataVolume( doc ) {
+    const rows = doc.sessions.map( ( session ) => Object.assign( { session: session , runs: this.session( doc , session ).runs } , this.sessionData( doc , session ) ) );
+    const perParticipant = rows.reduce( ( sum , row ) => sum + row.bytes * row.session.count , 0 );
+    return { rows: rows , perParticipant: perParticipant , total: perParticipant * doc.budget.participants , unsized: rows.reduce( ( sum , row ) => sum + row.unsized , 0 ) };
+  },
+
+  // 1.2 GB, 340 MB: binary units, as the old planner reported them.
+  size( bytes ) {
+    const mb = bytes / ( 1024 * 1024 );
+    return mb >= 1024 ? ( mb / 1024 ).toFixed( mb >= 102400 ? 0 : 2 ) + " GB" : Math.round( mb ) + " MB";
   },
 
   // 75 -> "1:15", 3725 -> "1:02:05".

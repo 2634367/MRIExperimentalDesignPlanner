@@ -234,7 +234,7 @@ const Tables = {
       clock += seconds;
     };
     add( I18n.get( "runs.dummies" ) , info.dummy * info.tr , I18n.get( "runs.outline_volumes" ).replace( "{n}" , info.dummy ) );
-    add( I18n.get( "runs.lead_in" ) , run.lead_in.seconds );
+    add( I18n.get( "runs.lead_in" ) , Timing.leadSpan( run.lead_in , info.tr ).mean );
     let left = run.blocks.reduce( ( n , b ) => n + b.repeat , 0 );
     run.blocks.forEach( ( block , index ) => {
       const blockInfo = info.blocks.find( ( b ) => b.block === block );
@@ -246,7 +246,7 @@ const Tables = {
         if ( left > 0 ) add( I18n.get( "runs.rest_short" ) , block.rest_after.seconds );
       }
     } );
-    add( I18n.get( "runs.lead_out" ) , run.lead_out.seconds );
+    add( I18n.get( "runs.lead_out" ) , Timing.leadSpan( run.lead_out , info.tr ).mean );
     rows.push( [ "" , I18n.get( "runs.outline_total" ) , Timing.clock( info.total.mean ) , "" ] );
     return {
       id: "run-" + run.id , title: this.t( "run_outline_title" ).replace( "{name}" , run.name ) ,
@@ -276,6 +276,17 @@ const Tables = {
     rows.push( [ this.t( "all_participants" ).replace( "{n}" , doc.budget.participants ) , "" , "" , this.f( b.used , 1 ) ] );
     rows.push( [ this.t( "available" ) , "" , "" , this.f( b.available , 1 ) ] );
     return { id: "budget" , title: this.t( "budget_title" ) , columns: [ this.t( "session" ) , this.t( "count" ) , this.t( "length" ) , this.t( "hours" ) ] , rows: rows };
+  },
+
+  dataVolume( doc ) {
+    const data = Timing.dataVolume( doc );
+    const rows = data.rows.map( ( r ) => [ r.session.name , r.runs , r.bytes ? Timing.size( r.bytes ) : "–" , r.session.count , r.bytes ? Timing.size( r.bytes * r.session.count * doc.budget.participants ) : "–" ] );
+    rows.push( [ this.t( "per_participant" ) , "" , "" , "" , Timing.size( data.perParticipant ) ] );
+    rows.push( [ this.t( "all_participants" ).replace( "{n}" , doc.budget.participants ) , "" , "" , "" , Timing.size( data.total ) ] );
+    return {
+      id: "data-volume" , title: this.t( "data_title" ) ,
+      columns: [ this.t( "session" ) , this.t( "data_runs" ) , this.t( "data_each" ) , this.t( "count" ) , this.t( "data_all" ) ], rows: rows,
+    };
   },
 
   recovery( doc ) {
@@ -323,6 +334,7 @@ const Tables = {
     out.push( this.runs( doc ) );
     doc.runs.forEach( ( run ) => out.push( this.runOutline( doc , run ) ) );
     doc.sessions.forEach( ( s ) => out.push( this.session( doc , s ) ) );
+    out.push( this.dataVolume( doc ) );
     out.push( this.hrf( doc ) , this.recovery( doc ) );
     if ( Efficiency.regressors( doc ).length ) {
       doc.runs.forEach( ( run ) => {

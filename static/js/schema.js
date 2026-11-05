@@ -119,7 +119,7 @@ const Schema = {
   trialType( name ) {
     return {
       id: this.uid( "tt" ) , name: name || "" , color: "#4c78a8" , notes: "" ,
-      list: "" , filter: { column: "" , values: [] } , order: "shuffle" , balance_by: "" , no_repeat: "session" ,
+      list: "" , filter: { column: "" , values: [] } , order: "shuffle" , balance_by: "" , balance_pct: 50 , no_repeat: "session" ,
       phases: [
         this.phase( "Fixation" , this.jittered( 2 , 6 ) , this.fixation() ),
         this.phase( "Prompt" , this.duration( "fixed" , 4 ) , [ this.textLayer( "{text}" ) ] ),
@@ -145,7 +145,7 @@ const Schema = {
     };
   },
   step( kind , run ) {
-    return { id: this.uid( "st" ) , kind: kind || "run" , run: run || "" , name: "" , minutes: 5 , card: null };
+    return { id: this.uid( "st" ) , kind: kind || "run" , run: run || "" , name: "" , minutes: 5 , card: null , enabled: true };
   },
   session( name , run ) {
     return {
@@ -214,10 +214,17 @@ const Schema = {
     const cardRef = ( raw ) => ( raw && typeof raw === "object" && typeof raw.id === "string" && raw.id ? {
       id: raw.id.slice( 0 , 120 ) , label: str( raw.label ).slice( 0 , 200 ) ,
       tr: num( raw.tr , 0 , 0 , 30 ) , seconds: num( raw.seconds , 0 , 0 , 86400 ),
+      volume_bytes: num( raw.volume_bytes , 0 , 0 , 1e12 ),
     } : null );
     const screen = ( raw , seconds ) => ( {
       seconds: num( raw && raw.seconds , seconds , 0 , 3600 ),
       layers: raw && Array.isArray( raw.layers ) ? layers( raw.layers ) : this.fixation(),
+    } );
+
+    // A lead-in or lead-out: a screen that may also be jittered, in which case
+    // jitter is its duration and seconds only what it goes back to.
+    const lead = ( raw , seconds ) => Object.assign( screen( raw , seconds ) , {
+      jitter: raw && raw.jitter && this.DURATION_KINDS.includes( raw.jitter.kind ) && raw.jitter.kind !== "fixed" ? duration( raw.jitter ) : null,
     } );
 
     const out = {
@@ -244,6 +251,12 @@ const Schema = {
       budget: {
         hours_available: num( doc.budget && doc.budget.hours_available , 10 , 0 , 100000 ),
         participants: Math.round( num( doc.budget && doc.budget.participants , 1 , 0 , 100000 ) ),
+      },
+      // Warnings only, and 0 means none: see Validate.check.
+      limits: {
+        max_run_minutes: num( doc.limits && doc.limits.max_run_minutes , 0 , 0 , 1440 ),
+        max_session_minutes: num( doc.limits && doc.limits.max_session_minutes , 0 , 0 , 1440 ),
+        max_runs_per_session: Math.round( num( doc.limits && doc.limits.max_runs_per_session , 0 , 0 , 1000 ) ),
       },
       media: arr( doc.media ).filter( ( m ) => m && /^[0-9a-f]{64}$/.test( m.id ) ).map( ( m ) => ( {
         id: m.id , name: str( m.name , m.id.slice( 0 , 10 ) ) , ext: str( m.ext , "png" ) , mime: str( m.mime ) ,
@@ -279,6 +292,7 @@ const Schema = {
         },
         order: [ "shuffle" , "sequential" ].includes( tt && tt.order ) ? tt.order : "shuffle" ,
         balance_by: str( tt && tt.balance_by ) ,
+        balance_pct: num( tt && tt.balance_pct , 50 , 0 , 100 ) ,
         no_repeat: [ "session" , "run" , "none" ].includes( tt && tt.no_repeat ) ? tt.no_repeat : "session" ,
         phases: arr( tt && tt.phases ).map( ( ph ) => ( {
           id: id( ph && ph.id , "ph" ) , name: str( ph && ph.name ) ,
@@ -297,8 +311,8 @@ const Schema = {
           enabled: !( run && run.instructions && run.instructions.enabled === false ),
           layers: run && run.instructions && Array.isArray( run.instructions.layers ) ? layers( run.instructions.layers ) : [ this.textLayer( "" , 0.05 ) ],
         },
-        lead_in: screen( run && run.lead_in , 10 ) ,
-        lead_out: screen( run && run.lead_out , 10 ) ,
+        lead_in: lead( run && run.lead_in , 10 ) ,
+        lead_out: lead( run && run.lead_out , 10 ) ,
         blocks: arr( run && run.blocks ).map( ( block ) => ( {
           id: id( block && block.id , "b" ) , name: str( block && block.name ) ,
           repeat: Math.round( num( block && block.repeat , 1 , 1 , 1000 ) ) ,
@@ -317,6 +331,7 @@ const Schema = {
           run: str( step && step.run ) , name: str( step && step.name ) ,
           minutes: num( step && step.minutes , 5 , 0 , 1440 ),
           card: step && step.kind === "scan" ? cardRef( step.card ) : null,
+          enabled: !( step && step.enabled === false ),
         } ) ),
       } ) ),
     };

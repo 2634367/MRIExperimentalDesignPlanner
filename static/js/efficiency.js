@@ -12,6 +12,7 @@
 const Efficiency = {
   MAX_VOLUMES: 4000,
   MAX_LSA: 64,
+  MAX_PEAK_TRIALS: 25,
   PLOT_POINTS: 6000,
 
   // The modelled phases of the document, in trial-type order.
@@ -106,7 +107,7 @@ const Efficiency = {
     const result = {
       plan: plan , tr: tr , volumes: volumes , total: plan.total_seconds , regressors: columnsUsed ,
       events: [] , contrasts: [] , correlations: [] , vif: [] , maxVif: null , maxCorrelation: null ,
-      duty: 0 , singleTrial: 0 , series: null ,
+      duty: 0 , singleTrial: 0 , stacking: 0 , sustain: null , series: null ,
     };
     if ( !columnsUsed.length ) return result;
     const remap = new Map();
@@ -153,8 +154,51 @@ const Efficiency = {
     }
     result.duty = plan.total_seconds > 0 ? result.events.reduce( ( sum , e ) => sum + e.duration , 0 ) / plan.total_seconds : 0;
     result.singleTrial = this.singleTrial( result.events , volumes , tr , drift , p );
+    Object.assign( result , this.signalShape( task , result.events , volumes , tr , p ) );
     result.series = this.series( result.events , columnsUsed.length , plan.total_seconds , p );
     return result;
+  },
+
+  // How the predicted task signal behaves between the first event and the
+  // end of the last, summed over every regressor.
+  //   stacking  its peak over the peak of one trial on its own (the median
+  //             trial's, since jitter makes them differ): above 1, trials add
+  //             up; 1, they stay apart
+  //   sustain   its median as a share of its 95th percentile (the old duty
+  //             cycle): near 1 it stays up, near 0 it falls back between
+  //             events. null for a run too short to say
+  signalShape( task , events , volumes , tr , p ) {
+    const firstOnset = events.reduce( ( low , e ) => Math.min( low , e.onset ) , Infinity );
+    const lastEnd = events.reduce( ( high , e ) => Math.max( high , e.onset + e.duration ) , 0 );
+    const signal = [];
+    for ( let k = Math.max( 0 , Math.floor( firstOnset / tr ) ); k < Math.min( volumes , Math.ceil( lastEnd / tr ) ); k += 1 ) {
+      signal.push( task.reduce( ( sum , column ) => sum + column[ k ] , 0 ) );
+    }
+    const sorted = signal.slice().sort( ( a , b ) => a - b );
+    const ceiling = sorted[ Math.floor( sorted.length * 0.95 ) ];
+    const sustain = sorted.length > 8 && ceiling > 0 ? Math.max( 0 , Math.min( 1 , sorted[ Math.floor( sorted.length * 0.5 ) ] / ceiling ) ) : null;
+    const trials = new Map();
+    events.forEach( ( e ) => {
+      if ( !trials.has( e.trial ) ) trials.set( e.trial , [] );
+      trials.get( e.trial ).push( e );
+    } );
+    // Every trial would be slow on a long run, and a spread of them says the same.
+    const all = Array.from( trials.values() );
+    const step = Math.max( 1 , Math.ceil( all.length / this.MAX_PEAK_TRIALS ) );
+    const peaks = all.filter( ( _ , i ) => i % step === 0 ).map( ( list ) => this.trialPeak( list , p ) ).sort( ( a , b ) => a - b );
+    const typical = peaks[ Math.floor( peaks.length / 2 ) ] || 0;
+    return { stacking: typical > 0 && sorted.length ? sorted[ sorted.length - 1 ] / typical : 0 , sustain: sustain };
+  },
+
+  // The highest one trial's events reach with nothing else around them.
+  trialPeak( list , p ) {
+    const start = list[ 0 ].onset;
+    const end = list.reduce( ( high , e ) => Math.max( high , e.onset + e.duration ) , start ) + p.span;
+    let peak = 0;
+    for ( let t = start; t <= end; t += 0.25 ) {
+      peak = Math.max( peak , list.reduce( ( sum , e ) => sum + Hrf.boxcar( t , e.onset , e.duration , p ) , 0 ) );
+    }
+    return peak;
   },
 
   // Least-squares-all: one column per modelled event (up to MAX_LSA of them,

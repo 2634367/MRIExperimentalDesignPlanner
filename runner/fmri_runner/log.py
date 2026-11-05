@@ -8,7 +8,9 @@
                                plus an item_<column> for each column of the
                                drawn items (answer, category, ...)
   <name>.json                  the run record: the plan, the measured onset of
-                               every segment, every key press and trigger
+                               every segment, every key press and trigger,
+                               and the items shown (the designer reads those
+                               to prefer unseen items on a later visit)
 """
 import csv
 import json
@@ -51,7 +53,8 @@ class Log:
         who = participant or plan.get("participant") or "anon"
         stamp = time.strftime("%Y%m%dT%H%M%S")
         safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in who)
-        return f"sub-{safe}_{plan['run']['label']}_{stamp}"
+        pilot = "_pilot" if plan.get("pilot_blocks") else ""
+        return f"sub-{safe}_{plan['run']['label']}{pilot}_{stamp}"
 
     def write_run(self, name, record):
         path = self.dir / f"{name}.json"

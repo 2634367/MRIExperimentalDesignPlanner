@@ -101,7 +101,7 @@ const Figures = {
     const parts = [];
     const add = ( p ) => { if ( p.seconds > 0 ) parts.push( p ); };
     add( { label: I18n.get( "runs.dummies" ) , short: I18n.get( "figures.dummies_short" ) , seconds: info.dummy * info.tr , muted: true , color: pal.axis } );
-    add( { label: I18n.get( "runs.lead_in" ) , seconds: run.lead_in.seconds , muted: true , color: pal.axis } );
+    add( { label: I18n.get( "runs.lead_in" ) , seconds: Timing.leadSpan( run.lead_in , Timing.scan( doc , run ).tr ).mean , muted: true , color: pal.axis } );
     let left = run.blocks.reduce( ( n , b ) => n + b.repeat , 0 );
     run.blocks.forEach( ( block , index ) => {
       const blockInfo = info.blocks.find( ( b ) => b.block === block );
@@ -112,7 +112,7 @@ const Figures = {
         if ( left > 0 && block.rest_after.seconds > 0 ) add( { label: I18n.get( "runs.rest_short" ) , seconds: block.rest_after.seconds , muted: true , color: pal.axis } );
       }
     } );
-    add( { label: I18n.get( "runs.lead_out" ) , seconds: run.lead_out.seconds , muted: true , color: pal.axis } );
+    add( { label: I18n.get( "runs.lead_out" ) , seconds: Timing.leadSpan( run.lead_out , Timing.scan( doc , run ).tr ).mean , muted: true , color: pal.axis } );
     return parts;
   },
 

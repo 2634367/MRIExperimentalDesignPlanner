@@ -14,7 +14,7 @@ from starlette.responses import JSONResponse, Response
 from app.core import bundle, psychopy
 from app.core.db import Store
 from app.core.security import actor_from, check_csrf
-from app.models import experiments
+from app.models import experiments, seen
 from app.models.experiments import NoSuchExperimentError
 from app.models.plans import BadPlanError, check_plans
 from app.routes.helpers import bad_request, conflict, error, forbidden, get_config, get_store, not_found, read_json, run
@@ -60,7 +60,8 @@ def _launch(store: Store, cfg, experiment_id: str, user_id: int, body: dict) -> 
     label = body.get("label") if isinstance(body.get("label"), str) else ""
     launch = psychopy.start(
         cfg, checked, files, user_id, (label or experiment.name)[:200],
-        body.get("scanner", "wait"), body.get("windowed") is True,
+        body.get("scanner", "wait"), body.get("windowed") is True, body.get("screen", 0), body.get("debug") is True,
+        on_end=lambda folder: seen.add_folder(store, experiment.id, folder),
     )
     return launch.row()
 
@@ -82,6 +83,48 @@ async def launch(request: Request) -> Response:
     except psychopy.AlreadyRunningError as refusal:
         return conflict(str(refusal))
     return JSONResponse(row, status_code=201)
+
+
+def _read_seen(store: Store, experiment_id: str, user_id: int, participant: object) -> dict:
+    experiment = experiments.experiment_for(store, experiment_id, user_id)
+    return seen.read(store, experiment.id, participant if isinstance(participant, str) else "")
+
+
+async def read_seen(request: Request) -> Response:
+    """What a participant has been shown. A POST so the participant's label
+    stays out of URLs and access logs."""
+    body = await read_json(request)
+    if body is None:
+        return bad_request("malformed request body")
+    if not check_csrf(request, body.get("csrf_token")):
+        return forbidden("invalid csrf token")
+    try:
+        row = await run(_read_seen, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id, body.get("participant"))
+    except NoSuchExperimentError:
+        return not_found("no such experiment")
+    return JSONResponse(row)
+
+
+def _add_seen(store: Store, experiment_id: str, user_id: int, runs: object) -> int:
+    experiment = experiments.experiment_for(store, experiment_id, user_id)
+    return seen.add_runs(store, experiment.id, runs)
+
+
+async def add_seen(request: Request) -> Response:
+    """Run records brought back from a bundle, trimmed by the run dialog to
+    what seen.summarise keeps."""
+    body = await read_json(request)
+    if body is None:
+        return bad_request("malformed request body")
+    if not check_csrf(request, body.get("csrf_token")):
+        return forbidden("invalid csrf token")
+    try:
+        added = await run(_add_seen, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id, body.get("runs"))
+    except NoSuchExperimentError:
+        return not_found("no such experiment")
+    except seen.BadRunError as refusal:
+        return bad_request(str(refusal))
+    return JSONResponse({"added": added})
 
 
 async def latest_launch(request: Request) -> Response:

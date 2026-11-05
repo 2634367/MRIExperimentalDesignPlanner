@@ -14,8 +14,10 @@ picture is named only by its sha256, so a plan cannot point the runner at a
 path of its own choosing. The runner reads it as data and nothing in it is
 ever evaluated.
 
-FORMAT is versioned. A change to the shape bumps it, and the runner refuses a
-plan it does not know rather than guessing.
+FORMAT is versioned. A change that a runner could misread bumps it, and the
+runner refuses a plan it does not know rather than guessing. An optional key
+that only labels or describes (block, visit, pilot_blocks) does not: every
+runner still plays such a plan correctly.
 """
 from __future__ import annotations
 
@@ -178,6 +180,7 @@ def _segment(value: Any, where: str) -> None:
         },
         {
             "trial": _integer(0, MAX_SEGMENTS),
+            "block": _integer(0, MAX_SEGMENTS),
             "trial_type": _string(MAX_NAME),
             "phase": _string(MAX_NAME),
             "item": _string(MAX_NAME),
@@ -215,7 +218,11 @@ def check_plan(plan: Any) -> dict:
             "volumes": _integer(0, 1_000_000),
             "media": lambda v, w: None,
         },
-        {"session": lambda v, w: _object(v, w, {"id": _string(64), "name": _string(MAX_NAME)})},
+        {
+            "session": lambda v, w: _object(v, w, {"id": _string(64), "name": _string(MAX_NAME)}),
+            "visit": _integer(1, 999),
+            "pilot_blocks": _integer(1, MAX_SEGMENTS),
+        },
     )
     if not KEY.match(plan["scanner"]["trigger_key"]):
         _fail("plan.scanner.trigger_key", "must be a key name like 5 or t")

@@ -114,6 +114,8 @@ const Api = {
   saveScannerCard( id , card , baseRevision ) {
     return this.post( this.cardPath( id ) + "/save" , { card: card , base_revision: baseRevision } );
   },
+  cardBackups( id )            { return this.request( this.cardPath( id ) + "/backups" ); },
+  restoreCardBackup( id , revision ) { return this.post( this.cardPath( id ) + "/backups/restore" , { revision: revision } ); },
   deleteScannerCard( id )      { return this.post( this.cardPath( id ) + "/delete" ); },
   restoreScannerCard( id )     { return this.post( this.cardPath( id ) + "/restore" ); },
 
@@ -189,6 +191,10 @@ const Api = {
   sharedBundle( credential , plans ) { return this.postForFile( "/api/share/bundle" , { credential: credential , plans: plans } ); },
 
   // PsychoPy on this machine.
+  publish( id , body )         { return this.post( this.experimentPath( id ) + "/publish" , body ); },
+  published( id )              { return this.request( this.experimentPath( id ) + "/published" ); },
+  seen( id , participant )     { return this.post( this.experimentPath( id ) + "/seen" , { participant: participant } ); },
+  addSeen( id , runs )         { return this.post( this.experimentPath( id ) + "/seen/add" , { runs: runs } ); },
   psychopyStatus( refresh )    { return this.request( "/api/psychopy" + ( refresh ? "?refresh=1" : "" ) ); },
   launch( id , body )          { return this.post( this.experimentPath( id ) + "/launch" , body ); },
   latestLaunch()               { return this.request( "/api/launches/latest" ); },

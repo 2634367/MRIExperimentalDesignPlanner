@@ -50,10 +50,15 @@ BUCKET_SHARE_LINKS = "share_links"
 # Scanner parameter cards: one shared library for everyone (not per
 # experiment), so a sequence is described once and every design uses it.
 BUCKET_SCANNER_CARDS = "scanner_cards"
+BUCKET_CARD_BACKUPS = "scanner_card_backups"
+# What each participant has been shown, per experiment (app/models/seen.py).
+BUCKET_SEEN = "seen_items"
+# The last Publish of each experiment (app/models/published.py).
+BUCKET_PUBLISHED = "published"
 
 BUCKETS = (
     BUCKET_USERS, BUCKET_SESSIONS, BUCKET_LOGIN_TOKENS, BUCKET_API_KEYS, BUCKET_INVITE_LINKS, BUCKET_META,
-    BUCKET_EXPERIMENTS, BUCKET_MEDIA, BUCKET_SHARE_LINKS, BUCKET_SCANNER_CARDS,
+    BUCKET_EXPERIMENTS, BUCKET_MEDIA, BUCKET_SHARE_LINKS, BUCKET_SCANNER_CARDS, BUCKET_CARD_BACKUPS, BUCKET_SEEN, BUCKET_PUBLISHED,
 )
 
 # How long a writer waits for another writer before giving up. Without it a

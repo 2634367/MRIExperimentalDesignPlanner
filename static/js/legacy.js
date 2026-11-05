@@ -17,9 +17,17 @@
 // the default here; a cap of nMaxCap TRs becomes each phase's max once the
 // runs have given the TR.
 //
-// The old optimiser's settings (solve modes, HRF objectives, caps,
-// contingency) have no counterpart and are dropped; the import report lists
-// everything that did not come across, so nothing disappears silently.
+// Every old condition (a "role": primary, passive read, ...) comes across. The
+// primary one is the trial itself; each other becomes its own trial type on
+// every trial that shows a question, with its own cue, and the question only
+// if the condition shows one. The old task's share of control trials decides
+// how many of them a run plays.
+//
+// The old limits (longest run and session, runs per session) become the
+// warnings on Overview. The old optimiser's settings (solve modes, HRF
+// objectives, contingency) have no counterpart and are dropped; the import
+// report lists everything that did not come across, so nothing disappears
+// silently.
 //
 // The old runs and structural scans named their scanner card by slug
 // ("EPI-TR2000-Task"); those slugs are the card ids in the shared library
@@ -86,10 +94,14 @@ const Legacy = {
     }
 
     const fixation = () => [ Schema.textLayer( fixationText , fixationHeight ) ];
-    const layersFor = ( shows ) => {
+    const layersFor = ( shows , role ) => {
+      const condition = role || primary;
       if ( shows === "fixation" ) return fixation();
-      if ( shows === "question" ) return [ Schema.textLayer( "{text}" , 0.06 ) , Object.assign( Schema.imageLayer( "{image}" ) , { pos: [ 0 , 0 ] , height: 1 } ) ];
-      if ( shows === "cue" ) return primary.shape ? [ Schema.textLayer( primary.shape , cueHeight ) ] : [];
+      if ( shows === "question" ) {
+        if ( condition.showQuestion === false ) return fixation();
+        return [ Schema.textLayer( "{text}" , 0.06 ) , Object.assign( Schema.imageLayer( "{image}" ) , { pos: [ 0 , 0 ] , height: 1 } ) ];
+      }
+      if ( shows === "cue" ) return condition.shape ? [ Schema.textLayer( condition.shape , cueHeight ) ] : [];
       if ( shows === "blank" || !shows ) return [];
       const screen = screens[ shows ];
       if ( screen && screen.text ) return [ Object.assign( Schema.textLayer( screen.text , screen.height || 0.06 ) , { pos: screen.pos || [ 0 , 0 ] } ) ];
@@ -98,13 +110,16 @@ const Legacy = {
     };
 
     const trialIds = {};
-    ( old.trials || [] ).forEach( ( trial ) => {
+    const conditionIds = {};  // old trial id -> [ trial type id ] of its other conditions
+    const answerShare = Number( presentation.run && presentation.run.label_balance_pct );
+    // A question phase that plays a sound (the perceived-speech control):
+    // this app has no audio, so it shows the fixation instead of a question.
+    const audio = ( phase ) => phase.shows === "question" && /audio|sound|listen/i.test( phase.name || "" );
+    const asks = ( trial ) => ( trial.phases || [] ).some( ( p ) => p.shows === "question" && !audio( p ) );
+    const makeTrialType = ( trial , role ) => {
       const tt = Schema.trialType( trial.name || t( "trials.default_name" ) );
       tt.notes = trial.note || "";
       tt.color = [ "#4c78a8" , "#f58518" , "#54a24b" , "#e45756" , "#72b7b2" , "#b279a2" ][ doc.trial_types.length % 6 ];
-      // A question phase that plays a sound (the perceived-speech control):
-      // this app has no audio, so it shows the fixation instead of a question.
-      const audio = ( phase ) => phase.shows === "question" && /audio|sound|listen/i.test( phase.name || "" );
       tt.phases = ( trial.phases || [] ).map( ( phase ) => {
         const lo = Number( phase.min ) || 0;
         const hi = Math.max( lo , Number( phase.max ) || lo );
@@ -115,22 +130,40 @@ const Legacy = {
         } else {
           duration = Schema.duration( "fixed" , hi > lo ? ( lo + hi ) / 2 : lo );
         }
-        if ( audio( phase ) ) notes.push( t( "legacy.note_audio" ).replace( "{trial}" , tt.name ).replace( "{phase}" , phase.name ) );
-        const made = Schema.phase( phase.name || "" , duration , audio( phase ) ? fixation() : layersFor( phase.shows ) );
+        if ( audio( phase ) && !role ) notes.push( t( "legacy.note_audio" ).replace( "{trial}" , tt.name ).replace( "{phase}" , phase.name ) );
+        const made = Schema.phase( phase.name || "" , duration , audio( phase ) ? fixation() : layersFor( phase.shows , role ) );
         // The old regressor roles: a stimulus or response phase was modelled.
         made.modelled = [ "stimulus" , "response" , "question" , "cue" , "answer" ].includes( String( phase.role || "" ).toLowerCase() );
         return made;
       } );
-      if ( ( trial.phases || [] ).some( ( p ) => p.shows === "question" && !audio( p ) ) && list ) {
+      if ( asks( trial ) && list && !( role && role.showQuestion === false && !role.cueFromResponse ) ) {
         tt.list = list.id;
         tt.balance_by = "answer";
+        if ( answerShare >= 0 && answerShare <= 100 ) tt.balance_pct = answerShare;
       }
-      if ( Number( trial.controlPct ) > 0 ) notes.push( t( "legacy.note_control" ).replace( "{trial}" , tt.name ).replace( "{pct}" , trial.controlPct ) );
-      trialIds[ trial.id ] = tt.id;
       doc.trial_types.push( tt );
+      return tt;
+    };
+    const others = roles.slice( 1 );
+    ( old.trials || [] ).forEach( ( trial ) => {
+      trialIds[ trial.id ] = makeTrialType( trial , null ).id;
+      if ( !asks( trial ) ) return;
+      conditionIds[ trial.id ] = others.map( ( role ) => {
+        const tt = makeTrialType( trial , role );
+        tt.name = tt.name + " · " + ( role.name || role.shape || "" );
+        const response = role.word || role.response;
+        if ( response ) tt.notes = [ tt.notes , t( "legacy.condition_response" ).replace( "{response}" , response ) ].filter( Boolean ).join( " " );
+        return tt.id;
+      } );
     } );
-    const unused = roles.slice( 1 ).map( ( r ) => r.name ).filter( Boolean );
-    if ( unused.length ) notes.push( t( "legacy.note_roles" ).replace( "{cue}" , primary.shape || "" ).replace( "{roles}" , unused.join( ", " ) ) );
+    const unplayed = ( old.trials || [] ).some( ( trial ) => conditionIds[ trial.id ] && !( Number( trial.controlPct ) > 0 ) );
+    if ( others.length && Object.keys( conditionIds ).length ) {
+      notes.push( t( unplayed ? "legacy.note_conditions_unused" : "legacy.note_conditions" ).replace( "{roles}" , others.map( ( r ) => r.name ).filter( Boolean ).join( ", " ) ) );
+    }
+    const controlShare = ( oldRun ) => {
+      const trial = ( old.trials || [] ).find( ( x ) => x.id === oldRun.trial );
+      return trial && conditionIds[ trial.id ] ? Math.max( 0 , Math.min( 100 , Number( trial.controlPct ) || 0 ) ) : 0;
+    };
 
     const leadLayers = ( which ) => {
       const show = presentation.run && presentation.run[ which ] ? presentation.run[ which ].show : "fixation";
@@ -158,6 +191,19 @@ const Legacy = {
       block.mix[ 0 ].count = Number( oldRun.trialsPerBlock ) || 1;
       block.repeat = Number( oldRun.blocksPerRun ) || 1;
       block.order = "fixed";
+      // The share of control trials, spread over the other conditions.
+      const share = controlShare( oldRun );
+      if ( share > 0 ) {
+        const total = block.mix[ 0 ].count;
+        const controls = Math.round( ( total * share ) / 100 );
+        const ids = conditionIds[ oldRun.trial ];
+        ids.forEach( ( id , index ) => {
+          const count = Math.floor( controls / ids.length ) + ( index < controls % ids.length ? 1 : 0 );
+          if ( count ) block.mix.push( { trial_type: id , count: count } );
+        } );
+        block.mix[ 0 ].count = total - controls;
+        block.order = "shuffle";
+      }
       block.rest_after = { seconds: Number( oldRun.interBlockRest ) || 0 , layers: fixation() };
       run.blocks = [ block ];
       if ( Number( oldRun.interTrialGap ) > 0 ) notes.push( t( "legacy.note_gap" ).replace( "{run}" , run.name ).replace( "{seconds}" , oldRun.interTrialGap ) );
@@ -191,8 +237,9 @@ const Legacy = {
       // each other (and nowhere else), as auto_break_minutes does here.
       session.auto_break_minutes = oldSession.autoBreak !== false ? Math.max( 0 , Number( oldSession.breakMinutes ) || 0 ) : 0;
       let guessed = false;
-      ( oldSession.blocks || [] ).filter( ( b ) => b.enabled !== false ).forEach( ( block ) => {
+      ( oldSession.blocks || [] ).forEach( ( block ) => {
         const times = Math.max( 1 , Number( block.count ) || 1 );
+        const from = session.steps.length;
         for ( let k = 0; k < times; k += 1 ) {
           if ( block.kind === "run" ) {
             session.steps.push( Schema.step( "run" , runIds[ block.run ] || "" ) );
@@ -214,13 +261,22 @@ const Legacy = {
             session.steps.push( Object.assign( Schema.step( "break" ) , { name: block.label || "" , minutes: Number( block.minutes ) || 0 } ) );
           }
         }
+        // Switched off there, switched off here: kept, and taking no time.
+        if ( block.enabled === false ) session.steps.slice( from ).forEach( ( step ) => { step.enabled = false; } );
       } );
       if ( guessed ) notes.push( t( "legacy.note_structural" ).replace( "{session}" , session.name ) );
       doc.sessions.push( session );
     } );
 
     if ( missingCards.size ) notes.push( t( "legacy.note_cards" ).replace( "{cards}" , Array.from( missingCards ).join( ", " ) ) );
-    if ( old.caps ) notes.push( t( "legacy.note_caps" ) );
+    if ( old.caps ) {
+      doc.limits = {
+        max_run_minutes: Number( old.caps.maxRunMinutes ) || 0,
+        max_session_minutes: Number( old.caps.maxSessionMinutes ) || 0,
+        max_runs_per_session: Number( old.caps.maxRunsPerSession ) || 0,
+      };
+      notes.push( t( "legacy.note_caps" ) );
+    }
     if ( old.dynScansFrom ) notes.push( t( "legacy.note_dyn" ) );
     if ( budget.solveMode && budget.solveMode !== "manual" ) notes.push( t( "legacy.note_solver" ).replace( "{mode}" , budget.solveMode ) );
     // The response shape carries over; the objectives and solvers do not.

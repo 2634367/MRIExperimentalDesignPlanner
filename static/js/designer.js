@@ -26,10 +26,15 @@ const Designer = {
       if ( reason === "open" ) {
         Experiments.loadLinks();
         Nav.refresh();
+        this.followLink();
       }
       this.refresh();
     } );
-    window.addEventListener( "hashchange" , () => this.refresh( true ) );
+    window.addEventListener( "hashchange" , () => {
+      this.followLink();
+      this.refresh( true );
+      this.noteItem();
+    } );
     Dom.get( "conflict-reload" ).addEventListener( "click" , () => Doc.reloadTheirs() );
     Dom.get( "conflict-keep" ).addEventListener( "click" , () => Doc.keepMine() );
   },
@@ -130,6 +135,29 @@ const Designer = {
     if ( typeof Nav !== "undefined" && Nav.current() === name ) this.refresh();
   },
 
+  // Open the item a link names (#sessions/<id>), once, when the link is
+  // followed: from then on the screen's own selection is what counts.
+  followLink() {
+    if ( typeof Nav === "undefined" ) return;
+    const name = Nav.current();
+    const screen = this.screens[ name ];
+    const id = Nav.item();
+    if ( !screen || !screen.focus || !id ) return;
+    screen.focus( id );
+    this.stale[ name ] = true;
+  },
+
+  // Keep the address on the item showing. A library still loading has
+  // nothing selected yet, and must keep the id a link asked for until it has.
+  noteItem() {
+    const name = Nav.current();
+    const screen = this.screens[ name ];
+    if ( !screen || !screen.current || screen.loaded === false ) return;
+    if ( this.docScreens.includes( name ) && !Doc.isOpen() ) return;
+    const item = screen.current();
+    Nav.noteItem( item ? item.id : "" );
+  },
+
   // Repaint the screen on show (if it changed since it was last painted).
   refresh( onlyIfStale ) {
     if ( typeof Nav === "undefined" ) return;
@@ -143,6 +171,7 @@ const Designer = {
     this.stale[ name ] = false;
     try {
       Ui.keep( root , () => screen.render( root ) );
+      this.noteItem();
     } catch ( error ) {
       console.error( error );
       root.replaceChildren( Dom.el( "div" , { class: "alert alert-danger" , text: I18n.get( "errors.render" ) + " " + error.message } ) );

@@ -55,8 +55,20 @@ const Overview = {
     if ( !budget.rows.length ) body.appendChild( Dom.el( "tr" , { children: [ Dom.el( "td" , { attrs: { colspan: "4" } , children: [ Ui.empty( Ui.t( "overview.no_sessions" ) ) ] } ) ] } ) );
     table.appendChild( body );
     hours.appendChild( Dom.el( "div" , { class: "table-responsive" , children: [ table ] } ) );
+    const data = Timing.dataVolume( doc );
+    if ( data.perParticipant > 0 ) {
+      let text = Ui.t( "overview.data_total" ).replace( "{each}" , Timing.size( data.perParticipant ) ).replace( "{all}" , Timing.size( data.total ) );
+      if ( data.unsized ) text += " " + Ui.t( "overview.data_unsized" ).replace( "{n}" , data.unsized );
+      hours.appendChild( Ui.muted( text , "mb-2" ) );
+    }
     hours.appendChild( Tables.actions( () => Tables.budget( Doc.doc ) ) );
     root.appendChild( Ui.section( Ui.t( "overview.budget" ) , hours ) );
+
+    // Your own limits: over one is a warning below, never a refusal.
+    const limit = ( key , field , step ) => Ui.field( "overview." + key , Ui.number( doc.limits[ field ] , ( v ) => Doc.change( Ui.t( "undo.budget_changed" ) , ( d ) => { d.limits[ field ] = Math.max( 0 , v ); } ) , { key: "lim." + field , min: 0 , step: step } ) , { col: "col-md-4" } );
+    root.appendChild( Ui.section( Ui.t( "overview.limits" ) , [
+      Ui.row( [ limit( "limit_run" , "max_run_minutes" , 1 ) , limit( "limit_session" , "max_session_minutes" , 5 ) , limit( "limit_runs" , "max_runs_per_session" , 1 ) ] ),
+    ] , { help: Ui.t( "overview.limits_help" ) } ) );
 
     // What that buys.
     const totals = Dom.el( "div" , { class: "row g-3" } );

@@ -54,16 +54,20 @@ class Call:
     request: Request
     args: dict[str, Any] = field(default_factory=dict)
 
-    def bind(self, spec: dict[str, type]) -> dict[str, Any]:
+    def bind(self, spec: dict[str, type], optional: dict[str, type] | None = None) -> dict[str, Any]:
         """The arguments, checked strictly against {name: type}: every name
         required, nothing else allowed -- the same rule config.yaml follows, so
-        a misspelt argument is reported rather than silently ignored."""
-        unknown = sorted(set(self.args) - set(spec))
+        a misspelt argument is reported rather than silently ignored. optional
+        names may be left out."""
+        extra = optional or {}
+        unknown = sorted(set(self.args) - set(spec) - set(extra))
         if unknown:
             raise InvalidArguments(f"invalid arguments: unknown field {unknown[0]!r}")
         bound: dict[str, Any] = {}
-        for name, kind in spec.items():
+        for name, kind in {**spec, **extra}.items():
             if name not in self.args:
+                if name in extra:
+                    continue
                 raise InvalidArguments(f"invalid arguments: {name} is required")
             value = self.args[name]
             # bool is a subclass of int; true is not a user id.

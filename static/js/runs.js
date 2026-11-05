@@ -69,6 +69,8 @@ const Runs = {
       Ui.field( "runs.dummy" , Ui.number( run.dummy_volumes >= 0 ? run.dummy_volumes : "" , ( v , input ) => this.edit( Ui.t( "undo.run_changed" ) , ( r ) => { r.dummy_volumes = input.value === "" ? -1 : Math.max( 0 , Math.round( v ) ); } ) , { key: "run.dummy" , min: 0 , step: 1 , placeholder: String( doc.scanner.dummy_volumes ) } ) , { col: "col-6 col-md-3" , help: Ui.t( "runs.dummy_help" ) } ),
     ] , "mt-1" ) );
     if ( Scanners.stale( run.card ) ) about.push( this.updateFromCard( run ) );
+    const linked = run.card && Scanners.byId( run.card.id );
+    if ( linked && Scanners.timingChanges( doc , run , linked ).length ) about.push( this.writeToCard( run ) );
     if ( usedBy.length ) about.push( Ui.muted( Ui.t( "runs.used_by" ) + " " + usedBy.join( ", " ) , "mt-2" ) );
     box.appendChild( Ui.section( Ui.t( "runs.section_run" ) , about , { fold: "runs.about" } ) );
 
@@ -95,7 +97,7 @@ const Runs = {
       instructions.push( this.screenEditor( run.instructions , "run.instr" , ( label , fn ) => this.edit( label , ( r ) => fn( r.instructions ) ) , false ) );
     }
     box.appendChild( Ui.section( Ui.t( "runs.instructions" ) , instructions , { fold: "runs.instructions" } ) );
-    box.appendChild( Ui.section( Ui.t( "runs.lead_in" ) , this.screenEditor( run.lead_in , "run.leadin" , ( label , fn ) => this.edit( label , ( r ) => fn( r.lead_in ) ) , true ) , { fold: "runs.leadin" } ) );
+    box.appendChild( Ui.section( Ui.t( "runs.lead_in" ) , this.screenEditor( run.lead_in , "run.leadin" , ( label , fn ) => this.edit( label , ( r ) => fn( r.lead_in ) ) , "lead" ) , { fold: "runs.leadin" } ) );
 
     // Blocks.
     const addBlock = Ui.button( Ui.t( "runs.add_block" ) , "plus-lg" , () => this.edit( Ui.t( "undo.block_added" ) , ( r , d ) => {
@@ -103,7 +105,7 @@ const Runs = {
     } ) , { variant: "btn-outline-primary" , small: true , editOnly: true } );
     box.appendChild( Ui.section( Ui.t( "runs.blocks" ) + " (" + run.blocks.length + ")" , run.blocks.length ? run.blocks.map( ( block , index ) => this.blockCard( run , block , index , info ) ) : Ui.empty( Ui.t( "runs.no_blocks" ) ) , { actions: [ addBlock ] , fold: "runs.blocks" } ) );
 
-    box.appendChild( Ui.section( Ui.t( "runs.lead_out" ) , this.screenEditor( run.lead_out , "run.leadout" , ( label , fn ) => this.edit( label , ( r ) => fn( r.lead_out ) ) , true ) , { fold: "runs.leadout" } ) );
+    box.appendChild( Ui.section( Ui.t( "runs.lead_out" ) , this.screenEditor( run.lead_out , "run.leadout" , ( label , fn ) => this.edit( label , ( r ) => fn( r.lead_out ) ) , "lead" ) , { fold: "runs.leadout" } ) );
 
     box.appendChild( this.efficiency( run ) );
     box.appendChild( Ui.section( Ui.t( "figures.heading" ) , Charts.figure( ( light , width ) => Figures.run( Doc.doc , run , light , width ) , "run-" + ( run.name || run.id ) ) , { fold: "runs.figure" } ) );
@@ -165,6 +167,8 @@ const Runs = {
     if ( result.maxVif != null ) stat( Ui.t( "efficiency.max_vif" ) , Number.isFinite( result.maxVif ) ? result.maxVif.toFixed( 2 ) : "∞" , Ui.t( "efficiency.max_vif_sub" ) , result.maxVif > 5 ? "warn" : "" );
     stat( Ui.t( "efficiency.single_trial" ) , Efficiency.format( result.singleTrial ) , Ui.t( "efficiency.single_trial_sub" ) );
     stat( Ui.t( "efficiency.duty" ) , Math.round( result.duty * 100 ) + "%" , Ui.t( "efficiency.duty_sub" ).replace( "{volumes}" , result.volumes ) );
+    stat( Ui.t( "efficiency.stacking" ) , result.stacking.toFixed( 2 ) + "×" , Ui.t( "efficiency.stacking_sub" ) );
+    if ( result.sustain != null ) stat( Ui.t( "efficiency.sustain" ) , Math.round( result.sustain * 100 ) + "%" , Ui.t( "efficiency.sustain_sub" ) );
     body.appendChild( stats );
 
     const seedInput = Ui.number( seed , ( v ) => { this.seeds[ run.id ] = Math.max( 0 , Math.round( v ) ); Designer.repaint( this.name ); } , { key: "run.effseed" , min: 0 , step: 1 , small: true } );
@@ -211,13 +215,24 @@ const Runs = {
     } ) , { small: true , variant: "btn-outline-warning" , editOnly: true , title: Ui.t( "scanners.update_title" ) } ) ] } );
   },
 
+  // The run's timing no longer matches its card: offer to write it back.
+  writeToCard( run ) {
+    const afterwards = () => this.edit( Ui.t( "undo.card_linked" ) , ( r ) => {
+      const picked = Scanners.byId( r.card && r.card.id );
+      if ( picked ) r.card = Scanners.ref( picked );
+    } );
+    return Dom.el( "div" , { class: "mt-2" , children: [ Ui.button( Ui.t( "scanners.write_timing" ) , "box-arrow-in-down" , () => Scanners.writeTiming( run , afterwards ) , { small: true , editOnly: true , title: Ui.t( "scanners.write_timing_title" ) } ) ] } );
+  },
+
   // Lead-in / lead-out / rest / instructions: seconds (unless untimed) and
   // what is on screen, with a preview.
   screenEditor( screen , key , edit , timed ) {
     const doc = Doc.doc;
     const wrap = Dom.el( "div" , { class: "row g-3" } );
     const left = Dom.el( "div" , { class: "col-xl-8" } );
-    if ( timed ) {
+    if ( timed === "lead" ) {
+      left.appendChild( this.leadEditor( screen , key , edit ) );
+    } else if ( timed ) {
       left.appendChild( Ui.row( [ Ui.field( "runs.seconds" , Ui.number( screen.seconds , ( v ) => edit( Ui.t( "undo.run_changed" ) , ( s ) => { s.seconds = Math.max( 0 , v ); } ) , { key: key + ".s" , min: 0 , step: 1 , small: true } ) , { col: "col-4 col-md-3" } ) ] ) );
     } else {
       left.appendChild( Ui.muted( Ui.t( "runs.instructions_help" ) ) );
@@ -230,6 +245,19 @@ const Runs = {
     wrap.appendChild( left );
     wrap.appendChild( right );
     return wrap;
+  },
+
+  // A lead's length in the same control a phase has. Fixed is its seconds;
+  // anything else is its jitter, so a lead nobody jitters stays plain.
+  leadEditor( screen , key , edit ) {
+    const asDuration = ( s ) => JSON.parse( JSON.stringify( s.jitter || Schema.duration( "fixed" , s.seconds ) ) );
+    return Trials.durationEditor( { duration: asDuration( screen ) } , key , ( label , fn ) => edit( label , ( s ) => {
+      const phase = { duration: asDuration( s ) };
+      fn( phase );
+      const d = Object.assign( Schema.duration( "fixed" ) , phase.duration );
+      s.seconds = d.kind === "fixed" ? Math.max( 0 , d.value ) : s.seconds;
+      s.jitter = d.kind === "fixed" ? null : d;
+    } ) );
   },
 
   blockCard( run , block , index , info ) {
@@ -321,7 +349,7 @@ const Runs = {
       part( label , seconds , grey , true );
     };
     plain( Ui.t( "runs.dummies" ) , info.dummy * info.tr , Ui.t( "runs.outline_volumes" ).replace( "{n}" , info.dummy ) );
-    plain( Ui.t( "runs.lead_in" ) , run.lead_in.seconds );
+    plain( Ui.t( "runs.lead_in" ) , Timing.leadSpan( run.lead_in , info.tr ).mean );
     // A rest follows every repeat but the run's very last (as Timing.run).
     let repeatsLeft = run.blocks.reduce( ( n , b ) => n + b.repeat , 0 );
     run.blocks.forEach( ( block , index ) => {
@@ -348,7 +376,7 @@ const Runs = {
       }
       rows.push( { start: start , label: block.repeat > 1 ? name + " × " + block.repeat : name , seconds: clock - start , color: color , muted: false , detail: detail.join( " · " ) } );
     } );
-    plain( Ui.t( "runs.lead_out" ) , run.lead_out.seconds );
+    plain( Ui.t( "runs.lead_out" ) , Timing.leadSpan( run.lead_out , info.tr ).mean );
 
     const total = clock;
     const strip = Dom.el( "div" , { class: "timeline-strip" } );

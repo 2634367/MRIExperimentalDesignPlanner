@@ -71,6 +71,10 @@ const Trials = {
       if ( tt.order === "shuffle" ) {
         fields.push( Ui.field( "trials.no_repeat" , Ui.select( tt.no_repeat , [ "session" , "run" , "none" ].map( ( v ) => [ v , Ui.t( "trials.no_repeat_" + v ) ] ) , ( v ) => this.edit( Ui.t( "undo.trial_changed" ) , ( t ) => { t.no_repeat = v; } ) , { key: "tt.norepeat" } ) , { col: "col-md" } ) );
         fields.push( Ui.field( "trials.balance_by" , Ui.select( tt.balance_by , [ [ "" , Ui.t( "trials.balance_none" ) ] ].concat( list.columns.filter( ( c ) => c.type !== "image" ).map( ( c ) => [ c.key , c.label || c.key ] ) ) , ( v ) => this.edit( Ui.t( "undo.trial_changed" ) , ( t ) => { t.balance_by = v; } ) , { key: "tt.balance" } ) , { col: "col-md" } ) );
+        const pair = tt.balance_by ? Compile.balancePair( tt , Compile.itemsFor( tt , list ) ) : null;
+        if ( pair ) {
+          fields.push( Ui.field( "trials.balance_pct" , Ui.number( tt.balance_pct , ( v ) => this.edit( Ui.t( "undo.trial_changed" ) , ( t ) => { t.balance_pct = Math.max( 0 , Math.min( 100 , v ) ); } ) , { key: "tt.balancepct" , min: 0 , max: 100 , step: 1 } ) , { col: "col-md-2" , help: Ui.t( "trials.balance_pct_help" ).replace( "{value}" , pair[ 0 ] ) } ) );
+        }
       }
     }
     box.appendChild( Ui.section( Ui.t( "trials.prompts_heading" ) , [ Ui.row( fields ) , list ? this.filterRow( tt , list ) : null ] , { fold: "trials.items" } ) );
@@ -275,6 +279,8 @@ const Trials = {
         return;
       }
       const geometric = phase.duration.kind === "geometric";
+      const last = Timing.anticipatable( phase.duration , doc.scanner.tr );
+      if ( last != null ) details.appendChild( Ui.muted( Ui.t( "trials.anticipatable" ).replace( "{pct}" , Tables.f( last * 100 , 1 ) ) , "mt-1" ) );
       const label = ( r ) => ( geometric ? Tables.f( r.wait ) : Tables.f( ( r.wait + r.to ) / 2 , 1 ) );
       const make = ( light , width ) => Charts.bars( {
         light: light , height: 170 , title: light ? Tables.jitter( doc , tt , phase ).title : "" ,

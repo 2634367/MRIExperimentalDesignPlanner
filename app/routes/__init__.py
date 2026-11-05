@@ -25,7 +25,8 @@ from app.core.security import RequireAdmin, RequireAPIKey, RequireLogin, Require
 from app.core.static_files import StaticServer
 from app.mcp.protocol import Server as MCPServer
 from app.routes import (
-    account, admin, api_keys, auth, experiments, invite_links, join, mcp_tools, media, meta, psychopy, report, scanner_cards, share, team,
+    account, admin, api_keys, auth, experiments, invite_links, join, mcp_tools, media, meta, psychopy, published, report, scanner_cards, share,
+    team,
 )
 from app.routes.api_keys import RequireAPIKeys
 
@@ -127,6 +128,8 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/scanner-cards", scanner_cards.list_cards),
         signed_in("/api/scanner-cards", scanner_cards.create_card, ["POST"]),
         signed_in("/api/scanner-cards/{card_id}/save", scanner_cards.save_card, ["POST"]),
+        signed_in("/api/scanner-cards/{card_id}/backups", scanner_cards.list_backups),
+        signed_in("/api/scanner-cards/{card_id}/backups/restore", scanner_cards.restore_backup, ["POST"]),
         sessions_only("/api/scanner-cards/{card_id}/delete", scanner_cards.delete_card, ["POST"]),
         sessions_only("/api/scanner-cards/{card_id}/restore", scanner_cards.restore_card, ["POST"]),
         # Experiments: any signed-in user, for the experiments they own or
@@ -144,6 +147,13 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/experiments/{experiment_id}/media/url", media.from_url, ["POST"]),
         signed_in("/api/experiments/{experiment_id}/media/{filename}", media.serve),
         signed_in("/api/experiments/{experiment_id}/bundle", psychopy.download_bundle, ["POST"]),
+        signed_in("/api/experiments/{experiment_id}/action", experiments.run_action, ["POST"]),
+        signed_in("/api/experiments/{experiment_id}/publish", published.publish, ["POST"]),
+        signed_in("/api/experiments/{experiment_id}/published", published.get_manifest),
+        signed_in("/api/experiments/{experiment_id}/published/plans/{name}", published.serve_plan),
+        signed_in("/api/experiments/{experiment_id}/published/figures/{name}", published.serve_figure),
+        signed_in("/api/experiments/{experiment_id}/seen", psychopy.read_seen, ["POST"]),
+        signed_in("/api/experiments/{experiment_id}/seen/add", psychopy.add_seen, ["POST"]),
         signed_in("/api/experiments/{experiment_id}/report", report.download_report, ["POST"]),
         # Share links are credentials, so making one needs a session; listing
         # and revoking are safe for a key.

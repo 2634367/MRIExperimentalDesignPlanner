@@ -11,6 +11,13 @@ static/js/scanners.js edits it and reads the numbers out of its rows. The
 server checks its shape and sizes, keeps the revision that stops two tabs
 overwriting each other, and refuses to delete the last card.
 
+Every edit saves on its own and the library is shared, so one slip would
+otherwise overwrite everyone's card. Before a save replaces a card, what it
+replaces is kept: the last BACKUPS_KEPT per card, any of them restorable. A
+burst of edits by one person keeps one backup, from before the burst, or
+typing a word would use up the whole history. Restoring is itself backed up,
+so it can be undone the same way.
+
 The id is the card's slug ("EPI-TR2000-Task"), the name the old planner's
 design files use, so an imported design finds its cards by name.
 """
@@ -19,11 +26,11 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from app.core.db import BUCKET_SCANNER_CARDS, Record, Store
+from app.core.db import BUCKET_CARD_BACKUPS, BUCKET_SCANNER_CARDS, Record, Store, Transaction
 from app.models import RestoreGoneError, deleted_long_ago, from_iso, mark_deleted, to_iso, unmark_deleted, utc_now
 
 ROLES = ("functional", "reference", "structural", "other")
@@ -37,6 +44,8 @@ VALUE_MAX = 500
 INDENT_MAX = 4
 SLUG_MAX = 120
 SLUG_PATTERN = re.compile(r"[A-Za-z0-9._-]{1,120}")
+BACKUPS_KEPT = 25
+BACKUP_GAP = timedelta(minutes=1)
 
 # The cards the library starts with, in the old planner's file format.
 SEED_DIR = Path(__file__).resolve().parent.parent / "seed" / "scanner_cards"
@@ -45,6 +54,10 @@ PAGE_ORDER = ("INFO PAGE", "GEOMETRY", "CONTRAST", "POST/PROC", "MOTION", "DYN/A
 
 
 class NoSuchCardError(Exception):
+    pass
+
+
+class NoSuchBackupError(Exception):
     pass
 
 
@@ -212,20 +225,64 @@ def save_card(store: Store, card_id: str, user_id: int, card: object, base_revis
     if not isinstance(base_revision, int) or isinstance(base_revision, bool):
         raise BadCardError("base_revision must be the revision this edit was made from")
 
-    def mutate(record: Record) -> None:
+    with store.transaction() as tx:
+        record = tx.get(BUCKET_SCANNER_CARDS, card_id)
         if _live(record) is None:
             raise NoSuchCardError()
         if record["revision"] != base_revision:
             raise CardConflictError(record["revision"])
-        record["card"] = checked
-        record["revision"] += 1
-        record["updated_at"] = to_iso(utc_now())
-        record["updated_by"] = user_id
+        _keep_backup(tx, record, user_id)
+        _replace(tx, record, checked, user_id)
+    return _record_to_card(record)
 
-    updated = store.update_value(BUCKET_SCANNER_CARDS, card_id, mutate)
-    if updated is None:
-        raise NoSuchCardError()
-    return _record_to_card(updated)
+
+def _replace(tx: Transaction, record: Record, content: dict[str, Any], user_id: int) -> None:
+    record["card"] = content
+    record["revision"] += 1
+    record["updated_at"] = to_iso(utc_now())
+    record["updated_by"] = user_id
+    tx.put(BUCKET_SCANNER_CARDS, record["id"], record)
+
+
+def _keep_backup(tx: Transaction, record: Record, user_id: int, always: bool = False) -> None:
+    """Keep record's content, which is about to be replaced."""
+    stored = tx.get(BUCKET_CARD_BACKUPS, record["id"]) or {"card_id": record["id"], "backups": []}
+    backups = stored["backups"]
+    now = utc_now()
+    if backups and not always and backups[-1]["taken_by"] == user_id and now - from_iso(backups[-1]["taken_at"]) < BACKUP_GAP:
+        return
+    backups.append({
+        "revision": record["revision"], "saved_at": record["updated_at"], "saved_by": record["updated_by"],
+        "taken_at": to_iso(now), "taken_by": user_id, "card": record["card"],
+    })
+    del backups[:-BACKUPS_KEPT]
+    tx.put(BUCKET_CARD_BACKUPS, record["id"], stored)
+
+
+def list_backups(store: Store, card_id: str) -> list[dict[str, Any]]:
+    """Newest first, without the content."""
+    get_card(store, card_id)
+    stored = store.get(BUCKET_CARD_BACKUPS, card_id) or {"backups": []}
+    return [
+        {"revision": b["revision"], "saved_at": b["saved_at"], "saved_by": b["saved_by"], "label": b["card"].get("label", "")}
+        for b in reversed(stored["backups"])
+    ]
+
+
+def restore_backup(store: Store, card_id: str, user_id: int, revision: object) -> Card:
+    """Put an old version back, as a new revision. Refused for a revision
+    that was not kept; what it replaces is kept in turn."""
+    with store.transaction() as tx:
+        record = tx.get(BUCKET_SCANNER_CARDS, card_id)
+        if _live(record) is None:
+            raise NoSuchCardError()
+        stored = tx.get(BUCKET_CARD_BACKUPS, card_id) or {"backups": []}
+        found = next((b for b in stored["backups"] if b["revision"] == revision), None)
+        if found is None:
+            raise NoSuchBackupError()
+        _keep_backup(tx, record, user_id, always=True)
+        _replace(tx, record, found["card"], user_id)
+    return _record_to_card(record)
 
 
 def delete_card(store: Store, card_id: str, user_id: int) -> None:
@@ -254,7 +311,11 @@ def restore_card(store: Store, card_id: str, user_id: int, is_admin: bool) -> Ca
 
 
 def purge_deleted_cards(store: Store) -> int:
-    return store.delete_where(BUCKET_SCANNER_CARDS, lambda _key, record: deleted_long_ago(record))
+    removed = store.delete_where(BUCKET_SCANNER_CARDS, lambda _key, record: deleted_long_ago(record))
+    if removed:
+        live = {key for key, _ in store.all(BUCKET_SCANNER_CARDS)}
+        store.delete_where(BUCKET_CARD_BACKUPS, lambda key, _record: key not in live)
+    return removed
 
 
 def seed_cards(store: Store, folder: Path = SEED_DIR) -> int:

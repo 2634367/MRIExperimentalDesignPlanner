@@ -8,9 +8,9 @@ import unittest
 from pathlib import Path
 
 from app.core import db
-from app.core.db import BUCKET_SCANNER_CARDS
+from app.core.db import BUCKET_CARD_BACKUPS, BUCKET_SCANNER_CARDS
 from app.models import RestoreForbiddenError, scanner_cards, users
-from app.models.scanner_cards import BadCardError, CardConflictError, LastCardError, NoSuchCardError
+from app.models.scanner_cards import BadCardError, CardConflictError, LastCardError, NoSuchBackupError, NoSuchCardError
 
 
 class ScannerCardsTest(unittest.TestCase):
@@ -100,6 +100,65 @@ class ScannerCardsTest(unittest.TestCase):
         scanner_cards.delete_card(self.store, gone.id, self.alice.id)
         self.assertEqual(scanner_cards.purge_deleted_cards(self.store), 0)
         self.assertIsNotNone(self.store.get(BUCKET_SCANNER_CARDS, gone.id))
+
+
+class BackupTest(ScannerCardsTest):
+    def age_backups(self, card_id: str) -> None:
+        """As if the last backup was taken long enough ago to take another."""
+        def mutate(record: dict) -> None:
+            for backup in record["backups"]:
+                backup["taken_at"] = "2020-01-01T00:00:00+00:00"
+        self.store.update_value(BUCKET_CARD_BACKUPS, card_id, mutate)
+
+    def save(self, card_id: str, label: str, user: int | None = None) -> None:
+        current = scanner_cards.get_card(self.store, card_id)
+        scanner_cards.save_card(self.store, card_id, user or self.alice.id, self.blank(label), current.revision)
+
+    def test_a_save_keeps_what_it_replaced(self) -> None:
+        card = scanner_cards.create_card(self.store, self.alice.id, self.blank("First"))
+        self.save(card.id, "Second")
+        self.assertEqual([b["label"] for b in scanner_cards.list_backups(self.store, card.id)], ["First"])
+
+    def test_a_burst_of_edits_keeps_one_backup_from_before_it(self) -> None:
+        card = scanner_cards.create_card(self.store, self.alice.id, self.blank("First"))
+        for label in ("Second", "Third", "Fourth"):
+            self.save(card.id, label)
+        self.assertEqual([b["label"] for b in scanner_cards.list_backups(self.store, card.id)], ["First"])
+
+    def test_someone_else_editing_is_never_folded_into_a_burst(self) -> None:
+        card = scanner_cards.create_card(self.store, self.alice.id, self.blank("First"))
+        self.save(card.id, "Second", self.alice.id)
+        self.save(card.id, "Third", self.bob.id)
+        self.assertEqual([b["label"] for b in scanner_cards.list_backups(self.store, card.id)], ["Second", "First"])
+
+    def test_only_the_newest_are_kept(self) -> None:
+        card = scanner_cards.create_card(self.store, self.alice.id, self.blank("Start"))
+        for n in range(scanner_cards.BACKUPS_KEPT + 5):
+            self.save(card.id, f"Edit {n}")
+            self.age_backups(card.id)
+        backups = scanner_cards.list_backups(self.store, card.id)
+        self.assertEqual(len(backups), scanner_cards.BACKUPS_KEPT)
+        self.assertEqual(backups[0]["label"], f"Edit {scanner_cards.BACKUPS_KEPT + 3}")
+
+    def test_restoring_brings_it_back_and_can_itself_be_undone(self) -> None:
+        card = scanner_cards.create_card(self.store, self.alice.id, self.blank("First"))
+        self.save(card.id, "Second")
+        revision = scanner_cards.list_backups(self.store, card.id)[0]["revision"]
+        restored = scanner_cards.restore_backup(self.store, card.id, self.bob.id, revision)
+        self.assertEqual(restored.card["label"], "First")
+        self.assertEqual(restored.revision, 3)
+        self.assertEqual(scanner_cards.list_backups(self.store, card.id)[0]["label"], "Second")
+
+    def test_a_revision_that_was_not_kept_is_refused(self) -> None:
+        card = scanner_cards.create_card(self.store, self.alice.id, self.blank("First"))
+        with self.assertRaises(NoSuchBackupError):
+            scanner_cards.restore_backup(self.store, card.id, self.alice.id, 99)
+
+    def test_a_refused_save_keeps_nothing(self) -> None:
+        card = scanner_cards.create_card(self.store, self.alice.id, self.blank("First"))
+        with self.assertRaises(CardConflictError):
+            scanner_cards.save_card(self.store, card.id, self.alice.id, self.blank("Late"), 99)
+        self.assertEqual(scanner_cards.list_backups(self.store, card.id), [])
 
 
 if __name__ == "__main__":

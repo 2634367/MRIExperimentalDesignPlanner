@@ -10,9 +10,29 @@
 //
 // Scanner modes: "wait" counts presses of the trigger key (dummy_volumes of
 // them), "simulate" makes the pulses itself at the TR, "none" starts at once.
+//
+// The bug button opens a debug window: a filterable log of everything that
+// happened, how far each onset landed from the plan, and a jump to any trial.
+// The same is there from the console while a run plays: Stage.debug.
 const Stage = {
   SPEEDS: [ 1 , 2 , 5 , 10 , 30 ],
+  LOG_KEPT: 5000,
+  LOG_SHOWN: 300,
   root: null,
+
+  // For the console: Stage.debug.jump( 12 ), Stage.debug.log( "response" ).
+  debug: {
+    log( filter ) {
+      return Stage.entries.filter( ( e ) => Stage.matches( e , filter || "" ) );
+    },
+    jump( trial ) { return Stage.jump( trial ); },
+    skip() { Stage.skip(); },
+    pause() { Stage.togglePause(); },
+    speed( value ) { Stage.setSpeed( value ); },
+    state() {
+      return Stage.root ? { state: Stage.state , run: Stage.plan.run.label , t: Stage.now() , segment: Stage.segments[ Stage.idx ] || null , drift: Stage.driftSummary() } : null;
+    },
+  },
 
   // PsychoPy's key names, from a KeyboardEvent.
   keyName( event ) {
@@ -27,6 +47,7 @@ const Stage = {
     this.options = options;
     this.planIndex = 0;
     this.results = [];
+    this.entries = [];
     this.build();
     this.onKey = ( event ) => this.keydown( event );
     window.addEventListener( "keydown" , this.onKey , true );
@@ -60,20 +81,109 @@ const Stage = {
       return b;
     };
     this.pauseButton = button( "pause-fill" , t( "player.pause" ) , () => this.togglePause() );
+    this.debugPanel = this.buildDebug();
     this.hud = Dom.el( "div" , { class: "player-hud" , children: [
       this.hudText,
       Dom.el( "span" , { class: "ms-auto d-flex gap-1 align-items-center" , children: [
         this.speed, this.pauseButton,
         button( "skip-end-fill" , t( "player.skip" ) , () => this.skip() ),
+        button( "bug-fill" , t( "player.debug" ) , () => this.toggleDebug() ),
         button( "x-lg" , t( "player.stop" ) , () => this.close() ),
       ] } ),
     ] } );
-    this.root.append( this.screen , this.message , this.hud );
+    this.root.append( this.screen , this.message , this.hud , this.debugPanel );
     this.root.addEventListener( "click" , () => {
       if ( this.state === "instructions" || this.state === "between" ) this.advance();
     } );
     document.body.appendChild( this.root );
     this.root.focus();
+  },
+
+  // -- the debug window -------------------------------------------------------
+
+  buildDebug() {
+    const t = ( key ) => I18n.get( key );
+    this.debugFilter = Dom.el( "input" , { class: "form-control form-control-sm" , attrs: { type: "search" , placeholder: t( "player.debug_filter" ) , "aria-label": t( "player.debug_filter" ) } } );
+    this.debugFilter.addEventListener( "input" , () => this.paintLog() );
+    this.debugJump = Dom.el( "input" , { class: "form-control form-control-sm player-debug-jump" , attrs: { type: "number" , min: "1" , step: "1" , placeholder: t( "player.trial" ) , "aria-label": t( "player.debug_jump" ) } } );
+    const go = Dom.el( "button" , { class: "btn btn-sm btn-light" , text: t( "player.debug_jump" ) , attrs: { type: "button" } } );
+    const jump = () => {
+      if ( !this.jump( Number( this.debugJump.value ) ) ) this.addLog( "jump" , t( "player.debug_no_trial" ).replace( "{n}" , this.debugJump.value ) );
+    };
+    go.addEventListener( "click" , jump );
+    this.debugJump.addEventListener( "keydown" , ( event ) => { if ( event.key === "Enter" ) jump(); } );
+    this.debugSummary = Dom.el( "div" , { class: "small player-debug-summary" } );
+    this.debugRows = Dom.el( "div" , { class: "player-debug-rows" } );
+    const panel = Dom.el( "div" , { class: "player-debug" , attrs: { hidden: "hidden" } , children: [
+      Dom.el( "div" , { class: "d-flex gap-1 mb-1" , children: [ this.debugFilter , this.debugJump , go ] } ),
+      this.debugSummary, this.debugRows,
+    ] } );
+    // Clicks here are not the "click to continue" of the screen behind.
+    panel.addEventListener( "click" , ( event ) => event.stopPropagation() );
+    return panel;
+  },
+
+  toggleDebug() {
+    this.debugPanel.hidden = !this.debugPanel.hidden;
+    if ( !this.debugPanel.hidden ) this.paintLog();
+  },
+
+  matches( entry , filter ) {
+    const needle = filter.trim().toLowerCase();
+    return !needle || ( entry.kind + " " + entry.text ).toLowerCase().includes( needle );
+  },
+
+  addLog( kind , text , drift ) {
+    const entry = { run: this.plan ? this.plan.run.label : "" , t: this.clock ? Timing.round4( this.now() ) : 0 , kind: kind , text: text , drift: drift == null ? null : drift };
+    this.entries.push( entry );
+    if ( this.entries.length > this.LOG_KEPT ) this.entries.shift();
+    if ( this.debugPanel.hidden || !this.matches( entry , this.debugFilter.value ) ) return;
+    this.debugRows.appendChild( this.logRow( entry ) );
+    if ( this.debugRows.childElementCount > this.LOG_SHOWN ) this.debugRows.firstChild.remove();
+    this.debugRows.scrollTop = this.debugRows.scrollHeight;
+    this.paintDrift();
+  },
+
+  logRow( entry ) {
+    return Dom.el( "div" , { class: "player-debug-row" , children: [
+      Dom.el( "span" , { text: entry.t.toFixed( 2 ) } ),
+      Dom.el( "span" , { class: "player-debug-kind" , text: entry.kind } ),
+      Dom.el( "span" , { class: "player-debug-text" , text: entry.text } ),
+      Dom.el( "span" , { text: entry.drift == null ? "" : ( entry.drift >= 0 ? "+" : "" ) + entry.drift.toFixed( 1 ) + " ms" } ),
+    ] } );
+  },
+
+  paintLog() {
+    const rows = this.entries.filter( ( e ) => this.matches( e , this.debugFilter.value ) ).slice( -this.LOG_SHOWN );
+    this.debugRows.replaceChildren( ...rows.map( ( e ) => this.logRow( e ) ) );
+    this.debugRows.scrollTop = this.debugRows.scrollHeight;
+    this.paintDrift();
+  },
+
+  // Onset error in real milliseconds, whatever the playback speed.
+  driftSummary() {
+    const values = ( this.measured || [] ).map( ( m ) => Math.abs( m.onset - m.planned ) / this.clock.speed * 1000 );
+    if ( !values.length ) return null;
+    return { onsets: values.length , mean: values.reduce( ( a , b ) => a + b , 0 ) / values.length , worst: Math.max( ...values ) };
+  },
+
+  paintDrift() {
+    const drift = this.driftSummary();
+    this.debugSummary.textContent = drift ? I18n.get( "player.debug_drift" ).replace( "{n}" , drift.onsets ).replace( "{mean}" , drift.mean.toFixed( 1 ) ).replace( "{worst}" , drift.worst.toFixed( 1 ) ) : "";
+  },
+
+  // Go straight to a trial, by its number from 1. False if there is no such
+  // trial, or the run is not under way.
+  jump( number ) {
+    if ( this.state !== "running" && this.state !== "paused" ) return false;
+    const index = this.segments.findIndex( ( s ) => s.trial === number - 1 );
+    if ( index < 0 ) return false;
+    const onset = this.segments[ index ].onset;
+    this.clock.base = onset;
+    this.clock.anchor = performance.now();
+    this.addLog( "jump" , I18n.get( "player.trial" ) + " " + number );
+    this.enter( index , onset );
+    return true;
   },
 
   // -- one plan ---------------------------------------------------------------
@@ -93,6 +203,7 @@ const Stage = {
     this.clock = { base: 0 , anchor: 0 , speed: Number( this.speed.value ) || 1 , running: false };
     this.context = { background: plan.display.background , font: plan.display.font , mediaUrl: this.options.mediaUrl };
     this.raf = requestAnimationFrame( ( ts ) => this.frame( ts ) );
+    this.addLog( "run" , plan.run.label + " · " + plan.run.name );
     if ( this.instructions.length ) {
       this.state = "instructions";
       Display.render( this.screen , this.instructions[ 0 ].layers , this.context );
@@ -133,6 +244,7 @@ const Stage = {
 
   pulse() {
     this.pulses += 1;
+    this.addLog( "pulse" , this.pulses + " / " + this.needed );
     this.showWaiting();
     if ( this.pulses >= this.needed ) this.startClock();
   },
@@ -143,6 +255,7 @@ const Stage = {
     this.clock.anchor = performance.now();
     this.clock.running = true;
     this.state = "running";
+    this.addLog( "start" , "t0" );
     this.say( "" );
   },
 
@@ -161,6 +274,7 @@ const Stage = {
     if ( !this.clock ) return;
     this.rebase();
     this.clock.speed = speed;
+    this.speed.value = String( speed );
   },
 
   frame( ts ) {
@@ -195,11 +309,14 @@ const Stage = {
     const segment = this.segments[ i ];
     Display.render( this.screen , segment.layers , this.context );
     this.measured.push( { index: i , planned: segment.onset , onset: Timing.round4( t ) } );
+    const what = [ segment.trial != null ? I18n.get( "player.trial" ) + " " + ( segment.trial + 1 ) : "" , segment.trial_type , segment.label , segment.item_label ].filter( Boolean ).join( " · " );
+    this.addLog( segment.kind , what , ( t - segment.onset ) / this.clock.speed * 1000 );
   },
 
   finishPlan( t ) {
     this.state = "between";
     this.clock.running = false;
+    this.addLog( "end" , this.plan.run.label );
     const drift = this.measured.map( ( m ) => ( m.onset - m.planned ) / this.clock.speed * 1000 );
     const trials = new Set( this.segments.filter( ( s ) => s.trial != null ).map( ( s ) => s.trial ) ).size;
     this.results.push( {
@@ -233,11 +350,13 @@ const Stage = {
       this.clock.running = false;
       this.state = "paused";
       this.pauseButton.firstChild.className = "bi bi-play-fill";
+      this.addLog( "pause" , "" );
     } else if ( this.state === "paused" ) {
       this.clock.anchor = performance.now();
       this.clock.running = true;
       this.state = "running";
       this.pauseButton.firstChild.className = "bi bi-pause-fill";
+      this.addLog( "resume" , "" );
     }
   },
 
@@ -251,11 +370,14 @@ const Stage = {
     if ( left > 0 ) {
       this.rebase();
       this.clock.base += left;
+      this.addLog( "skip" , segment.label );
     }
   },
 
   keydown( event ) {
     if ( !this.root ) return;
+    // Typing in the debug window is not pressing keys at the task.
+    if ( event.target.closest && event.target.closest( ".player-debug" ) ) return;
     const key = this.keyName( event );
     const plan = this.plan;
     if ( plan.keys.quit.includes( key ) ) {
@@ -282,6 +404,7 @@ const Stage = {
         const t = this.now();
         this.answered = { key: key , t: t };
         this.responses.push( { segment: this.idx , key: key , rt: Timing.round4( t - segment.onset ) } );
+        this.addLog( "response" , key + " · " + Timing.round4( t - segment.onset ) + " s" );
         if ( segment.response.ends_phase ) Display.render( this.screen , [] , this.context );
       }
     }

@@ -76,7 +76,14 @@ const Scanners = {
       flip: this.find( card , "Flip angle (deg)" ),
       dynamics: this.find( card , "dyn scans" ),
       dummies: this.find( card , "dummy scans" ),
+      matrix: this.find( card , "Reconstruction matrix" ),
     };
+  },
+
+  // One volume on disk: the reconstruction matrix squared, by the slices, at
+  // 16 bits a voxel. 0 when the card does not say.
+  volumeBytes( summary ) {
+    return ( Number( summary.matrix ) || 0 ) ** 2 * ( Number( summary.slices ) || 0 ) * 2;
   },
 
   // What a run or scan step keeps of a card. TR only for a functional or
@@ -84,7 +91,10 @@ const Scanners = {
   ref( card ) {
     const s = this.summary( card );
     const volumeTr = card.role === "functional" || card.role === "reference";
-    return { id: card.id , label: card.label , tr: volumeTr ? s.tr_ms / 1000 : 0 , seconds: Math.round( s.seconds * 10 ) / 10 };
+    return {
+      id: card.id , label: card.label , tr: volumeTr ? s.tr_ms / 1000 : 0 , seconds: Math.round( s.seconds * 10 ) / 10,
+      volume_bytes: volumeTr ? this.volumeBytes( s ) : 0,
+    };
   },
 
   // A snapshot whose card has since changed (or gone), for "update from card".
@@ -93,7 +103,7 @@ const Scanners = {
     const card = this.byId( snapshot.id );
     if ( !card ) return false;
     const fresh = this.ref( card );
-    return fresh.label !== snapshot.label || fresh.tr !== snapshot.tr || fresh.seconds !== snapshot.seconds;
+    return fresh.label !== snapshot.label || fresh.tr !== snapshot.tr || fresh.seconds !== snapshot.seconds || fresh.volume_bytes !== snapshot.volume_bytes;
   },
 
   // A select of the library's cards, by role; "" is "none".
@@ -157,7 +167,10 @@ const Scanners = {
   // the change is one undo step.
   edit( label , fn , options ) {
     const card = this.current();
-    if ( !card ) return;
+    if ( card ) this.editCard( card , label , fn , options );
+  },
+
+  editCard( card , label , fn , options ) {
     const id = card.id;
     const before = this.content( card );
     const after = JSON.parse( JSON.stringify( before ) );
@@ -211,6 +224,90 @@ const Scanners = {
         { name: "DYN/ANG" , rows: [ row( "dyn scans" , "150" ) , row( "dummy scans" , "4" ) ] },
       ],
     };
+  },
+
+  // "MM:SS.s", as the console writes a duration.
+  clock( seconds ) {
+    const tenths = Math.round( seconds * 10 );
+    const minutes = Math.floor( tenths / 600 );
+    return String( minutes ).padStart( 2 , "0" ) + ":" + ( ( tenths - minutes * 600 ) / 10 ).toFixed( 1 ).padStart( 4 , "0" );
+  },
+
+  // What a run's timing says the console should be set to, against what its
+  // card has now: [{ parameter, from, to, missing }]. Only rows that differ.
+  timingChanges( doc , run , card ) {
+    const info = Timing.run( doc , run );
+    return [
+      [ "dyn scans" , String( Math.max( 0 , info.volumes.max - info.dummy ) ) ],
+      [ "dummy scans" , String( info.dummy ) ],
+      [ "Total scan duration" , this.clock( info.total.max ) ],
+    ].map( ( [ parameter , to ] ) => {
+      const from = this.find( card , parameter );
+      return { parameter: parameter , from: from , to: to , missing: from === "" };
+    } ).filter( ( row ) => row.from !== row.to );
+  },
+
+  // Write a run's timing into its card, after saying plainly what changes:
+  // the library is shared, so this reaches every design that uses the card.
+  async writeTiming( run , afterwards ) {
+    const card = this.byId( run.card && run.card.id );
+    if ( !card ) return;
+    const doc = Doc.doc;
+    const changes = this.timingChanges( doc , run , card );
+    const writable = changes.filter( ( row ) => !row.missing );
+    const body = Dom.el( "div" );
+    body.appendChild( Ui.muted( Ui.t( "scanners.write_timing_shared" ).replace( "{card}" , card.label ) ) );
+    const list = Dom.el( "ul" , { class: "small mb-0" } );
+    changes.forEach( ( row ) => list.appendChild( Dom.el( "li" , { text: row.missing
+      ? Ui.t( "scanners.write_timing_missing" ).replace( "{parameter}" , row.parameter )
+      : row.parameter + ": " + row.from + " → " + row.to } ) ) );
+    body.appendChild( list );
+    const write = () => {
+      this.editCard( card , Ui.t( "undo.card_changed" ) , ( c ) => {
+        writable.forEach( ( change ) => c.pages.forEach( ( page ) => page.rows.forEach( ( row ) => {
+          if ( row.parameter.trim().toLowerCase() === change.parameter.toLowerCase() ) row.value = change.to;
+        } ) ) );
+      } );
+      afterwards();
+    };
+    await Ui.dialog( {
+      title: Ui.t( "scanners.write_timing" ) , body: body,
+      buttons: [ { text: Ui.t( "ui.cancel" ) } ].concat( writable.length ? [ { text: Ui.t( "scanners.write_timing" ) , variant: "btn-primary" , run: write } ] : [] ),
+    } );
+  },
+
+  // Earlier versions of a card, loaded when asked for. Restoring keeps the
+  // version it replaces, so it can be restored back the same way.
+  backups( card ) {
+    const details = Dom.el( "details" , { class: "mt-1" } );
+    details.appendChild( Dom.el( "summary" , { class: "small" , text: Ui.t( "scanners.backups_show" ) } ) );
+    const list = Dom.el( "div" , { class: "mt-2" } );
+    details.appendChild( list );
+    const fill = async () => {
+      list.replaceChildren( Ui.muted( Ui.t( "scanners.loading" ) ) );
+      try {
+        const rows = await Api.cardBackups( card.id );
+        list.replaceChildren();
+        if ( !rows.length ) list.appendChild( Ui.muted( Ui.t( "scanners.backups_none" ) ) );
+        rows.forEach( ( row ) => list.appendChild( Dom.el( "div" , { class: "d-flex align-items-center gap-2 small mb-1" , children: [
+          Dom.el( "span" , { class: "flex-grow-1" , text: new Date( row.saved_at ).toLocaleString() + " · " + ( row.saved_by_name || Ui.t( "scanners.backups_someone" ) ) + " · " + row.label } ),
+          Ui.button( Ui.t( "scanners.backups_restore" ) , "arrow-counterclockwise" , async () => {
+            try {
+              await Api.restoreCardBackup( card.id , row.revision );
+              await this.load();
+              Designer.repaint( this.name );
+              Dom.toast( Ui.t( "scanners.backups_restored" ) , "ok" );
+            } catch ( error ) {
+              Dom.toast( error.message , "error" );
+            }
+          } , { small: true } ),
+        ] } ) ) );
+      } catch ( error ) {
+        list.replaceChildren( Ui.muted( error.message ) );
+      }
+    };
+    details.addEventListener( "toggle" , () => { if ( details.open ) fill(); } );
+    return details;
   },
 
   // Where the open experiment uses a card.
@@ -317,6 +414,7 @@ const Scanners = {
       }
     } , { variant: "btn-outline-danger" } ) );
     box.appendChild( Ui.section( Ui.t( "scanners.section_pages" ) , this.pages( card ) ) );
+    box.appendChild( Ui.section( Ui.t( "scanners.section_backups" ) , this.backups( card ) ) );
     box.appendChild( actions );
     return box;
   },

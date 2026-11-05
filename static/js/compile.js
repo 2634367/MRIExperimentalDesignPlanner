@@ -115,8 +115,10 @@ const Compile = {
 
   // Hands out items for each trial type's list, honouring filter, order,
   // balance_by and no_repeat. One Picker per compile; `used` is shared across the runs
-  // of a session.
-  picker( doc , rng ) {
+  // of a session. seenBefore is the set of item ids this participant was
+  // shown on earlier visits: preferred against, within whatever balance_by
+  // picked, and repeated only when nothing else is left.
+  picker( doc , rng , seenBefore ) {
     const used = {};        // list id -> Set of item ids already shown (this session)
     const cursor = {};      // list id (trial type id when filtered) -> next index, for sequential
     const balance = {};     // trial type id -> { value: times picked }
@@ -154,19 +156,47 @@ const Compile = {
             const value = item.values[ tt.balance_by ] || "";
             ( groups[ value ] || ( groups[ value ] = [] ) ).push( item );
           } );
-          // The value picked least so far; ties broken at random.
-          const values = Object.keys( groups );
-          const fewest = Math.min( ...values.map( ( v ) => tally[ v ] || 0 ) );
-          const candidates = values.filter( ( v ) => ( tally[ v ] || 0 ) === fewest );
-          const value = candidates[ Math.floor( rng() * candidates.length ) ];
+          const value = Compile.balanceValue( tt , items , Object.keys( groups ) , tally , rng );
           tally[ value ] = ( tally[ value ] || 0 ) + 1;
           pool = groups[ value ];
+        }
+        if ( seenBefore && tt.no_repeat !== "none" ) {
+          const unseen = pool.filter( ( candidate ) => !seenBefore.has( candidate.id ) );
+          if ( unseen.length ) pool = unseen;
+          else warnings.push( { kind: "seen_before" , list: list.name } );
         }
         const item = pool[ Math.floor( rng() * pool.length ) ];
         seen.add( item.id );
         return { item: item , list: list };
       },
     };
+  },
+
+  // The two values of a trial type's balance_by column, first as the list
+  // has them, or null when it does not have exactly two.
+  balancePair( tt , items ) {
+    const values = Array.from( new Set( items.map( ( item ) => item.values[ tt.balance_by ] || "" ) ) );
+    return values.length === 2 ? values : null;
+  },
+
+  // Which value of balance_by comes next. Evenly, the one picked least so
+  // far, ties at random. With two values and a share other than 50%, the
+  // first value's running count stays within a trial of that share, and
+  // inside that margin the choice is random, so the sequence cannot be
+  // learned the way a fixed pattern could.
+  balanceValue( tt , items , available , tally , rng ) {
+    const pair = tt.balance_pct === 50 || available.length < 2 ? null : this.balancePair( tt , items );
+    if ( pair ) {
+      const [ first , second ] = pair;
+      const have = tally[ first ] || 0;
+      const target = ( tt.balance_pct / 100 ) * ( have + ( tally[ second ] || 0 ) + 1 );
+      if ( have + 1 <= Math.floor( target ) ) return first;
+      if ( have >= Math.ceil( target ) ) return second;
+      return rng() < target - Math.floor( target ) ? first : second;
+    }
+    const fewest = Math.min( ...available.map( ( v ) => tally[ v ] || 0 ) );
+    const candidates = available.filter( ( v ) => ( tally[ v ] || 0 ) === fewest );
+    return candidates[ Math.floor( rng() * candidates.length ) ];
   },
 
   itemLabel( item , list ) {
@@ -249,12 +279,16 @@ const Compile = {
       const layers = this.resolveLayers( doc , run.instructions.layers , null , null );
       if ( layers.length ) segments.push( { onset: 0 , duration: 0 , kind: "instructions" , label: I18n.get( "compile.instructions" ) , layers: layers } );
     }
-    if ( run.lead_in.seconds > 0 ) push( { kind: "lead_in" , label: I18n.get( "compile.lead_in" ) , duration: run.lead_in.seconds , layers: this.resolveLayers( doc , run.lead_in.layers ) } );
+    const leadIn = Timing.leadDraw( run.lead_in , tr , rng );
+    if ( leadIn > 0 ) push( { kind: "lead_in" , label: I18n.get( "compile.lead_in" ) , duration: leadIn , layers: this.resolveLayers( doc , run.lead_in.layers ) } );
 
-    const repeats = [];
+    const allRepeats = [];
     run.blocks.forEach( ( block ) => {
-      for ( let r = 0; r < block.repeat; r += 1 ) repeats.push( block );
+      for ( let r = 0; r < block.repeat; r += 1 ) allRepeats.push( block );
     } );
+    // A pilot plays the first N block repetitions. Drawing is sequential, so
+    // those trials are the same ones the whole run would have started with.
+    const repeats = options.blocks > 0 ? allRepeats.slice( 0 , options.blocks ) : allRepeats;
     let trialIndex = 0;
     repeats.forEach( ( block , index ) => {
       this.blockOrder( block , rng ).forEach( ( typeId ) => {
@@ -265,7 +299,7 @@ const Compile = {
         tt.phases.forEach( ( phase ) => {
           const segment = {
             kind: "phase" , label: phase.name || "" , duration: Timing.sample( phase.duration , tr , rng ),
-            trial: trialIndex , trial_type: tt.name || "" , phase: phase.name || "" ,
+            trial: trialIndex , block: index , trial_type: tt.name || "" , phase: phase.name || "" ,
             layers: this.resolveLayers( doc , phase.layers , picked.item , picked.list ),
           };
           if ( picked.item ) {
@@ -279,12 +313,14 @@ const Compile = {
         trialIndex += 1;
       } );
       if ( index < repeats.length - 1 && block.rest_after.seconds > 0 ) {
-        push( { kind: "rest" , label: block.name || I18n.get( "compile.rest" ) , duration: block.rest_after.seconds , layers: this.resolveLayers( doc , block.rest_after.layers ) } );
+        push( { kind: "rest" , block: index , label: block.name || I18n.get( "compile.rest" ) , duration: block.rest_after.seconds , layers: this.resolveLayers( doc , block.rest_after.layers ) } );
       }
     } );
-    if ( run.lead_out.seconds > 0 ) push( { kind: "lead_out" , label: I18n.get( "compile.lead_out" ) , duration: run.lead_out.seconds , layers: this.resolveLayers( doc , run.lead_out.layers ) } );
+    const leadOut = Timing.leadDraw( run.lead_out , tr , rng );
+    if ( leadOut > 0 ) push( { kind: "lead_out" , label: I18n.get( "compile.lead_out" ) , duration: leadOut , layers: this.resolveLayers( doc , run.lead_out.layers ) } );
     const plan = this.finish( doc , this.header( doc , experiment , run , options ) , segments );
     plan.trace = segments.map( ( segment , index ) => trace[ index ] || null );
+    if ( repeats.length < allRepeats.length ) plan.pilot_blocks = repeats.length;
     return plan;
   },
 
@@ -296,7 +332,7 @@ const Compile = {
   runPlans( doc , experiment , runId , options ) {
     const run = doc.runs.find( ( r ) => r.id === runId );
     const rng = this.rng( options.seed );
-    const picker = this.picker( doc , rng );
+    const picker = this.picker( doc , rng , options.seen );
     const index = doc.runs.indexOf( run ) + 1;
     const plan = this.run( doc , experiment , run , Object.assign( {} , options , { label: "run-" + String( index ).padStart( 2 , "0" ) } ) , picker , rng );
     plan.warnings = picker.warnings;
@@ -307,16 +343,20 @@ const Compile = {
   sessionPlans( doc , experiment , sessionId , options ) {
     const session = doc.sessions.find( ( s ) => s.id === sessionId );
     const rng = this.rng( options.seed );
-    const picker = this.picker( doc , rng );
-    const sessionNumber = String( doc.sessions.indexOf( session ) + 1 ).padStart( 2 , "0" );
+    const picker = this.picker( doc , rng , options.seen );
+    // The visit is the ses- label: this participant's nth time in the
+    // scanner. Without one, the session's place in the design.
+    const visit = options.visit > 0 ? options.visit : doc.sessions.indexOf( session ) + 1;
+    const sessionNumber = String( visit ).padStart( 2 , "0" );
     const plans = [];
-    session.steps.filter( ( step ) => step.kind === "run" ).forEach( ( step ) => {
+    Timing.activeSteps( session ).filter( ( step ) => step.kind === "run" ).forEach( ( step ) => {
       const run = doc.runs.find( ( r ) => r.id === step.run );
       if ( !run ) return;
       picker.newRun();
       const label = "ses-" + sessionNumber + "_run-" + String( plans.length + 1 ).padStart( 2 , "0" );
       const plan = this.run( doc , experiment , run , Object.assign( {} , options , { label: label } ) , picker , rng );
       plan.session = { id: session.id , name: ( session.name || "" ).slice( 0 , 200 ) };
+      plan.visit = visit;
       plans.push( plan );
     } );
     plans.forEach( ( plan ) => { plan.warnings = picker.warnings; } );

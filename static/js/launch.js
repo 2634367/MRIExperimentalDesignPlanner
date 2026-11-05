@@ -43,12 +43,22 @@ const RunDialog = {
       scanner: spec.kind === "trial" ? "none" : this.remembered( "scanner" , "simulate" ),
       windowed: spec.kind === "trial" || this.remembered( "windowed" , "1" ) === "1",
       speed: spec.kind === "trial" ? 1 : Number( this.remembered( "speed" , "1" ) ),
+      screen: Number( this.remembered( "screen" , "0" ) ),
+      debug: false,
+      blocks: 0,          // a pilot: only the first N blocks; 0 for all of them
+      visit: 0,           // typed in; 0 means work it out
+      nextVisit: 0,       // one past this participant's highest recorded visit
+      seen: null,         // what this participant has been shown before
     };
     let plans = null;
     const summary = Dom.el( "div" , { class: "run-summary small" } );
+    let visitInput = null;
     const compile = () => {
       try {
-        plans = spec.build( { seed: state.seed , participant: state.participant , scanner: state.scanner } );
+        plans = spec.build( {
+          seed: state.seed , participant: state.participant , scanner: state.scanner , blocks: state.blocks,
+          visit: state.visit || state.nextVisit , seen: state.seen ? new Set( state.seen.items ) : null,
+        } );
       } catch ( error ) {
         plans = null;
         console.error( error );
@@ -65,7 +75,32 @@ const RunDialog = {
       let text = t( "run.summary" ).replace( "{runs}" , plans.length ).replace( "{trials}" , trials ).replace( "{time}" , Timing.clock( seconds ) ).replace( "{volumes}" , volumes );
       const reused = ( plans[ 0 ].warnings || [] ).filter( ( w ) => w.kind === "reused" );
       if ( reused.length ) text += " " + t( "run.items_reused" ).replace( "{lists}" , Array.from( new Set( reused.map( ( w ) => w.list ) ) ).join( ", " ) );
+      if ( state.seen && state.seen.runs ) text += " " + t( "run.items_seen" ).replace( "{items}" , state.seen.items.length ).replace( "{runs}" , state.seen.runs );
+      const seenAgain = ( plans[ 0 ].warnings || [] ).filter( ( w ) => w.kind === "seen_before" );
+      if ( seenAgain.length ) text += " " + t( "run.items_seen_again" ).replace( "{lists}" , Array.from( new Set( seenAgain.map( ( w ) => w.list ) ) ).join( ", " ) );
+      if ( plans.some( ( p ) => p.pilot_blocks ) ) text += " " + t( "run.pilot_note" );
       Dom.text( summary , text );
+      if ( visitInput && plans[ 0 ].visit ) visitInput.placeholder = String( plans[ 0 ].visit );
+    };
+
+    // Whose history to draw against: a new answer for each participant. A
+    // slower answer for someone since replaced is ignored.
+    let seenAsked = 0;
+    const loadSeen = async () => {
+      const asked = ( seenAsked += 1 );
+      state.seen = null;
+      state.nextVisit = 0;
+      if ( state.participant && !Doc.shareCredential && spec.kind !== "trial" ) {
+        try {
+          const row = await Api.seen( Doc.id , state.participant );
+          if ( asked !== seenAsked ) return;
+          state.seen = row;
+          state.nextVisit = row.highest_visit ? row.highest_visit + 1 : 0;
+        } catch ( error ) {
+          Dom.toast( error.message , "error" );
+        }
+      }
+      compile();
     };
 
     const seedInput = Ui.input( "number" , state.seed , ( v ) => {
@@ -81,7 +116,7 @@ const RunDialog = {
     const participant = Ui.text( state.participant , ( v ) => {
       state.participant = v.trim().slice( 0 , 64 );
       this.remember( "participant" , state.participant );
-      compile();
+      loadSeen();
     } , { placeholder: t( "run.participant_placeholder" ) } );
     participant.disabled = false;
     const scanner = Ui.select( state.scanner , [ "wait" , "simulate" , "none" ].map( ( m ) => [ m , t( "run.scanner_" + m ) ] ) , ( v ) => {
@@ -99,6 +134,24 @@ const RunDialog = {
       this.remember( "windowed" , v ? "1" : "0" );
     } );
     windowed.querySelector( "input" ).disabled = false;
+    const whole = ( v , limit ) => Math.max( 0 , Math.min( limit , Math.round( Number( v ) ) || 0 ) );
+    visitInput = Ui.input( "number" , "" , ( v ) => {
+      state.visit = whole( v , 999 );
+      compile();
+    } , { min: 1 , max: 999 , step: 1 } );
+    visitInput.disabled = false;
+    const blocksInput = Ui.input( "number" , "" , ( v ) => {
+      state.blocks = whole( v , 10000 );
+      compile();
+    } , { min: 1 , step: 1 , placeholder: t( "run.blocks_all" ) } );
+    blocksInput.disabled = false;
+    const screenInput = Ui.input( "number" , state.screen , ( v ) => {
+      state.screen = whole( v , 15 );
+      this.remember( "screen" , String( state.screen ) );
+    } , { min: 0 , max: 15 , step: 1 } );
+    screenInput.disabled = false;
+    const debug = Ui.check( state.debug , t( "run.debug" ) , ( v ) => { state.debug = v; } );
+    debug.querySelector( "input" ).disabled = false;
 
     const psychopyBox = Dom.el( "div" , { class: "psychopy-box mt-3" } );
     const launchStatus = Dom.el( "div" , { class: "launch-status mt-2" , attrs: { hidden: "hidden" } } );
@@ -124,6 +177,7 @@ const RunDialog = {
       try {
         const row = await Api.launch( Doc.id , {
           plans: Compile.forServer( plans ) , scanner: state.scanner , windowed: state.windowed , label: spec.title,
+          screen: state.screen , debug: state.debug,
         } );
         this.watch( row , launchStatus );
       } catch ( error ) {
@@ -149,6 +203,7 @@ const RunDialog = {
       }
     } );
 
+    const results = this.resultsButton();
     const fields = [
       Ui.field( "run.participant" , participant , { col: "col-md-4" } ),
       Ui.field( "run.seed" , Dom.el( "div" , { class: "input-group" , children: [ seedInput , dice ] } ) , { col: "col-md-3" } ),
@@ -157,18 +212,26 @@ const RunDialog = {
     const options = Ui.row( fields );
     const extra = Ui.row( [
       spec.kind === "trial" ? null : Ui.field( "run.speed" , speed , { col: "col-6 col-md-3" , help: t( "run.speed_help" ) } ),
-      Dom.el( "div" , { class: "col-6 col-md-4" , children: [ windowed ] } ),
+      spec.kind === "session" ? Ui.field( "run.visit" , visitInput , { col: "col-6 col-md-3" , help: t( "run.visit_help" ) } ) : null,
+      spec.kind === "trial" ? null : Ui.field( "run.blocks" , blocksInput , { col: "col-6 col-md-3" , help: t( "run.blocks_help" ) } ),
+      Ui.field( "run.screen" , screenInput , { col: "col-6 col-md-3" , help: t( "run.screen_help" ) } ),
     ] , "mt-1" );
-    const actions = Dom.el( "div" , { class: "row-actions mt-3" , children: [ playButton , launchButton , downloadButton ] } );
-    const body = Dom.el( "div" , { children: [ options , extra , Dom.el( "div" , { class: "mt-3" , children: [ summary ] } ) , actions , psychopyBox , launchStatus , commandBox ] } );
+    const switches = Ui.row( [
+      Dom.el( "div" , { class: "col-md-5" , children: [ windowed ] } ),
+      spec.kind === "trial" ? null : Dom.el( "div" , { class: "col-md-7" , children: [ debug ] } ),
+    ] , "mt-1" );
+    const actions = Dom.el( "div" , { class: "row-actions mt-3" , children: [ playButton , launchButton , downloadButton , results ].filter( Boolean ) } );
+    const body = Dom.el( "div" , { children: [ options , extra , switches , Dom.el( "div" , { class: "mt-3" , children: [ summary ] } ) , actions , psychopyBox , launchStatus , commandBox ] } );
 
     compile();
+    if ( state.participant ) loadSeen();
     psychopyBox.appendChild( Ui.muted( t( "run.checking_psychopy" ) ) );
     this.psychopy().then( ( status ) => {
       psychopyBox.replaceChildren();
       if ( status.available ) {
         launchButton.hidden = false;
         psychopyBox.appendChild( Ui.muted( t( "run.psychopy_found" ).replace( "{version}" , status.psychopy_version ).replace( "{where}" , status.source ) ) );
+        if ( status.keyboard === "blocked" ) psychopyBox.appendChild( Ui.muted( t( "run.keyboard_blocked" ) ) );
         Api.latestLaunch().then( ( row ) => { if ( row && row.running ) this.watch( row , launchStatus ); } ).catch( () => {} );
       } else {
         psychopyBox.appendChild( Ui.muted( t( "run.psychopy_reason_" + status.reason ) || t( "run.psychopy_unavailable" ) ) );
@@ -199,11 +262,54 @@ const RunDialog = {
     } );
   },
 
+  // Run records brought back from another machine, so what a bundle showed
+  // counts as seen too. Only what app/models/seen.py needs of each file goes
+  // to the server. Hidden on a share link, which cannot write.
+  resultsButton() {
+    const t = ( key ) => I18n.get( key );
+    if ( Doc.shareCredential ) return null;
+    const picker = Dom.el( "input" , { attrs: { type: "file" , accept: ".json" , multiple: "multiple" , hidden: "hidden" } } );
+    picker.addEventListener( "change" , async () => {
+      const files = Array.from( picker.files );
+      picker.value = "";
+      const runs = [];
+      for ( const file of files ) {
+        try {
+          const run = this.runSummary( JSON.parse( await file.text() ) );
+          if ( run ) runs.push( run );
+        } catch ( error ) { /* not a run record: skipped, and counted below */ }
+      }
+      try {
+        const row = runs.length ? await Api.addSeen( Doc.id , runs ) : { added: 0 };
+        Dom.toast( t( "run.results_added" ).replace( "{added}" , row.added ).replace( "{files}" , files.length ) , "ok" );
+      } catch ( error ) {
+        Dom.toast( error.message , "error" );
+      }
+    } );
+    const button = Ui.button( t( "run.results" ) , "upload" , () => picker.click() , { title: t( "run.results_help" ) } );
+    return Dom.el( "span" , { children: [ picker , button ] } );
+  },
+
+  // The browser's copy of seen.summarise: the same answer, without sending a
+  // whole plan to the server to get it.
+  runSummary( record ) {
+    const plan = record && record.plan;
+    if ( !plan || !plan.run || !plan.run.label ) return null;
+    const participant = record.participant || plan.participant;
+    if ( plan.run.label.startsWith( "trial-" ) || plan.pilot_blocks || !participant ) return null;
+    return {
+      experiment: plan.experiment ? plan.experiment.id : "" , participant: participant,
+      run: plan.run.label + "@" + record.started , items: record.shown_items || [] , visit: plan.visit || 0,
+    };
+  },
+
   showCommand( box , filename , state ) {
     const folder = filename.replace( /\.zip$/ , "" );
     const flags = [];
     if ( state.scanner !== "wait" ) flags.push( "--scanner " + state.scanner );
     if ( state.windowed ) flags.push( "--windowed" );
+    if ( state.screen ) flags.push( "--screen " + state.screen );
+    if ( state.debug ) flags.push( "--debug" );
     if ( state.participant ) flags.push( "--participant " + state.participant.replace( /[^A-Za-z0-9_-]/g , "" ) );
     const tail = flags.length ? " " + flags.join( " " ) : "";
     const mac = "cd ~/Downloads && unzip -o " + filename + " && " + folder + "/run.sh" + tail;

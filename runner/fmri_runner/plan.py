@@ -1,6 +1,7 @@
 """Loading run plans from disk. No PsychoPy needed, so `--check` works
 anywhere."""
 import json
+import math
 from pathlib import Path
 
 from . import FORMAT
@@ -50,6 +51,34 @@ def load(path, media_dir=None):
         plan["_media_paths"][sha] = str(picture)
     plan["_path"] = str(path)
     return plan
+
+
+def shorten(plan, blocks):
+    """The plan cut to its first `blocks` block repetitions, for checking a
+    task: the rest after the last block kept goes, and the lead-out moves up
+    behind it. The trials kept are exactly the ones the full run would show.
+    Marked pilot_blocks, so its results cannot pass for a whole run."""
+    segments = plan["segments"]
+    numbers = {segment["block"] for segment in segments if segment.get("block") is not None}
+    if not numbers:
+        raise PlanError(f"{plan['_path']}: this plan has no blocks to shorten (made by an older designer?)")
+    if blocks >= len(numbers):
+        return plan
+    kept = []
+    end = 0.0
+    for segment in segments:
+        block = segment.get("block")
+        if block is not None and (block >= blocks or (segment["kind"] == "rest" and block == blocks - 1)):
+            continue
+        if segment["kind"] == "lead_out":
+            segment = dict(segment, onset=round(end, 4))
+        if segment["kind"] != "instructions":
+            end = segment["onset"] + segment["duration"]
+        kept.append(segment)
+    scanner = plan["scanner"]
+    total = round(end, 4)
+    return dict(plan, segments=kept, total_seconds=total, pilot_blocks=blocks,
+                volumes=scanner["dummy_volumes"] + math.ceil(total / scanner["tr"] - 1e-9))
 
 
 def summary(plan):

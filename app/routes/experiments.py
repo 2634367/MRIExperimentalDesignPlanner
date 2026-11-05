@@ -14,7 +14,7 @@ from starlette.responses import JSONResponse, Response
 
 from app.core.db import Store
 from app.core.security import actor_from, check_csrf
-from app.models import RestoreError, experiments, media, users
+from app.models import RestoreError, actions, experiments, media, users
 from app.models.experiments import (
     BadDocumentError,
     Experiment,
@@ -189,3 +189,26 @@ async def restore_experiment(request: Request) -> Response:
     except RestoreError as refusal:
         return restore_refused(refusal)
     return JSONResponse(await run(experiment_row, store, restored, user_id))
+
+
+def action_row(store: Store, experiment_id: str, user_id: int, body: dict[str, Any]) -> dict[str, Any]:
+    """Shared with the MCP experiment_action tool: one small edit, see
+    app/models/actions.py."""
+    return actions.run_action(store, experiment_id, user_id, body.get("action"), body)
+
+
+async def run_action(request: Request) -> Response:
+    body = await read_json(request)
+    if body is None:
+        return bad_request("malformed request body")
+    if not check_csrf(request, body.get("csrf_token")):
+        return forbidden("invalid csrf token")
+    try:
+        row = await run(action_row, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id, body)
+    except NoSuchExperimentError:
+        return not_found(NO_SUCH)
+    except (actions.BadActionError, BadDocumentError) as refusal:
+        return bad_request(str(refusal))
+    except RevisionConflictError as stale:
+        return conflict(str(stale), revision=stale.current)
+    return JSONResponse(row)

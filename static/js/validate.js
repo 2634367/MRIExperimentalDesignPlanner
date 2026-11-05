@@ -108,7 +108,7 @@ const Validate = {
 
     doc.sessions.forEach( ( session ) => {
       const name = named( session , "sessions.unnamed" );
-      session.steps.forEach( ( step ) => {
+      Timing.activeSteps( session ).forEach( ( step ) => {
         if ( step.kind === "run" && !doc.runs.some( ( r ) => r.id === step.run ) ) say( "error" , "sessions" , session.id , "session_run_gone" , { session: name } );
       } );
       // Lists drawn from without repeats within a session: enough items? A
@@ -117,7 +117,7 @@ const Validate = {
       const need = {};
       const drawable = {};
       const ownNeed = {};
-      session.steps.filter( ( s ) => s.kind === "run" ).forEach( ( step ) => {
+      Timing.activeSteps( session ).filter( ( s ) => s.kind === "run" ).forEach( ( step ) => {
         const run = doc.runs.find( ( r ) => r.id === step.run );
         if ( !run ) return;
         const counts = Timing.run( doc , run ).counts;
@@ -151,6 +151,27 @@ const Validate = {
           say( "warning" , "trials" , tt.id , "trial_too_short" , { trial: named( tt , "trials.unnamed" ) , session: name , need: ownNeed[ key ] , have: have } );
         }
       } );
+    } );
+
+    // The limits you set yourself. The longest a run or session could come
+    // out, since one that sometimes overruns still overruns.
+    const limits = doc.limits;
+    const minutes = ( seconds ) => Math.round( seconds / 6 ) / 10;
+    if ( limits.max_run_minutes > 0 ) {
+      doc.runs.forEach( ( run ) => {
+        const longest = Timing.run( doc , run ).total.max;
+        if ( longest / 60 > limits.max_run_minutes + 1e-9 ) say( "warning" , "runs" , run.id , "limit_run" , { run: named( run , "runs.unnamed" ) , minutes: minutes( longest ) , limit: limits.max_run_minutes } );
+      } );
+    }
+    doc.sessions.forEach( ( session ) => {
+      const info = Timing.session( doc , session );
+      const name = named( session , "sessions.unnamed" );
+      if ( limits.max_session_minutes > 0 && info.seconds.max / 60 > limits.max_session_minutes + 1e-9 ) {
+        say( "warning" , "sessions" , session.id , "limit_session" , { session: name , minutes: minutes( info.seconds.max ) , limit: limits.max_session_minutes } );
+      }
+      if ( limits.max_runs_per_session > 0 && info.runs > limits.max_runs_per_session ) {
+        say( "warning" , "sessions" , session.id , "limit_runs" , { session: name , runs: info.runs , limit: limits.max_runs_per_session } );
+      }
     } );
 
     const budget = Timing.budget( doc );

@@ -90,6 +90,8 @@ const Sessions = {
     ] } ) );
     stat( Ui.t( "sessions.stat_length" ) , Timing.clock( info.seconds.mean ) , info.seconds.max > info.seconds.min ? Timing.clock( info.seconds.min ) + "–" + Timing.clock( info.seconds.max ) : "" );
     stat( Ui.t( "sessions.stat_runs" ) , String( info.runs ) , "" );
+    const data = Timing.sessionData( doc , session );
+    stat( Ui.t( "sessions.stat_data" ) , data.bytes ? Timing.size( data.bytes ) : "–" , data.unsized ? Ui.t( "sessions.stat_data_unsized" ).replace( "{n}" , data.unsized ) : Ui.t( "sessions.stat_data_sub" ) );
     stat( Ui.t( "sessions.stat_trials" ) , String( info.trials ) , Object.keys( info.counts ).map( ( id ) => ( Timing.trialTypeById( doc , id ) || {} ).name + " " + info.counts[ id ] ).join( " · " ) );
     const play = Ui.button( Ui.t( "run.play_session" ) , "play-fill" , () => RunDialog.open( {
       title: session.name || Ui.t( "sessions.unnamed" ) , kind: "session",
@@ -110,9 +112,11 @@ const Sessions = {
     ] } ) );
     let clock = 0;
     const autoBreak = session.auto_break_minutes * 60;
+    let previous = null;
     session.steps.forEach( ( step , index ) => {
       const key = "st." + step.id;
-      if ( autoBreak > 0 && step.kind === "run" && index > 0 && session.steps[ index - 1 ].kind === "run" ) {
+      const on = step.enabled !== false;
+      if ( on && autoBreak > 0 && step.kind === "run" && previous && previous.kind === "run" ) {
         list.appendChild( Dom.el( "div" , { class: "step-row step-auto small text-body-secondary" , children: [
           Dom.el( "span" , { class: "step-start" , text: Timing.clock( clock ) } ),
           Dom.el( "span" , { class: "step-kind" , text: Ui.t( "sessions.kind_break" ) } ),
@@ -152,22 +156,26 @@ const Sessions = {
           ] } );
       }
       what.setAttribute( "aria-label" , Ui.t( "sessions.col_what" ) );
-      const tail = Dom.el( "div" , { class: "step-tail" , children: [ Dom.el( "span" , { class: "step-length small" , text: Timing.clock( seconds ) } ) ] } );
+      const tail = Dom.el( "div" , { class: "step-tail" , children: [ Dom.el( "span" , { class: "step-length small" , text: on ? Timing.clock( seconds ) : Ui.t( "sessions.step_is_off" ) } ) ] } );
       if ( !Doc.readOnly ) {
         tail.appendChild( Dom.el( "div" , { class: "row-actions flex-nowrap" , children: [
+          Ui.icon( on ? "toggle-on" : "toggle-off" , Ui.t( on ? "sessions.switch_off" : "sessions.switch_on" ) , () => editStep( Ui.t( "undo.step_changed" ) , ( st ) => { st.enabled = !on; } ) ),
           Ui.icon( "arrow-up" , Ui.t( "ui.move_up" ) , () => editStep( Ui.t( "undo.step_moved" ) , ( st , s ) => Ui.move( s.steps , s.steps.indexOf( st ) , -1 ) ) , { disabled: index === 0 } ),
           Ui.icon( "arrow-down" , Ui.t( "ui.move_down" ) , () => editStep( Ui.t( "undo.step_moved" ) , ( st , s ) => Ui.move( s.steps , s.steps.indexOf( st ) , 1 ) ) , { disabled: index === session.steps.length - 1 } ),
           Ui.icon( "trash" , Ui.t( "ui.delete" ) , () => editStep( Ui.t( "undo.step_deleted" ) , ( st , s ) => s.steps.splice( s.steps.indexOf( st ) , 1 ) ) , { variant: "btn-outline-danger" } ),
         ] } ) );
       }
-      list.appendChild( Dom.el( "div" , { class: "step-row" , children: [
-        Dom.el( "span" , { class: "step-start small text-body-secondary" , text: Timing.clock( clock ) } ),
+      list.appendChild( Dom.el( "div" , { class: "step-row" + ( on ? "" : " step-off" ) , children: [
+        Dom.el( "span" , { class: "step-start small text-body-secondary" , text: on ? Timing.clock( clock ) : "" } ),
         Dom.el( "div" , { class: "step-kind" , children: [ kind ] } ),
         Dom.el( "div" , { class: "step-what" , children: [ what ] } ),
         Dom.el( "div" , { class: "step-min" , children: [ minutes ] } ),
         tail,
       ] } ) );
-      clock += seconds;
+      if ( on ) {
+        clock += seconds;
+        previous = step;
+      }
     } );
     list.appendChild( Dom.el( "div" , { class: "step-row step-end small" , children: [
       Dom.el( "span" , { class: "step-start fw-semibold" , text: Timing.clock( clock ) } ),

@@ -3,6 +3,8 @@
 // Every screen is a <section class="view" data-view="name"> in index.html and
 // a sidebar link to #name. The URL hash is the only state -- back, forward,
 // reload and a pasted link all land on the same screen, with no router.
+// #name/id goes one further and names the item open on that screen, so a
+// link can land on one trial type, run or session.
 //
 // Whether a screen exists for this user is not decided here. The screen's own
 // file un-hides its section (Keys.init shows the API keys panel, and only if
@@ -66,8 +68,20 @@ const Nav = {
   // A hash naming a screen this user does not have (an admin link opened by a
   // non-admin, a typo) shows the account screen rather than nothing.
   current() {
-    const name = window.location.hash.replace( /^#/ , "" );
+    const name = window.location.hash.replace( /^#/ , "" ).split( "/" )[ 0 ];
     return this.available( name ) ? name : this.fallback;
+  },
+
+  // The id after the screen's name, or "".
+  item() {
+    return decodeURIComponent( window.location.hash.replace( /^#/ , "" ).split( "/" )[ 1 ] || "" );
+  },
+
+  // Keep the address on what is showing, without a new history step (each
+  // pick in a list is not a place to go Back to).
+  noteItem( id ) {
+    const hash = "#" + this.current() + ( id ? "/" + encodeURIComponent( id ) : "" );
+    if ( window.location.hash !== hash ) window.history.replaceState( null , "" , hash );
   },
 
   render() {

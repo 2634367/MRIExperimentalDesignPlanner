@@ -29,6 +29,8 @@ RUN_SH = r"""#!/usr/bin/env bash
 #   ./run.sh                          full screen, waits for the scanner trigger
 #   ./run.sh --scanner simulate       pretend pulses at the plan's TR
 #   ./run.sh --scanner none --windowed   a quick look, no scanner at all
+#   ./run.sh --pilot                  the first 2 blocks, no scanner, in a window
+#   ./run.sh --screen 1               on the second display (--list-screens shows them)
 #   ./run.sh plans/run-02.json        just that run
 #
 # Results go in data/.
@@ -91,7 +93,18 @@ Run it
     --scanner simulate   pretend trigger pulses arrive every TR
     --scanner none       start straight away
     --windowed           a window instead of full screen
+    --screen N           which display to use (--list-screens shows them)
     --participant ID     label the results with this participant
+    --keyboard event     use window key events, if a Mac blocks PsychoPy's own
+                         keyboard (the runner does this itself, with a warning)
+    --pilot              a quick check: first 2 blocks, no scanner, in a window
+    --blocks N           only the first N blocks of each run
+    --debug              the pause key (space, or --pause-key) holds the run;
+                         onsets then stop matching volumes, so not for real data
+
+  To run the last published plans instead of these, fetching them first and
+  falling back to the last fetched copy when there is no network:
+    --planner URL --experiment ID --key-file key.txt --only ses-01
 
   Escape quits. The trigger key is "{trigger}". Results are written to data/:
   one <run>_events.tsv (BIDS-style onsets) and one <run>.json run record per

@@ -8,6 +8,7 @@ const Report = {
   seed: 1,
   methodsDraft: null,
   tableId: "",
+  PUBLISH_PART_BYTES: 8 * 1024 * 1024,
 
   render( root ) {
     const doc = Doc.doc;
@@ -31,6 +32,8 @@ const Report = {
         status,
       ] } ),
     ] ) );
+
+    if ( !Doc.shareCredential ) root.appendChild( this.publishCard() );
 
     // Methods.
     const area = Dom.el( "textarea" , { class: "form-control" , attrs: { rows: "10" , "data-key": "report.methods" } } );
@@ -89,14 +92,7 @@ const Report = {
     const doc = Doc.doc;
     status.textContent = Ui.t( "report.building" );
     try {
-      const figures = [];
-      if ( !xlsxOnly ) {
-        for ( const f of this.figures( doc ) ) {
-          const svg = f.make( true );
-          const png = await Charts.png( svg , 2 ).then( ( blob ) => this.base64( blob ) ).catch( () => null );
-          figures.push( { name: Charts.slug( f.name ) , svg: Charts.serialize( svg ) , png: png } );
-        }
-      }
+      const figures = xlsxOnly ? [] : await this.drawnFigures( doc );
       const body = {
         tables: Tables.all( doc , this.seed ),
         methods: this.methodsDraft || this.methods( doc ),
@@ -110,6 +106,94 @@ const Report = {
       status.textContent = "";
       Dom.toast( Ui.t( "report.failed" ) + " " + error.message , "error" );
     }
+  },
+
+  async drawnFigures( doc ) {
+    const figures = [];
+    for ( const f of this.figures( doc ) ) {
+      const svg = f.make( true );
+      const png = await Charts.png( svg , 2 ).then( ( blob ) => this.base64( blob ) ).catch( () => null );
+      figures.push( { name: Charts.slug( f.name ) , svg: Charts.serialize( svg ) , png: png } );
+    }
+    return figures;
+  },
+
+  // -- publishing ---------------------------------------------------------------
+
+  // Only this browser can compile a plan or draw a figure, so the addresses
+  // serve what was sent here last, and the card says how old that is (see
+  // app/models/published.py).
+  publishCard() {
+    const status = Dom.el( "div" , { class: "small mt-2" } );
+    const links = Dom.el( "div" , { class: "mt-2" } );
+    const paint = ( row ) => {
+      links.replaceChildren();
+      if ( !row ) {
+        Dom.text( status , Ui.t( "report.publish_never" ) );
+        return;
+      }
+      let text = Ui.t( "report.publish_when" ).replace( "{when}" , new Date( row.published_at ).toLocaleString() ).replace( "{who}" , row.published_by_name || "" ).replace( "{plans}" , row.plans.length ).replace( "{figures}" , row.figures.length );
+      if ( row.revision !== Doc.revision ) text += " " + Ui.t( "report.publish_stale" );
+      Dom.text( status , text );
+      const base = window.location.origin + Api.experimentPath( Doc.id ) + "/published";
+      const code = ( url ) => Dom.el( "div" , { class: "link-box mb-1" , children: [ Dom.el( "code" , { text: url } ) ] } );
+      const details = Dom.el( "details" , { children: [ Dom.el( "summary" , { class: "small" , text: Ui.t( "report.publish_links" ) } ) ] } );
+      details.append( code( base ) );
+      row.plans.forEach( ( plan ) => details.append( code( base + "/plans/" + plan.label + ".json" ) ) );
+      row.figures.forEach( ( name ) => details.append( code( base + "/figures/" + name ) ) );
+      links.appendChild( details );
+    };
+    const button = Ui.button( Ui.t( "report.publish" ) , "broadcast" , async () => {
+      button.disabled = true;
+      Dom.text( status , Ui.t( "report.building" ) );
+      try {
+        paint( await this.publish() );
+      } catch ( error ) {
+        Dom.text( status , Ui.t( "report.publish_failed" ) + " " + error.message );
+      } finally {
+        button.disabled = false;
+      }
+    } , { editOnly: true } );
+    Api.published( Doc.id ).then( paint ).catch( ( error ) => {
+      if ( error.status === 404 ) paint( null );
+      else Dom.text( status , error.message );
+    } );
+    return Ui.section( Ui.t( "report.publish_heading" ) , [ Ui.muted( Ui.t( "report.publish_help" ) ) , button , status , links ] );
+  },
+
+  // Every run and session, with one seed, and the figures, in parts small
+  // enough for a request each. The last part makes it the published copy.
+  async publish() {
+    if ( Doc.dirty ) await Doc.save();
+    const doc = Doc.doc;
+    const seed = Compile.newSeed();
+    const options = { seed: seed , scanner: "wait" };
+    const experiment = { id: Doc.id };
+    const plans = [];
+    doc.runs.forEach( ( run ) => plans.push( ...Compile.runPlans( doc , experiment , run.id , options ) ) );
+    doc.sessions.forEach( ( session ) => plans.push( ...Compile.sessionPlans( doc , experiment , session.id , options ) ) );
+    const parts = [];
+    let part = { plans: [] , figures: [] , size: 0 };
+    const add = ( key , entry ) => {
+      const size = JSON.stringify( entry ).length;
+      if ( part.size + size > this.PUBLISH_PART_BYTES && part.size > 0 ) {
+        parts.push( part );
+        part = { plans: [] , figures: [] , size: 0 };
+      }
+      part[ key ].push( entry );
+      part.size += size;
+    };
+    Compile.forServer( plans ).filter( ( plan ) => plan.segments.length ).forEach( ( plan ) => add( "plans" , plan ) );
+    ( await this.drawnFigures( doc ) ).forEach( ( figure ) => add( "figures" , figure ) );
+    parts.push( part );
+    let version = "";
+    let row = null;
+    for ( let i = 0; i < parts.length; i += 1 ) {
+      const last = i === parts.length - 1;
+      row = await Api.publish( Doc.id , { version: version , plans: parts[ i ].plans , figures: parts[ i ].figures , finish: last , seed: seed } );
+      version = row.version;
+    }
+    return row;
   },
 
   base64( blob ) {

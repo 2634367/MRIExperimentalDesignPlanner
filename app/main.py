@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator
 
 import uvicorn
@@ -24,13 +25,13 @@ from app.core import assets, bootstrap, config, db, language
 from app.core.middleware import EXCEPTION_HANDLERS, RateLimit, SecurityHeaders
 from app.core.security import LoadActor
 from app.core.static_files import StaticServer
-from app.models import api_keys, experiments, invite_links, login_tokens, scanner_cards, sessions, share_links
+from app.models import api_keys, experiments, invite_links, login_tokens, published, scanner_cards, seen, sessions, share_links
 from app.routes import build_routes
 
 PURGE_INTERVAL_SECONDS = 60 * 60
 
 
-def purge_once(store: db.Store) -> None:
+def purge_once(store: db.Store, storage_dir: Path) -> None:
     """Drop expired sessions, expired login tokens, and the API keys and
     invite links that have been dead long enough to stop being worth listing.
     None of it is a correctness issue -- every one of those is already refused
@@ -42,6 +43,8 @@ def purge_once(store: db.Store) -> None:
     removed_invites = invite_links.purge_dead_invite_links(store)
     removed_experiments = experiments.purge_deleted_experiments(store)
     removed_shares = share_links.purge_orphaned_share_links(store)
+    seen.purge_orphans(store)
+    published.purge_orphans(store, storage_dir)
     removed_cards = scanner_cards.purge_deleted_cards(store)
     if removed_sessions or removed_tokens or removed_keys or removed_invites or removed_experiments or removed_shares or removed_cards:
         print(
@@ -53,11 +56,11 @@ def purge_once(store: db.Store) -> None:
         )
 
 
-async def purge_loop(store: db.Store) -> None:
+async def purge_loop(store: db.Store, storage_dir: Path) -> None:
     while True:
         await asyncio.sleep(PURGE_INTERVAL_SECONDS)
         try:
-            await run_in_threadpool(purge_once, store)
+            await run_in_threadpool(purge_once, store, storage_dir)
         except Exception as error:  # noqa: BLE001 -- housekeeping must never take the server down
             print(f"[purge] failed: {error}", flush=True)
 
@@ -67,7 +70,7 @@ def build_app(
 ) -> Starlette:
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
-        task = asyncio.create_task(purge_loop(store))
+        task = asyncio.create_task(purge_loop(store, cfg.storage_dir))
         try:
             yield
         finally:

@@ -11,9 +11,10 @@ from typing import Any
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from app.core.db import Store
 from app.core.security import actor_from, check_csrf
-from app.models import RestoreError, scanner_cards
-from app.models.scanner_cards import BadCardError, CardConflictError, LastCardError, NoSuchCardError
+from app.models import RestoreError, scanner_cards, users
+from app.models.scanner_cards import BadCardError, CardConflictError, LastCardError, NoSuchBackupError, NoSuchCardError
 from app.routes.helpers import bad_request, conflict, forbidden, get_store, not_found, read_json, restore_refused, run
 
 NO_SUCH = "no such scanner card"
@@ -60,6 +61,34 @@ async def save_card(request: Request) -> Response:
     except CardConflictError as stale:
         return conflict(str(stale), revision=stale.current)
     return JSONResponse(saved.to_row())
+
+
+def _backup_rows(store: Store, card_id: str) -> list[dict[str, Any]]:
+    names = {user.id: user.display_name for user in users.list_users(store)}
+    return [dict(row, saved_by_name=names.get(row["saved_by"], "")) for row in scanner_cards.list_backups(store, card_id)]
+
+
+async def list_backups(request: Request) -> Response:
+    try:
+        rows = await run(_backup_rows, get_store(request), request.path_params["card_id"])
+    except NoSuchCardError:
+        return not_found(NO_SUCH)
+    return JSONResponse(rows)
+
+
+async def restore_backup(request: Request) -> Response:
+    body = await _checked_body(request)
+    if isinstance(body, Response):
+        return body
+    try:
+        restored = await run(
+            scanner_cards.restore_backup, get_store(request), request.path_params["card_id"], actor_from(request).user.id, body.get("revision"),
+        )
+    except NoSuchCardError:
+        return not_found(NO_SUCH)
+    except NoSuchBackupError:
+        return not_found("no such backup")
+    return JSONResponse(restored.to_row())
 
 
 async def delete_card(request: Request) -> Response:
