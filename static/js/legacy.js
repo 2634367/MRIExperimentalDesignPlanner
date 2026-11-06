@@ -12,10 +12,13 @@
 //   task moved it up out of the shapes' way; a trial type shows {text} in the
 //   middle and {title} at the top, and whichever is empty is not drawn.
 //
-// The old Jitter sampling card (mode, p, truncation) becomes each jittered
-// phase's own duration kind. A file without one is jittered geometrically,
-// the default here; a cap of nMaxCap TRs becomes each phase's max once the
-// runs have given the TR.
+// The old Jitter sampling card (mode, p, truncation) becomes the design's
+// jitter, which every jittered phase follows, as it did there. A file without
+// one is jittered geometrically, the default here. A cap of nMaxCap TRs is
+// the design's cap; a cap of none at all has no counterpart there (0 means no
+// cap), so it becomes each phase's max once the runs have given the TR.
+//
+// The old fixation mark becomes the design's, and every phase shows it.
 //
 // Every old condition (a "role": primary, passive read, ...) comes across. The
 // primary one is the trial itself; each other becomes its own trial type on
@@ -71,13 +74,22 @@ const Legacy = {
     const screens = presentation.screens || {};
 
     const doc = Schema.blank( meta.studyTitle || ( old.experiments && old.experiments[ 0 ] && old.experiments[ 0 ].name ) || t( "legacy.untitled" ) );
-    doc.notes = [
-      [ meta.investigator , meta.institution , meta.designId ].filter( ( v ) => v && v !== "-" ).join( " · " ),
-      meta.notes || "",
-    ].filter( Boolean ).join( " — " );
+    doc.notes = meta.notes || "";
+    const label = ( value ) => ( value && value !== "-" ? String( value ) : "" );
+    doc.meta = { investigator: label( meta.investigator ) , institution: label( meta.institution ) , design_id: label( meta.designId ) };
     const budget = old.budget || {};
     doc.budget.hours_available = Number( budget.totalScannerHours ) || 10;
     doc.budget.participants = 1;
+    doc.budget.count_overhead = budget.countOverheadAgainstBudget !== false;
+    doc.budget.sessions_per_week = Number( budget.sessionsPerWeek ) || 0;
+    doc.budget.weeks_available = Number( budget.weeksAvailable ) || 0;
+    doc.fixation = { layers: [ Schema.textLayer( fixationText , fixationHeight ) ] };
+    doc.jitter = {
+      mode: Schema.JITTER_MODES.includes( jitter.mode ) ? jitter.mode : "uniform",
+      p: Number( jitter.p ) || 0.5 ,
+      scale: 0.5,
+      cap_trs: 0,
+    };
 
     // The question list the old task drew from lives outside the design;
     // make the list here, empty, ready for its bank.json.
@@ -93,7 +105,7 @@ const Legacy = {
       notes.push( t( "legacy.note_bank" ) );
     }
 
-    const fixation = () => [ Schema.textLayer( fixationText , fixationHeight ) ];
+    const fixation = () => Schema.fixation();
     const layersFor = ( shows , role ) => {
       const condition = role || primary;
       if ( shows === "fixation" ) return fixation();
@@ -125,8 +137,7 @@ const Legacy = {
         const hi = Math.max( lo , Number( phase.max ) || lo );
         let duration;
         if ( hi > lo && phase.jitter !== false ) {
-          duration = Schema.duration( jitter.mode === "geometric" ? "geometric" : jitter.mode === "exponential" ? "exponential" : "uniform" , lo , hi );
-          if ( jitter.p ) duration.p = jitter.p;
+          duration = Object.assign( Schema.duration( doc.jitter.mode , lo , hi ) , { inherit: true } );
         } else {
           duration = Schema.duration( "fixed" , hi > lo ? ( lo + hi ) / 2 : lo );
         }
@@ -216,9 +227,10 @@ const Legacy = {
     }
     const cap = Number( jitter.nMaxCap );
     if ( jitter.mode === "geometric" && jitter.truncation === "trs" && cap >= 0 ) {
-      doc.trial_types.forEach( ( tt ) => tt.phases.forEach( ( phase ) => {
+      if ( Math.round( cap ) > 0 ) doc.jitter.cap_trs = Math.round( cap );
+      else doc.trial_types.forEach( ( tt ) => tt.phases.forEach( ( phase ) => {
         const d = phase.duration;
-        if ( d.kind === "geometric" ) d.max = Math.min( d.max , Timing.round4( d.min + Math.round( cap ) * doc.scanner.tr ) );
+        if ( d.kind === "geometric" ) d.max = Math.min( d.max , d.min );
       } ) );
       notes.push( t( "legacy.note_jitter_cap" ).replace( "{n}" , Math.round( cap ) ).replace( "{tr}" , doc.scanner.tr ) );
     }
@@ -238,28 +250,24 @@ const Legacy = {
       session.auto_break_minutes = oldSession.autoBreak !== false ? Math.max( 0 , Number( oldSession.breakMinutes ) || 0 ) : 0;
       let guessed = false;
       ( oldSession.blocks || [] ).forEach( ( block ) => {
-        const times = Math.max( 1 , Number( block.count ) || 1 );
+        const repeat = Math.max( 1 , Math.min( 100 , Number( block.count ) || 1 ) );
         const from = session.steps.length;
-        for ( let k = 0; k < times; k += 1 ) {
-          if ( block.kind === "run" ) {
-            session.steps.push( Schema.step( "run" , runIds[ block.run ] || "" ) );
-            continue;
-          }
-          if ( block.kind === "structural" ) {
-            const card = cardFor( block.protocol );
-            const step = Object.assign( Schema.step( "scan" ) , { name: block.protocol || block.label || "" , minutes: Number( block.minutes ) || 5 } );
-            if ( card ) {
-              step.card = Scanners.ref( card );
-              step.name = card.label;
-              if ( step.card.seconds > 0 ) step.minutes = Math.round( step.card.seconds / 60 * 100 ) / 100;
-            } else {
-              if ( block.protocol ) missingCards.add( block.protocol );
-              guessed = true;
-            }
-            session.steps.push( step );
+        if ( block.kind === "run" ) {
+          session.steps.push( Object.assign( Schema.step( "run" , runIds[ block.run ] || "" ) , { repeat: repeat } ) );
+        } else if ( block.kind === "structural" ) {
+          const card = cardFor( block.protocol );
+          const step = Object.assign( Schema.step( "scan" ) , { name: block.protocol || block.label || "" , minutes: Number( block.minutes ) || 5 , repeat: repeat } );
+          if ( card ) {
+            step.card = Scanners.ref( card );
+            step.name = card.label;
+            if ( step.card.seconds > 0 ) step.minutes = Math.round( step.card.seconds / 60 * 100 ) / 100;
           } else {
-            session.steps.push( Object.assign( Schema.step( "break" ) , { name: block.label || "" , minutes: Number( block.minutes ) || 0 } ) );
+            if ( block.protocol ) missingCards.add( block.protocol );
+            guessed = true;
           }
+          session.steps.push( step );
+        } else {
+          session.steps.push( Object.assign( Schema.step( "break" ) , { name: block.label || "" , minutes: Number( block.minutes ) || 0 , repeat: repeat } ) );
         }
         // Switched off there, switched off here: kept, and taking no time.
         if ( block.enabled === false ) session.steps.slice( from ).forEach( ( step ) => { step.enabled = false; } );

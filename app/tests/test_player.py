@@ -83,6 +83,7 @@ class Screen:
 class Stim:
     def __init__(self, *args: object, **kwargs: object) -> None:
         self.text = ""
+        self.options = kwargs
 
     def draw(self) -> None:
         pass
@@ -146,7 +147,7 @@ class PlayerTest(unittest.TestCase):
     def player_for(self, the_plan: dict, mode: str, keys: object, pause_keys: tuple[str, ...] = ()) -> object:
         self.screen = Screen()
         self.readout = Readout()
-        window = types.SimpleNamespace(win=self.screen, kb=keys, frame=FRAME, text_color="#ffffff", message=Stim())
+        window = types.SimpleNamespace(win=self.screen, kb=keys, frame=FRAME, text_color="#ffffff", message=Stim(), view_scale=None)
         return self.schedule.Player(window, the_plan, Quiet(), mode, self.readout, pause_keys)
 
     def answering_plan(self) -> dict:
@@ -336,6 +337,58 @@ class PlayerTest(unittest.TestCase):
         self.keyboard.script = [(100.0, "space")]
         record, _ = self.player(("space",)).play()
         self.assertEqual(record["pauses"], [])
+
+    def test_text_is_mirrored_by_its_own_flags_and_placed_where_the_mirror_puts_it(self) -> None:
+        # viewScale leaves text alone, so without this it reads normally,
+        # unmoved, beside mirrored shapes.
+        from fmri_runner import display
+        for scale, pos, x_flip, y_flip in (((-1, 1), (-0.3, 0.2), True, False), ((1, -1), (0.3, -0.2), False, True), ((-1, -1), (-0.3, -0.2), True, True)):
+            stim = display.text_stim(None, scale, (0.3, 0.2), text="x")
+            self.assertEqual(stim.options["pos"], pos)
+            self.assertEqual((stim.options["flipHoriz"], stim.options["flipVert"]), (x_flip, y_flip))
+
+    def test_with_no_mirror_text_is_as_it_was(self) -> None:
+        from fmri_runner import display
+        stim = display.text_stim(None, None, (0.3, 0.2), text="x")
+        self.assertEqual(stim.options["pos"], (0.3, 0.2))
+        self.assertEqual((stim.options["flipHoriz"], stim.options["flipVert"]), (False, False))
+
+    def test_every_text_a_layer_draws_obeys_the_mirror(self) -> None:
+        from fmri_runner import display
+        the_plan = plan()
+        painter = display.Painter(None, the_plan, (-1, 1))
+        layer = {"kind": "text", "text": "x", "height": 0.1, "pos": [0.3, 0.2], "color": "#ffffff"}
+        stim = painter.stims([layer])[0]
+        self.assertEqual(stim.options["pos"], (-0.3, 0.2))
+        self.assertTrue(stim.options["flipHoriz"])
+
+    def finished(self, seen: int, expected: int, dummies: int) -> str:
+        player = self.player()
+        player.plan["run"] = {"label": "run-01"}
+        player.scanner["dummy_volumes"] = dummies
+        player.record["pulses"] = {"seen": seen, "expected": expected, "before_t0": dummies}
+        return player.summary()
+
+    def test_a_scan_short_by_the_dummies_says_what_that_may_mean(self) -> None:
+        self.assertIn("First pulse", self.finished(96, 100, 4))
+
+    def test_a_scan_short_by_something_else_only_warns(self) -> None:
+        line = self.finished(80, 100, 4)
+        self.assertIn("WARNING", line)
+        self.assertNotIn("First pulse", line)
+
+    def test_a_scan_that_matches_says_nothing(self) -> None:
+        self.assertNotIn("WARNING", self.finished(100, 100, 4))
+
+    def test_a_plan_with_no_dummies_starts_on_the_first_pulse(self) -> None:
+        the_plan = plan()
+        the_plan["scanner"]["dummy_volumes"] = 0
+        keys = TimedKeyboard()
+        keys.script = [(100.5, "5"), (101.5, "5")]
+        player = self.player_for(the_plan, "wait", keys, ())
+        player.wait_for_scanner()
+        self.assertEqual(player.dummy_pulses, 1)
+        self.assertEqual(player.t0, 100.5)
 
 
 if __name__ == "__main__":

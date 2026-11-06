@@ -4,10 +4,15 @@
 // else by id, never by name or by position, so renaming a trial type or
 // reordering a list cannot break what uses it:
 //
-//   scanner      tr, trigger_key, dummy_volumes
+//   meta         investigator, institution, design_id: who the exports say it is
+//   scanner      tr, trigger_key, dummy_volumes, t0 (what the run clock starts on)
 //   display      background, text_color, font, text_height, aspect
+//   fixation     layers[]: the one fixation mark, which a "fixation" layer shows
+//   jitter       mode, p, scale, cap_trs: how a jittered phase waits unless it says otherwise
+//   schedule     seed, shuffled_at, shuffled_by: the locked order (seed 0: none yet)
 //   keys         quit / advance key names (PsychoPy's names)
-//   budget       hours_available, participants
+//   budget       hours_available, participants, count_overhead,
+//                sessions_per_week, weeks_available (0: not set)
 //   hrf          the double-gamma response every graph models (static/js/hrf.js)
 //   media[]      pictures: { id (sha256), name, ext, w, h, ... }
 //   lists[]      prompt lists: { columns[{ key, label, type }], items[{ id, values{} }] }
@@ -15,7 +20,7 @@
 //                  phases[{ duration, layers[], response, modelled }] }
 //   runs[]       { tr, dummy_volumes (0 / -1: the scanner's), card, instructions, lead_in, lead_out,
 //                  blocks[{ mix[{ trial_type, count }], repeat, order, rest_after }] }
-//   sessions[]   { count, auto_break_minutes, steps[{ kind: run|scan|break, run, name, minutes, card }] }
+//   sessions[]   { count, auto_break_minutes, steps[{ kind: run|scan|break, run, name, minutes, card, repeat }] }
 //
 // A phase that is "modelled" is one regressor in the HRF analysis (the
 // trial's name plus the phase's), so each trial type is its own condition.
@@ -37,16 +42,32 @@
 // draw different parts of one list and still never repeat an item between
 // them.
 //
+// A jittered duration with inherit set takes its kind, p, scale and cap from
+// doc.jitter; only its window (min, max) is its own. normalise() copies those
+// values in on every change, so nothing that reads a duration has to know
+// where they came from, and an inherited duration can never disagree with the
+// design's setting.
+//
+// A "fixation" layer holds nothing of its own: it shows doc.fixation, and
+// compile.js swaps it for those layers, so a run plan never sees one.
+//
 // normalise() fills in anything missing, so every other file can read any
 // field without checking it exists; migrate() is where a future format
 // change upgrades an older document.
 const Schema = {
-  FORMAT_VERSION: 2,
+  FORMAT_VERSION: 3,
   DURATION_KINDS: [ "fixed" , "geometric" , "uniform" , "exponential" ],
   // How a phase is jittered unless it says otherwise: the truncated geometric
   // (static/js/timing.js), which gives the participant nothing to anticipate.
   DEFAULT_JITTER: "geometric",
-  LAYER_KINDS: [ "text" , "image" , "shape" ],
+  JITTER_MODES: [ "geometric" , "uniform" , "exponential" ],
+  LAYER_KINDS: [ "text" , "image" , "shape" , "fixation" ],
+  // What the run clock starts on. Which is right depends on the scanner:
+  //   last_dummy     the last dummy pulse
+  //   after_dummies  the pulse after it, where a pulse marks the start of its
+  //                  volume, so that one is the first volume kept
+  //   first_pulse    the very first, where none come during the dummy volumes
+  T0_MODES: [ "last_dummy" , "after_dummies" , "first_pulse" ],
   SHAPES: [ "circle" , "square" , "triangle" , "diamond" , "cross" , "polygon" ],
   COLUMN_TYPES: [ "text" , "image" , "number" ],
   STEP_KINDS: [ "run" , "scan" , "break" ],
@@ -89,7 +110,15 @@ const Schema = {
   shapeLayer( shape ) {
     return { id: this.uid( "l" ) , kind: "shape" , shape: shape || "circle" , sides: 5 , pos: [ 0 , 0 ] , size: 0.1 , color: "" , fill: true , ori: 0 , line_width: 3 };
   },
+  fixationLayer() {
+    return { id: this.uid( "l" ) , kind: "fixation" };
+  },
+  // A screen showing the design's fixation mark.
   fixation() {
+    return [ this.fixationLayer() ];
+  },
+  // What the mark itself is until the design says otherwise.
+  fixationMark() {
     return [ this.textLayer( "+" , 0.08 ) ];
   },
   column( label , type , taken ) {
@@ -106,12 +135,12 @@ const Schema = {
     return { id: this.uid( "i" ) , values: Object.assign( {} , values || {} ) };
   },
   duration( kind , a , b ) {
-    if ( kind === "fixed" || kind === undefined ) return { kind: "fixed" , value: a == null ? 1 : a , min: 2 , max: 6 , p: 0.5 , scale: 0.5 , snap_to_tr: false };
-    return { kind: kind , value: 1 , min: a == null ? 2 : a , max: b == null ? 6 : b , p: 0.5 , scale: 0.5 , snap_to_tr: false };
+    if ( kind === "fixed" || kind === undefined ) return { kind: "fixed" , value: a == null ? 1 : a , min: 2 , max: 6 , p: 0.5 , scale: 0.5 , cap_trs: 0 , snap_to_tr: false , inherit: false };
+    return { kind: kind , value: 1 , min: a == null ? 2 : a , max: b == null ? 6 : b , p: 0.5 , scale: 0.5 , cap_trs: 0 , snap_to_tr: false , inherit: false };
   },
-  // A jittered duration, min a to max b, of the default kind.
+  // A jittered duration, min a to max b, that follows the design's jitter.
   jittered( a , b ) {
-    return this.duration( this.DEFAULT_JITTER , a , b );
+    return Object.assign( this.duration( this.DEFAULT_JITTER , a , b ) , { inherit: true } );
   },
   phase( name , duration , layers ) {
     return { id: this.uid( "ph" ) , name: name || "" , duration: duration || this.duration( "fixed" , 1 ) , layers: layers || [] , response: { keys: [] , ends_phase: false } , modelled: false };
@@ -145,7 +174,7 @@ const Schema = {
     };
   },
   step( kind , run ) {
-    return { id: this.uid( "st" ) , kind: kind || "run" , run: run || "" , name: "" , minutes: 5 , card: null , enabled: true };
+    return { id: this.uid( "st" ) , kind: kind || "run" , run: run || "" , name: "" , minutes: 5 , card: null , enabled: true , repeat: 1 };
   },
   session( name , run ) {
     return {
@@ -174,6 +203,7 @@ const Schema = {
 
     const layer = ( raw ) => {
       const kind = this.LAYER_KINDS.includes( raw && raw.kind ) ? raw.kind : "text";
+      if ( kind === "fixation" ) return { id: id( raw && raw.id , "l" ) , kind: kind };
       const base = kind === "image" ? this.imageLayer() : kind === "shape" ? this.shapeLayer() : this.textLayer();
       const out = Object.assign( base , raw || {} , { id: id( raw && raw.id , "l" ) , kind: kind , pos: pos( raw && raw.pos ) } );
       if ( kind === "text" ) {
@@ -198,14 +228,23 @@ const Schema = {
       return out;
     };
     const layers = ( value ) => arr( value ).slice( 0 , 32 ).map( layer );
+    const jitter = {
+      mode: this.JITTER_MODES.includes( doc.jitter && doc.jitter.mode ) ? doc.jitter.mode : this.DEFAULT_JITTER,
+      p: num( doc.jitter && doc.jitter.p , 0.5 , 0.02 , 0.98 ),
+      scale: num( doc.jitter && doc.jitter.scale , 0.5 , 0.05 , 5 ),
+      cap_trs: Math.round( num( doc.jitter && doc.jitter.cap_trs , 0 , 0 , 1000 ) ),
+    };
     const duration = ( raw ) => {
       const d = Object.assign( this.duration( "fixed" ) , raw || {} );
       d.kind = this.DURATION_KINDS.includes( d.kind ) ? d.kind : "fixed";
+      d.inherit = Boolean( d.inherit ) && d.kind !== "fixed";
+      if ( d.inherit ) Object.assign( d , { kind: jitter.mode , p: jitter.p , scale: jitter.scale , cap_trs: jitter.cap_trs } );
       d.value = num( d.value , 1 , 0 , 3600 );
       d.min = num( d.min , 2 , 0 , 3600 );
       d.max = Math.max( d.min , num( d.max , 6 , 0 , 3600 ) );
       d.p = num( d.p , 0.5 , 0.02 , 0.98 );
       d.scale = num( d.scale , 0.5 , 0.05 , 5 );
+      d.cap_trs = Math.round( num( d.cap_trs , 0 , 0 , 1000 ) );
       d.snap_to_tr = Boolean( d.snap_to_tr );
       return d;
     };
@@ -215,6 +254,8 @@ const Schema = {
       id: raw.id.slice( 0 , 120 ) , label: str( raw.label ).slice( 0 , 200 ) ,
       tr: num( raw.tr , 0 , 0 , 30 ) , seconds: num( raw.seconds , 0 , 0 , 86400 ),
       volume_bytes: num( raw.volume_bytes , 0 , 0 , 1e12 ),
+      tr_ms: num( raw.tr_ms , 0 , 0 , 100000 ) , te_ms: num( raw.te_ms , 0 , 0 , 100000 ) , voxel: str( raw.voxel ).slice( 0 , 60 ) , slices: str( raw.slices ).slice( 0 , 20 ),
+      mb: str( raw.mb ).slice( 0 , 20 ) , flip: str( raw.flip ).slice( 0 , 20 ) , sequence: str( raw.sequence ).slice( 0 , 120 ),
     } : null );
     const screen = ( raw , seconds ) => ( {
       seconds: num( raw && raw.seconds , seconds , 0 , 3600 ),
@@ -231,16 +272,33 @@ const Schema = {
       format_version: this.FORMAT_VERSION,
       name: str( doc.name ),
       notes: str( doc.notes ),
+      meta: {
+        investigator: str( doc.meta && doc.meta.investigator ).slice( 0 , 200 ),
+        institution: str( doc.meta && doc.meta.institution ).slice( 0 , 200 ),
+        design_id: str( doc.meta && doc.meta.design_id ).slice( 0 , 200 ),
+      },
       scanner: {
         tr: num( doc.scanner && doc.scanner.tr , 2 , 0.05 , 30 ),
         trigger_key: keys( doc.scanner && doc.scanner.trigger_key , [ "5" ] )[ 0 ] || "5",
         dummy_volumes: Math.round( num( doc.scanner && doc.scanner.dummy_volumes , 4 , 0 , 1000 ) ),
+        t0: this.T0_MODES.includes( doc.scanner && doc.scanner.t0 ) ? doc.scanner.t0 : this.T0_MODES[ 0 ],
       },
       display: {
         background: this.color( doc.display && doc.display.background , "#000000" ),
         text_color: this.color( doc.display && doc.display.text_color , "#ffffff" ),
         font: str( doc.display && doc.display.font , "Arial" ) || "Arial",
         aspect: num( doc.display && doc.display.aspect , 1.6 , 0.5 , 4 ),
+      },
+      // The mark cannot show itself, or compile would never finish.
+      fixation: {
+        layers: doc.fixation && Array.isArray( doc.fixation.layers ) ? layers( doc.fixation.layers ).filter( ( l ) => l.kind !== "fixation" ) : this.fixationMark(),
+      },
+      jitter: jitter,
+      // One seed decides every jitter and item, so it is the whole lock.
+      schedule: {
+        seed: Math.round( num( doc.schedule && doc.schedule.seed , 0 , 0 , 1e9 ) ),
+        shuffled_at: str( doc.schedule && doc.schedule.shuffled_at ).slice( 0 , 40 ),
+        shuffled_by: str( doc.schedule && doc.schedule.shuffled_by ).slice( 0 , 200 ),
       },
       keys: {
         quit: keys( doc.keys && doc.keys.quit , [ "escape" ] ),
@@ -251,6 +309,9 @@ const Schema = {
       budget: {
         hours_available: num( doc.budget && doc.budget.hours_available , 10 , 0 , 100000 ),
         participants: Math.round( num( doc.budget && doc.budget.participants , 1 , 0 , 100000 ) ),
+        count_overhead: !( doc.budget && doc.budget.count_overhead === false ),
+        sessions_per_week: num( doc.budget && doc.budget.sessions_per_week , 0 , 0 , 1000 ),
+        weeks_available: num( doc.budget && doc.budget.weeks_available , 0 , 0 , 1000 ),
       },
       // Warnings only, and 0 means none: see Validate.check.
       limits: {
@@ -332,6 +393,7 @@ const Schema = {
           minutes: num( step && step.minutes , 5 , 0 , 1440 ),
           card: step && step.kind === "scan" ? cardRef( step.card ) : null,
           enabled: !( step && step.enabled === false ),
+          repeat: Math.round( num( step && step.repeat , 1 , 1 , 100 ) ),
         } ) ),
       } ) ),
     };
@@ -364,7 +426,37 @@ const Schema = {
       } ) );
       out.format_version = 2;
     }
+    // 2 -> 3: jitter became a design setting. The commonest setting among the
+    // phases becomes it and those phases inherit; any other keeps its own. So
+    // every duration draws exactly as it did.
+    if ( version < 3 ) {
+      out = JSON.parse( JSON.stringify( out ) );
+      this.adoptJitter( out );
+      out.format_version = 3;
+    }
     return out;
+  },
+
+  // Every jittered duration in a document that has not been normalised.
+  durations( doc ) {
+    const found = [];
+    const list = ( value ) => ( Array.isArray( value ) ? value : [] );
+    list( doc.trial_types ).forEach( ( tt ) => list( tt && tt.phases ).forEach( ( phase ) => { if ( phase && phase.duration ) found.push( phase.duration ); } ) );
+    list( doc.runs ).forEach( ( run ) => [ run && run.lead_in , run && run.lead_out ].forEach( ( lead ) => { if ( lead && lead.jitter ) found.push( lead.jitter ); } ) );
+    return found.filter( ( d ) => this.JITTER_MODES.includes( d.kind ) );
+  },
+
+  adoptJitter( doc ) {
+    const p = ( d ) => ( d.p === undefined ? 0.5 : Number( d.p ) );
+    const scale = ( d ) => ( d.scale === undefined ? 0.5 : Number( d.scale ) );
+    const setting = ( d ) => d.kind + "|" + ( d.kind === "geometric" ? p( d ) : d.kind === "exponential" ? scale( d ) : "" );
+    const tally = {};
+    this.durations( doc ).forEach( ( d ) => { tally[ setting( d ) ] = ( tally[ setting( d ) ] || 0 ) + 1; } );
+    const commonest = Object.keys( tally ).sort( ( a , b ) => tally[ b ] - tally[ a ] )[ 0 ];
+    if ( !commonest ) return;
+    const example = this.durations( doc ).find( ( d ) => setting( d ) === commonest );
+    doc.jitter = { mode: example.kind , p: p( example ) , scale: scale( example ) , cap_trs: 0 };
+    this.durations( doc ).forEach( ( d ) => { d.inherit = setting( d ) === commonest; } );
   },
 
   // A small, complete design to start from: one prompt list, two trial
@@ -385,7 +477,7 @@ const Schema = {
       this.phase( I18n.get( "example.phase_fixation" ) , this.jittered( 2 , 6 ) , this.fixation() ),
       this.phase( I18n.get( "example.phase_cue" ) , this.duration( "fixed" , 1 ) , [ Object.assign( this.shapeLayer( "circle" ) , { color: "#4caf50" } ) ] ),
       this.phase( I18n.get( "example.phase_prompt" ) , this.duration( "fixed" , 3 ) , [ this.textLayer( "{text}" , 0.08 ) , Object.assign( this.imageLayer( "{image}" ) , { pos: [ 0 , -0.22 ] , height: 0.3 } ) ] ),
-      this.phase( I18n.get( "example.phase_iti" ) , this.duration( "geometric" , 2 , 8 ) , this.fixation() ),
+      this.phase( I18n.get( "example.phase_iti" ) , this.jittered( 2 , 8 ) , this.fixation() ),
     ];
     // The cue tells the two conditions apart, so that is what is modelled.
     say.phases[ 1 ].modelled = true;

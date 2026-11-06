@@ -14,7 +14,7 @@ from app.core import bundle, report
 from app.core.db import Store
 from app.core.report import BadReportError
 from app.core.security import actor_from, check_csrf
-from app.models import experiments, share_links
+from app.models import experiments, scanner_cards, share_links
 from app.models.experiments import NoSuchExperimentError
 from app.models.share_links import ShareLinkInvalidError
 from app.routes.helpers import bad_request, forbidden, get_store, not_found, read_json, run
@@ -26,13 +26,13 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 def _report(store: Store, experiment_id: str, user_id: int, body: dict) -> tuple[str, bytes, bool]:
     experiment = experiments.experiment_for(store, experiment_id, user_id)
     checked = report.check_report(body)
-    return experiment.name, report.build(experiment.name, experiment.doc, checked), checked.only_xlsx
+    return experiment.name, report.build(experiment.name, experiment.doc, checked, scanner_cards.used_by(store, experiment.doc)), checked.only_xlsx
 
 
 def _shared_report(store: Store, body: dict) -> tuple[str, bytes, bool]:
     _, experiment = share_links.load_shared(store, body.get("credential"))
     checked = report.check_report(body)
-    return experiment.name, report.build(experiment.name, experiment.doc, checked), checked.only_xlsx
+    return experiment.name, report.build(experiment.name, experiment.doc, checked, scanner_cards.used_by(store, experiment.doc)), checked.only_xlsx
 
 
 def _response(name: str, data: bytes, only_xlsx: bool) -> Response:

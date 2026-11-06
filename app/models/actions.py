@@ -12,7 +12,8 @@ what they hold; the verbs are the same for all of them:
     move   { parent id }, id, position
 
 and settings.update { section, fields } for scanner, display, keys, budget,
-limits and hrf, and experiment.update { fields } for name and notes.
+limits, hrf, jitter, fixation and meta, and experiment.update { fields } for
+name and notes.
 
 The server still does not interpret a design: fields go in as given, and a new
 thing needs only what you care about, because static/js/schema.js fills in
@@ -32,7 +33,7 @@ from app.models import experiments
 from app.models.experiments import Experiment, RevisionConflictError
 
 RETRIES = 3
-SETTINGS = ("scanner", "display", "keys", "budget", "limits", "hrf")
+SETTINGS = ("scanner", "display", "keys", "budget", "limits", "hrf", "jitter", "fixation", "meta")
 EXPERIMENT_FIELDS = ("name", "notes")
 VERBS = ("add", "update", "delete", "move")
 # thing -> (the key it is held under, the thing that holds it, its id prefix)

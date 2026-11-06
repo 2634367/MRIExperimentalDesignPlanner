@@ -193,6 +193,11 @@
           <button id="conflict-reload" class="btn btn-sm btn-outline-secondary" data-i18n="doc.conflict_reload"></button>
           <button id="conflict-keep" class="btn btn-sm btn-warning" data-i18n="doc.conflict_keep"></button>
         </div>
+        <!-- The open experiment was deleted, or this person lost access to it. -->
+        <div id="gone-banner" class="alert alert-danger d-flex flex-wrap align-items-center gap-2" hidden>
+          <span id="gone-text" class="me-auto"></span>
+          <button id="gone-leave" class="btn btn-sm btn-outline-danger" data-i18n="doc.gone_leave"></button>
+        </div>
         <div id="share-banner" class="alert alert-info" hidden>
           <i class="bi bi-eye" aria-hidden="true"></i> <span id="share-banner-text"></span>
         </div>
@@ -554,6 +559,7 @@
   <script src="/js/charts.js"></script>
   <script src="/js/tables.js"></script>
   <script src="/js/figures.js"></script>
+  <script src="/js/onscreen.js"></script>
   <script src="/js/stage.js"></script>
   <script src="/js/launch.js"></script>
   <script src="/js/media.js"></script>

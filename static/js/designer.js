@@ -37,6 +37,7 @@ const Designer = {
     } );
     Dom.get( "conflict-reload" ).addEventListener( "click" , () => Doc.reloadTheirs() );
     Dom.get( "conflict-keep" ).addEventListener( "click" , () => Doc.keepMine() );
+    Dom.get( "gone-leave" ).addEventListener( "click" , () => Doc.leaveGone() );
   },
 
   async init( me ) {
@@ -61,6 +62,7 @@ const Designer = {
     this.chrome();
     Dom.show( Dom.get( "sidebar-design" ) , true );
     if ( !window.location.hash ) window.location.hash = Doc.isOpen() ? "#overview" : "#experiments";
+    Doc.follow();
   },
 
   lastOpened() {
@@ -93,6 +95,7 @@ const Designer = {
     this.chrome();
     Dom.show( Dom.get( "sidebar-design" ) , true );
     if ( !window.location.hash ) window.location.hash = "#overview";
+    Doc.follow();
     return true;
   },
 

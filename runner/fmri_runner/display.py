@@ -20,9 +20,19 @@ from psychopy import visual
 CACHE_SIZE = 64
 
 
+def text_stim(win, view_scale, pos=(0, 0), **options):
+    """A TextStim that obeys --flip. The window's viewScale mirrors everything
+    PsychoPy draws except text (seen in real pixels, 2026.2), which stays put
+    and reads normally beside mirrored shapes. So text is mirrored by its own
+    flags, and placed where the mirror would have put it."""
+    x_scale, y_scale = view_scale or (1, 1)
+    return visual.TextStim(win, pos=(x_scale * pos[0], y_scale * pos[1]), flipHoriz=x_scale < 0, flipVert=y_scale < 0, **options)
+
+
 class Painter:
-    def __init__(self, win, plan):
+    def __init__(self, win, plan, view_scale=None):
         self.win = win
+        self.view_scale = view_scale
         self.media = plan["_media_paths"]
         self.sizes = plan["media"]
         self.font = plan["display"].get("font") or "Arial"
@@ -43,8 +53,8 @@ class Painter:
         kind = layer["kind"]
         pos = tuple(layer["pos"])
         if kind == "text":
-            return visual.TextStim(
-                self.win, text=layer["text"], height=layer["height"], pos=pos,
+            return text_stim(
+                self.win, self.view_scale, pos, text=layer["text"], height=layer["height"],
                 color=layer["color"], colorSpace="hex", font=layer.get("font") or self.font,
                 wrapWidth=layer.get("wrap"), bold=bool(layer.get("bold")), anchorHoriz="center", anchorVert="center",
                 alignText="center",

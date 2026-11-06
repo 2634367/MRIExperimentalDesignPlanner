@@ -17,6 +17,17 @@ const Experiments = {
     }
   },
 
+  // The list, kept current while it is on screen.
+  async follow() {
+    if ( Doc.typing() ) return;
+    const seen = ( rows ) => JSON.stringify( rows.map( ( row ) => [ row.id , row.revision , row.name ] ) );
+    const before = seen( this.rows );
+    const rows = await Api.listExperiments();
+    if ( seen( rows ) === before || Doc.typing() ) return;
+    this.rows = rows;
+    Designer.repaint( this.name );
+  },
+
   async open( id , screen ) {
     await Doc.flush();
     const row = await Api.getExperiment( id );

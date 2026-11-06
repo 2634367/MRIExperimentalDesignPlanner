@@ -55,6 +55,14 @@ def open_row(store: Store, experiment_id: str, user_id: int) -> dict[str, Any]:
     return experiment_row(store, experiments.experiment_for(store, experiment_id, user_id), user_id, with_doc=True)
 
 
+def revision_row(store: Store, experiment_id: str, user_id: int) -> dict[str, Any]:
+    """What an open page asks every few seconds. Raises NoSuchExperimentError
+    once the experiment is deleted or this user can no longer open it."""
+    experiment = experiments.experiment_for(store, experiment_id, user_id)
+    names = {user.id: user.display_name for user in users.list_users(store)}
+    return {"revision": experiment.revision, "updated_by_name": "" if experiment.updated_by == user_id else names.get(experiment.updated_by, "")}
+
+
 def save_row(store: Store, experiment_id: str, user_id: int, doc: object, base_revision: object) -> dict[str, Any]:
     """Shared with the MCP save_experiment tool."""
     saved = experiments.save_doc(store, experiment_id, user_id, doc, base_revision)
@@ -92,6 +100,13 @@ async def get_experiment(request: Request) -> Response:
     except NoSuchExperimentError:
         return not_found(NO_SUCH)
     return JSONResponse(row)
+
+
+async def get_revision(request: Request) -> Response:
+    try:
+        return JSONResponse(await run(revision_row, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id))
+    except NoSuchExperimentError:
+        return not_found("no such experiment")
 
 
 async def save_experiment(request: Request) -> Response:

@@ -36,6 +36,7 @@ const Validate = {
       } );
     };
 
+    checkLayers( doc.fixation.layers , null , "settings" , null , I18n.get( "settings.fixation" ) );
     if ( !doc.trial_types.length ) say( "warning" , "trials" , null , "no_trial_types" );
     if ( !doc.runs.length ) say( "warning" , "runs" , null , "no_runs" );
     if ( !doc.sessions.length ) say( "warning" , "sessions" , null , "no_sessions" );
@@ -117,14 +118,14 @@ const Validate = {
       const need = {};
       const drawable = {};
       const ownNeed = {};
-      Timing.activeSteps( session ).filter( ( s ) => s.kind === "run" ).forEach( ( step ) => {
+      Timing.playedSteps( session ).filter( ( s ) => s.kind === "run" ).forEach( ( step , played ) => {
         const run = doc.runs.find( ( r ) => r.id === step.run );
         if ( !run ) return;
         const counts = Timing.run( doc , run ).counts;
         Object.keys( counts ).forEach( ( ttId ) => {
           const tt = doc.trial_types.find( ( x ) => x.id === ttId );
           if ( !tt || !tt.list || tt.order !== "shuffle" ) return;
-          const scope = tt.no_repeat === "session" ? "s" : tt.no_repeat === "run" ? run.id + step.id : null;
+          const scope = tt.no_repeat === "session" ? "s" : tt.no_repeat === "run" ? "r" + played : null;
           if ( !scope ) return;
           const key = tt.list + "|" + scope;
           need[ key ] = ( need[ key ] || 0 ) + counts[ ttId ];
@@ -187,6 +188,8 @@ const Validate = {
     if ( budget.available > 0 && budget.used > budget.available + 1e-9 ) {
       say( "warning" , "overview" , null , "over_budget" , { used: Timing.hours( budget.used ) , available: Timing.hours( budget.available ) } );
     }
+    const calendar = Timing.calendar( doc );
+    if ( !calendar.fits ) say( "warning" , "overview" , null , "over_calendar" , { needed: calendar.weeksNeeded , available: calendar.weeksAvailable , sessions: calendar.sessions } );
     return problems;
   },
 
@@ -208,6 +211,7 @@ const Validate = {
         if ( n ) found.push( ( list.name || I18n.get( "lists.unnamed" ) ) + " (" + n + ")" );
       } );
       const inLayers = ( layers ) => layers.some( ( l ) => l.kind === "image" && l.media === id );
+      if ( inLayers( doc.fixation.layers ) ) found.push( I18n.get( "settings.fixation" ) );
       doc.trial_types.forEach( ( tt ) => { if ( tt.phases.some( ( p ) => inLayers( p.layers ) ) ) found.push( tt.name || I18n.get( "trials.unnamed" ) ); } );
       doc.runs.forEach( ( run ) => {
         const screens = [ run.instructions , run.lead_in , run.lead_out ].concat( run.blocks.map( ( b ) => b.rest_after ) );

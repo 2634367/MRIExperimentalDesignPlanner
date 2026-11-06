@@ -30,6 +30,22 @@ const Scanners = {
     }
   },
 
+  // The library, kept current while it is on screen: reloaded only when the
+  // small list of revisions says someone else changed it, and never over an
+  // edit of ours still on its way to the server.
+  async follow() {
+    if ( !this.loaded || Doc.typing() || this.busy() ) return;
+    const revisions = await Api.scannerCardRevisions();
+    const same = this.cards.length === Object.keys( revisions ).length && this.cards.every( ( c ) => revisions[ c.id ] === c.revision );
+    if ( same || Doc.typing() || this.busy() ) return;
+    await this.load();
+    Designer.repaint( this.name );
+  },
+
+  busy() {
+    return Object.values( this.saving ).some( ( state ) => state.busy );
+  },
+
   byId( id ) {
     return this.cards.find( ( c ) => c.id === id ) || null;
   },
@@ -77,7 +93,16 @@ const Scanners = {
       dynamics: this.find( card , "dyn scans" ),
       dummies: this.find( card , "dummy scans" ),
       matrix: this.find( card , "Reconstruction matrix" ),
+      sequence: this.sequence( card ),
     };
+  },
+
+  // "EPI (FFE)", or just the technique when it is not a fast mode.
+  sequence( card ) {
+    const fast = this.find( card , "Fast Imaging mode" );
+    const technique = this.find( card , "technique" );
+    if ( !fast || fast.toLowerCase() === "none" ) return technique;
+    return technique && technique !== fast ? fast + " (" + technique + ")" : fast;
   },
 
   // One volume on disk: the reconstruction matrix squared, by the slices, at
@@ -94,6 +119,20 @@ const Scanners = {
     return {
       id: card.id , label: card.label , tr: volumeTr ? s.tr_ms / 1000 : 0 , seconds: Math.round( s.seconds * 10 ) / 10,
       volume_bytes: volumeTr ? this.volumeBytes( s ) : 0,
+      tr_ms: s.tr_ms , te_ms: s.te_ms , voxel: s.voxel , slices: s.slices , mb: s.mb , flip: s.flip , sequence: s.sequence,
+    };
+  },
+
+  // What a run or scan was acquired with, for the methods and tables: the
+  // snapshot, which is what the design used. A snapshot taken before it kept
+  // these fills the gaps from the library when it is there to ask.
+  acquisition( snapshot ) {
+    const card = this.byId( snapshot.id );
+    const live = card ? this.summary( card ) : {};
+    const pick = ( field ) => snapshot[ field ] || live[ field ] || "";
+    return {
+      label: snapshot.label , sequence: pick( "sequence" ) , tr_ms: pick( "tr_ms" ) || ( snapshot.tr ? Math.round( snapshot.tr * 100000 ) / 100 : "" ),
+      te_ms: pick( "te_ms" ) , flip: pick( "flip" ) , voxel: String( pick( "voxel" ) ).replace( /\s*\/\s*/g , " × " ) , slices: pick( "slices" ) , mb: pick( "mb" ),
     };
   },
 
@@ -103,7 +142,9 @@ const Scanners = {
     const card = this.byId( snapshot.id );
     if ( !card ) return false;
     const fresh = this.ref( card );
-    return fresh.label !== snapshot.label || fresh.tr !== snapshot.tr || fresh.seconds !== snapshot.seconds || fresh.volume_bytes !== snapshot.volume_bytes;
+    // A snapshot from before these were kept has nothing to disagree with.
+    const acquired = [ "tr_ms" , "te_ms" , "voxel" , "slices" , "mb" , "flip" , "sequence" ].some( ( field ) => snapshot[ field ] && fresh[ field ] !== snapshot[ field ] );
+    return acquired || fresh.label !== snapshot.label || fresh.tr !== snapshot.tr || fresh.seconds !== snapshot.seconds || fresh.volume_bytes !== snapshot.volume_bytes;
   },
 
   // A select of the library's cards, by role; "" is "none".

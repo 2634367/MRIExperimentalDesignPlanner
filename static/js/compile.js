@@ -83,8 +83,11 @@ const Compile = {
     return shape;
   },
 
+  // The design's fixation mark stands in for a "fixation" layer. It belongs to
+  // no trial, so it takes no prompt item.
   resolveLayers( doc , layers , item , list ) {
-    return layers.map( ( layer ) => this.resolveLayer( doc , layer , item , list ) ).filter( Boolean );
+    const flat = [].concat( ...layers.map( ( layer ) => ( layer.kind === "fixation" ? doc.fixation.layers.map( ( mark ) => [ mark , null , null ] ) : [ [ layer , item , list ] ] ) ) );
+    return flat.map( ( [ layer , from , source ] ) => this.resolveLayer( doc , layer , from , source ) ).filter( Boolean );
   },
 
   // -- prompt items -----------------------------------------------------------
@@ -226,6 +229,10 @@ const Compile = {
 
   header( doc , experiment , run , options ) {
     const scan = Timing.scan( doc , run.tr === undefined ? null : run );
+    // Which pulse t0 is comes down to how many a player waits for, so both
+    // players follow Run clock starts at without knowing it exists.
+    const t0 = doc.scanner.t0;
+    const pulses = t0 === "first_pulse" ? 0 : t0 === "after_dummies" ? scan.dummy + 1 : scan.dummy;
     const header = {
       format: this.FORMAT,
       experiment: { id: experiment.id || "" , name: doc.name.slice( 0 , 200 ) },
@@ -233,12 +240,13 @@ const Compile = {
       participant: ( options.participant || "" ).slice( 0 , 64 ),
       seed: options.seed,
       created: new Date().toISOString().slice( 0 , 19 ) + "Z",
-      scanner: { tr: scan.tr , trigger_key: doc.scanner.trigger_key , dummy_volumes: scan.dummy , wait: options.scanner !== "none" },
+      scanner: { tr: scan.tr , trigger_key: doc.scanner.trigger_key , dummy_volumes: pulses , wait: options.scanner !== "none" },
       display: { background: doc.display.background , text_color: doc.display.text_color , font: doc.display.font },
       keys: { quit: doc.keys.quit.length ? doc.keys.quit : [ "escape" ] , advance: doc.keys.advance.length ? doc.keys.advance : [ "space" ] },
     };
     // Which saved version of the design this came from, for the run record.
     if ( options.revision > 0 ) header.revision = options.revision;
+    if ( t0 !== "last_dummy" ) header.scanner.t0 = t0;
     return header;
   },
 
@@ -254,7 +262,8 @@ const Compile = {
     return Object.assign( plan , {
       segments: segments,
       total_seconds: total,
-      volumes: plan.scanner.dummy_volumes + Math.ceil( total / plan.scanner.tr - 1e-9 ),
+      // The pulse t0 lands on after the dummies is also the first real volume.
+      volumes: plan.scanner.dummy_volumes + Math.ceil( total / plan.scanner.tr - 1e-9 ) - ( plan.scanner.t0 === "after_dummies" ? 1 : 0 ),
       media: media,
     } );
   },
@@ -403,6 +412,62 @@ const Compile = {
     } );
     const header = this.header( doc , experiment , pseudoRun , Object.assign( {} , options , { label: "trial-" + this.label( tt.name ) , scanner: "none" } ) );
     return [ this.finish( doc , header , segments ) ];
+  },
+
+  // -- the locked order -------------------------------------------------------
+
+  // Everything a design can play, one entry per thing played on its own: each
+  // session, its runs drawn together, then each run. They are kept apart
+  // because a run alone and the same run in a session draw differently.
+  lockedGroups( doc , experiment , options ) {
+    const named = ( thing , key ) => thing.name || I18n.get( key );
+    return [].concat(
+      doc.sessions.map( ( s ) => ( { id: s.id , kind: "session" , name: named( s , "sessions.unnamed" ) , plans: this.sessionPlans( doc , experiment , s.id , options ) } ) ),
+      doc.runs.map( ( r ) => ( { id: r.id , kind: "run" , name: named( r , "runs.unnamed" ) , plans: this.runPlans( doc , experiment , r.id , options ) } ) ),
+    ).filter( ( group ) => group.plans.length );
+  },
+
+  // One row per trial, numbered from 1 as a person would count them.
+  schedule( plans ) {
+    const rows = [];
+    plans.forEach( ( plan ) => {
+      const trials = new Map();
+      plan.segments.filter( ( s ) => s.kind === "phase" ).forEach( ( segment ) => {
+        if ( !trials.has( segment.trial ) ) {
+          trials.set( segment.trial , {
+            run: plan.run.label , trial: segment.trial + 1 , block: segment.block == null ? "" : segment.block + 1,
+            trial_type: segment.trial_type , item: segment.item_label || "" , onset: segment.onset , phases: [],
+          } );
+        }
+        trials.get( segment.trial ).phases.push( { name: segment.phase , duration: segment.duration } );
+      } );
+      rows.push( ...trials.values() );
+    } );
+    return rows;
+  },
+
+  // Every segment of every plan as CSV, for a spreadsheet or an analysis
+  // script. Onsets are seconds from t0.
+  scheduleCsv( groups ) {
+    const cell = ( value ) => {
+      let text = value == null ? "" : String( value );
+      // A spreadsheet runs a cell that starts like a formula.
+      if ( /^[=+\-@]/.test( text ) && typeof value !== "number" ) text = "'" + text;
+      return /[",\r\n]/.test( text ) ? '"' + text.replace( /"/g , '""' ) + '"' : text;
+    };
+    const lines = [ [ "played_as" , "run" , "kind" , "trial" , "block" , "trial_type" , "phase" , "item" , "onset" , "duration" ].join( "," ) ];
+    groups.forEach( ( group ) => group.plans.forEach( ( plan ) => plan.segments.filter( ( s ) => s.kind !== "instructions" ).forEach( ( s ) => {
+      lines.push( [ group.name , plan.run.label , s.kind , s.trial == null ? "" : s.trial + 1 , s.block == null ? "" : s.block + 1 , s.trial_type , s.phase , s.item_label , s.onset , s.duration ].map( cell ).join( "," ) );
+    } ) ) );
+    return lines.join( "\r\n" ) + "\r\n";
+  },
+
+  // Volumes the scanner acquires for a plan, as the Runs screen counts them.
+  // A plan's own volumes are the pulses a player can expect, so under
+  // first_pulse they leave out the dummies, which still happen.
+  acquired( doc , plan ) {
+    if ( plan.scanner.t0 !== "first_pulse" ) return plan.volumes;
+    return plan.volumes + Timing.scan( doc , doc.runs.find( ( r ) => r.id === plan.run.id ) ).dummy;
   },
 
   // What the server accepts: the plan without browser-only extras.

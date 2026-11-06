@@ -9,7 +9,8 @@
 //                        plus the command to run it, for any other machine
 //
 // The seed decides every jitter and every item drawn, so the same seed plays
-// the same run everywhere; a new one is drawn each time the dialog opens.
+// the same run everywhere. The dialog opens on the design's locked order if it
+// has one (report.js), else on a new seed; the dice is for this play only.
 const RunDialog = {
   status: null,
   statusPromise: null,
@@ -37,13 +38,15 @@ const RunDialog = {
   // { title, kind: "trial" | "run" | "session", build( options ) -> plans }
   open( spec ) {
     const t = ( key ) => I18n.get( key );
+    const locked = spec.kind === "trial" ? 0 : Doc.doc.schedule.seed;
     const state = {
-      seed: Compile.newSeed(),
+      seed: locked || Compile.newSeed(),
       participant: this.remembered( "participant" , "" ),
       scanner: spec.kind === "trial" ? "none" : this.remembered( "scanner" , "simulate" ),
       windowed: spec.kind === "trial" || this.remembered( "windowed" , "1" ) === "1",
       speed: spec.kind === "trial" ? 1 : Number( this.remembered( "speed" , "1" ) ),
       screen: Number( this.remembered( "screen" , "0" ) ),
+      flip: this.remembered( "flip" , "none" ),
       debug: false,
       blocks: 0,          // a pilot: only the first N blocks; 0 for all of them
       visit: 0,           // typed in; 0 means work it out
@@ -71,7 +74,7 @@ const RunDialog = {
       }
       const seconds = plans.reduce( ( s , p ) => s + p.total_seconds , 0 );
       const trials = plans.reduce( ( s , p ) => s + new Set( p.segments.filter( ( x ) => x.trial != null ).map( ( x ) => x.trial ) ).size , 0 );
-      const volumes = plans.map( ( p ) => p.volumes ).join( " + " );
+      const volumes = plans.map( ( p ) => Compile.acquired( Doc.doc , p ) ).join( " + " );
       let text = t( "run.summary" ).replace( "{runs}" , plans.length ).replace( "{trials}" , trials ).replace( "{time}" , Timing.clock( seconds ) ).replace( "{volumes}" , volumes );
       const reused = ( plans[ 0 ].warnings || [] ).filter( ( w ) => w.kind === "reused" );
       if ( reused.length ) text += " " + t( "run.items_reused" ).replace( "{lists}" , Array.from( new Set( reused.map( ( w ) => w.list ) ) ).join( ", " ) );
@@ -150,6 +153,11 @@ const RunDialog = {
       this.remember( "screen" , String( state.screen ) );
     } , { min: 0 , max: 15 , step: 1 } );
     screenInput.disabled = false;
+    const flip = Ui.select( state.flip , [ "none" , "horizontal" , "vertical" , "both" ].map( ( way ) => [ way , t( "run.flip_" + way ) ] ) , ( v ) => {
+      state.flip = v;
+      this.remember( "flip" , v );
+    } );
+    flip.disabled = false;
     const debug = Ui.check( state.debug , t( "run.debug" ) , ( v ) => { state.debug = v; } );
     debug.querySelector( "input" ).disabled = false;
 
@@ -177,7 +185,7 @@ const RunDialog = {
       try {
         const row = await Api.launch( Doc.id , {
           plans: Compile.forServer( plans ) , scanner: state.scanner , windowed: state.windowed , label: spec.title,
-          screen: state.screen , debug: state.debug,
+          screen: state.screen , debug: state.debug , flip: state.flip,
         } );
         this.watch( row , launchStatus );
       } catch ( error ) {
@@ -206,7 +214,7 @@ const RunDialog = {
     const results = this.resultsButton();
     const fields = [
       Ui.field( "run.participant" , participant , { col: "col-md-4" } ),
-      Ui.field( "run.seed" , Dom.el( "div" , { class: "input-group" , children: [ seedInput , dice ] } ) , { col: "col-md-3" } ),
+      Ui.field( "run.seed" , Dom.el( "div" , { class: "input-group" , children: [ seedInput , dice ] } ) , { col: "col-md-3" , help: locked ? t( "run.seed_locked" ) : "" } ),
     ];
     if ( spec.kind !== "trial" ) fields.push( Ui.field( "run.scanner" , scanner , { col: "col-md-5" } ) );
     const options = Ui.row( fields );
@@ -215,6 +223,7 @@ const RunDialog = {
       spec.kind === "session" ? Ui.field( "run.visit" , visitInput , { col: "col-6 col-md-3" , help: t( "run.visit_help" ) } ) : null,
       spec.kind === "trial" ? null : Ui.field( "run.blocks" , blocksInput , { col: "col-6 col-md-3" , help: t( "run.blocks_help" ) } ),
       Ui.field( "run.screen" , screenInput , { col: "col-6 col-md-3" , help: t( "run.screen_help" ) } ),
+      Ui.field( "run.flip" , flip , { col: "col-6 col-md-3" , help: t( "run.flip_help" ) } ),
     ] , "mt-1" );
     const switches = Ui.row( [
       Dom.el( "div" , { class: "col-md-5" , children: [ windowed ] } ),
@@ -309,6 +318,7 @@ const RunDialog = {
     if ( state.scanner !== "wait" ) flags.push( "--scanner " + state.scanner );
     if ( state.windowed ) flags.push( "--windowed" );
     if ( state.screen ) flags.push( "--screen " + state.screen );
+    if ( state.flip !== "none" ) flags.push( "--flip " + state.flip );
     if ( state.debug ) flags.push( "--debug" );
     if ( state.participant ) flags.push( "--participant " + state.participant.replace( /[^A-Za-z0-9_-]/g , "" ) );
     const tail = flags.length ? " " + flags.join( " " ) : "";

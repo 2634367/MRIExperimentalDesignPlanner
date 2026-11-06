@@ -117,6 +117,7 @@ const Api = {
   cardBackups( id )            { return this.request( this.cardPath( id ) + "/backups" ); },
   restoreCardBackup( id , revision ) { return this.post( this.cardPath( id ) + "/backups/restore" , { revision: revision } ); },
   deleteScannerCard( id )      { return this.post( this.cardPath( id ) + "/delete" ); },
+  scannerCardRevisions()       { return this.request( "/api/scanner-cards/revisions" ); },
   restoreScannerCard( id )     { return this.post( this.cardPath( id ) + "/restore" ); },
 
   // Experiments. A save sends the revision it was made from; a 409 means
@@ -125,6 +126,7 @@ const Api = {
   listExperiments()            { return this.request( "/api/experiments" ); },
   createExperiment( doc )      { return this.post( "/api/experiments" , { doc: doc } ); },
   getExperiment( id )          { return this.request( this.experimentPath( id ) ); },
+  experimentRevision( id )     { return this.request( this.experimentPath( id ) + "/revision" ); },
   saveExperiment( id , doc , baseRevision ) {
     return this.post( this.experimentPath( id ) + "/save" , { doc: doc , base_revision: baseRevision } );
   },
@@ -188,6 +190,7 @@ const Api = {
 
   // Share links: no session, so the credential goes in the body.
   openShared( credential )     { return this.request( "/api/share/open" , { method: "POST" , body: { credential: credential } } ); },
+  sharedRevision( credential ) { return this.request( "/api/share/revision" , { method: "POST" , body: { credential: credential } } ); },
   sharedBundle( credential , plans ) { return this.postForFile( "/api/share/bundle" , { credential: credential , plans: plans } ); },
 
   // PsychoPy on this machine.

@@ -5,6 +5,7 @@ key, so the operator can restart the scanner. Escape quits; whatever ran so
 far is still written to --out, and --from-run starts again where it stopped.
 
   --screen N        which display, numbered as --list-screens shows them
+  --flip WAY        mirror the display, for optics that reverse it
   --pilot           a quick look: first 2 blocks, no scanner, in a window
   --blocks N        only the first N blocks of each run
   --from-run N      start at the Nth plan given
@@ -22,6 +23,10 @@ from . import __version__, fetch, plan as plans
 from .keys import Abort, trigger_names
 
 PILOT_BLOCKS = 2
+MIRROR = "mirror"
+# How each --flip scales the view. A scale of -1 mirrors everything drawn, text
+# included, and the plan does not change: it is a fact about the room.
+FLIPS = {"none": None, "horizontal": (-1, 1), "vertical": (1, -1), "both": (-1, -1)}
 IOKIT = "/System/Library/Frameworks/IOKit.framework/IOKit"
 LISTEN_EVENT = 1  # kIOHIDRequestTypeListenEvent
 ACCESS_GRANTED = 0  # kIOHIDAccessTypeGranted
@@ -43,6 +48,8 @@ def arguments(argv):
     parser.add_argument("--windowed", action="store_true", help="a window instead of full screen")
     parser.add_argument("--screen", type=int, default=0, help="which display to use (default: 0, see --list-screens)")
     parser.add_argument("--list-screens", action="store_true", help="show the displays attached, then stop")
+    parser.add_argument("--flip", choices=tuple(FLIPS), default="none",
+                        help="mirror the display, for scanner optics that reverse it (default: none)")
     parser.add_argument("--blocks", type=int, default=None, help="play only the first N blocks of each run")
     parser.add_argument("--from-run", type=int, default=1, help="start at the Nth plan given, to carry on after stopping")
     parser.add_argument("--pilot", action="store_true",
@@ -57,7 +64,7 @@ def arguments(argv):
     parser.add_argument("--key-file", default=None, help="a file holding an API key for --planner")
     parser.add_argument("--only", action="append", default=[], help="fetched plans whose label starts with this (repeatable)")
     parser.add_argument("--list", action="store_true", help="show the fetched plans' labels, then stop")
-    parser.add_argument("--mirror", default="mirror", help="where fetched plans are kept (default: mirror)")
+    parser.add_argument("--mirror", default=MIRROR, help=f"where fetched plans are kept (default: {MIRROR})")
     parser.add_argument("--offline", action="store_true", help="use the last fetched copy without trying the network")
     parser.add_argument("--participant", default="", help="label the results with this participant")
     parser.add_argument("--check", action="store_true", help="only check the plans and pictures, then stop")
@@ -70,6 +77,9 @@ def arguments(argv):
         parser.error("--planner needs --key-file")
     if fetching and args.plans:
         parser.error("give plan files or --planner, not both")
+    # Quietly ignored, --list would play the plans it was asked to list.
+    if not fetching and (args.list or args.only or args.key_file or args.mirror != MIRROR):
+        parser.error("--list, --only, --key-file and --mirror need --planner or --offline")
     if not args.plans and not args.list_screens and not fetching:
         parser.error("give at least one plan or folder")
     if args.from_run < 1:
@@ -99,6 +109,17 @@ def fetched_plans(args):
             manifest = fetch.read_mirror(folder)
             print(f"[fetch] WARNING: running the copy published {manifest.get('published_at')}", flush=True)
     return manifest, folder
+
+
+def shortened(loaded, args):
+    """The plans cut to --blocks. A --pilot is a look with no scanner however
+    little was cut, so it is marked as one even if its run is short enough to
+    lose nothing, and cannot pass for a real run or count items as seen."""
+    if args.blocks:
+        loaded = [plans.shorten(plan, args.blocks) for plan in loaded]
+    if args.pilot:
+        loaded = [dict(plan, pilot_blocks=plan.get("pilot_blocks") or args.blocks) for plan in loaded]
+    return loaded
 
 
 def keyboard_works():
@@ -178,9 +199,7 @@ def main(argv=None):
                     print(f"[plan] {row['label']}: {row.get('name', '')}", flush=True)
                 return 0
             args.plans = fetch.select(manifest, folder, args.only)
-        loaded = [plans.load(path, args.media) for path in plans.expand(args.plans)]
-        if args.blocks:
-            loaded = [plans.shorten(plan, args.blocks) for plan in loaded]
+        loaded = shortened([plans.load(path, args.media) for path in plans.expand(args.plans)], args)
     except (plans.PlanError, fetch.FetchError) as error:
         print(f"fmri_runner: {error}", file=sys.stderr)
         return 2
@@ -218,7 +237,9 @@ def main(argv=None):
     log = Log(args.out)
     if backend:
         log.log("keyboard", backend=backend)
-    window = Window(loaded[0]["display"], args.windowed, args.screen, backend)
+    if args.flip != "none":
+        log.log("flip", way=args.flip)
+    window = Window(loaded[0]["display"], args.windowed, args.screen, backend, FLIPS[args.flip])
     # Designer's Stop button: end like Escape, so the results are saved.
     signal.signal(signal.SIGTERM, window.kb.stop)
     status = 0
@@ -237,6 +258,8 @@ def main(argv=None):
             player = Player(window, plan, log, args.scanner, Readout(plan, args.quiet), pause_keys)
             record = player.record
             record["participant"] = args.participant or plan.get("participant") or ""
+            if args.flip != "none":
+                record["flip"] = args.flip
             # What is left if the runner dies too hard to save anything else.
             log.write_run(name, dict(record, aborted=True, error=UNFINISHED))
             events = log.open_events(name, plan["segments"])

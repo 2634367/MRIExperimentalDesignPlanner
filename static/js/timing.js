@@ -8,10 +8,11 @@
 //   uniform      anywhere from min to max
 //   exponential  min to max, short waits likelier; scale is the mean of the
 //                untruncated exponential as a fraction of (max - min)
-//   geometric    min plus a whole number of TRs, truncated at max (Ashby,
-//                Statistical Analysis of fMRI Data, ch. 5, eq. 5.3): the
-//                chance the next event comes on the next TR is always p, so
-//                the participant cannot anticipate it -- until the cap
+//   geometric    min plus a whole number of TRs, truncated at max or at
+//                cap_trs TRs, whichever is sooner (Ashby, Statistical
+//                Analysis of fMRI Data, ch. 5, eq. 5.3): the chance the next
+//                event comes on the next TR is always p, so the participant
+//                cannot anticipate it -- until the cap
 //
 // snap_to_tr rounds a uniform or exponential draw to the TR grid.
 const Timing = {
@@ -22,7 +23,8 @@ const Timing = {
   // The truncated geometric's rungs: n = 0..nMax extra TRs, P(n) ∝ p(1-p)^n.
   geometric( d , tr ) {
     const lo = d.min;
-    const rungs = Math.max( 0 , Math.floor( ( d.max - lo ) / tr + 1e-9 ) );
+    const window = Math.max( 0 , Math.floor( ( d.max - lo ) / tr + 1e-9 ) );
+    const rungs = d.cap_trs > 0 ? Math.min( window , d.cap_trs ) : window;
     const weights = [];
     let total = 0;
     for ( let n = 0; n <= rungs; n += 1 ) {
@@ -177,13 +179,19 @@ const Timing = {
     return session.steps.filter( ( step ) => step.enabled !== false );
   },
 
+  // Those steps in the order they happen, a step repeated N times listed N
+  // times, so a run x3 is simply three runs from here on.
+  playedSteps( session ) {
+    return [].concat( ...this.activeSteps( session ).map( ( step ) => Array( step.repeat || 1 ).fill( step ) ) );
+  },
+
   // A session in console order: each step with its span, and the automatic
   // breaks (session.auto_break_minutes) between two run steps that sit
   // directly next to each other. An automatic break has step null.
   items( doc , session ) {
     const out = [];
     const brk = session.auto_break_minutes * 60;
-    const steps = this.activeSteps( session );
+    const steps = this.playedSteps( session );
     steps.forEach( ( step , index ) => {
       const previous = steps[ index - 1 ];
       if ( brk > 0 && step.kind === "run" && previous && previous.kind === "run" ) {
@@ -202,36 +210,71 @@ const Timing = {
   },
 
   // A session's length in seconds, its runs, and its trials by type.
+  // functional is the mean seconds spent in runs, overhead everything else:
+  // setup, structurals and breaks.
   session( doc , session ) {
     let seconds = this.zero();
     const counts = {};
     let runs = 0;
     let trials = 0;
+    let functional = 0;
     this.items( doc , session ).forEach( ( item ) => {
       seconds = this.add( seconds , item.seconds );
+      if ( item.kind === "run" ) functional += item.seconds.mean;
       if ( !item.info ) return;
       runs += 1;
       trials += item.info.trials;
       Object.keys( item.info.counts ).forEach( ( id ) => { counts[ id ] = ( counts[ id ] || 0 ) + item.info.counts[ id ]; } );
     } );
-    return { seconds: seconds , runs: runs , trials: trials , counts: counts };
+    return { seconds: seconds , runs: runs , trials: trials , counts: counts , functional: functional , overhead: seconds.mean - functional };
   },
 
   // The whole study against the hours available: every session type times
-  // its count per participant, times the participants.
+  // its count per participant, times the participants. A row's hours are what
+  // it charges; with count_overhead off that is only its functional time, and
+  // overhead is still reported but costs nothing.
   budget( doc ) {
     const participants = doc.budget.participants;
     let perParticipant = 0;
+    let functional = 0;
+    let overhead = 0;
     const counts = {};
     const rows = doc.sessions.map( ( session ) => {
       const info = this.session( doc , session );
-      const hours = ( info.seconds.mean * session.count ) / 3600;
+      const functionalHours = ( info.functional * session.count ) / 3600;
+      const overheadHours = ( info.overhead * session.count ) / 3600;
+      const hours = doc.budget.count_overhead ? functionalHours + overheadHours : functionalHours;
       perParticipant += hours;
+      functional += functionalHours;
+      overhead += overheadHours;
       Object.keys( info.counts ).forEach( ( id ) => { counts[ id ] = ( counts[ id ] || 0 ) + info.counts[ id ] * session.count * participants; } );
-      return { session: session , info: info , hours: hours };
+      return { session: session , info: info , hours: hours , functionalHours: functionalHours , overheadHours: overheadHours };
     } );
     const used = perParticipant * participants;
-    return { rows: rows , perParticipant: perParticipant , used: used , available: doc.budget.hours_available , left: doc.budget.hours_available - used , counts: counts };
+    return {
+      rows: rows , perParticipant: perParticipant , used: used , available: doc.budget.hours_available , left: doc.budget.hours_available - used , counts: counts,
+      functional: functional * participants , overhead: overhead * participants,
+    };
+  },
+
+  // Scanner sessions against the booking: every participant's sessions, at
+  // sessions_per_week. Both must be set to say anything.
+  calendar( doc ) {
+    const perWeek = doc.budget.sessions_per_week;
+    const sessions = doc.sessions.reduce( ( sum , session ) => sum + session.count , 0 ) * doc.budget.participants;
+    const weeksNeeded = perWeek > 0 ? Math.ceil( sessions / perWeek - 1e-9 ) : 0;
+    return { sessions: sessions , weeksNeeded: weeksNeeded , weeksAvailable: doc.budget.weeks_available , set: perWeek > 0 , fits: !( perWeek > 0 && doc.budget.weeks_available > 0 ) || weeksNeeded <= doc.budget.weeks_available };
+  },
+
+  // Per trial, how much a jittered phase's mean differs from the middle of
+  // its window, which is what a flat (uniform) draw would average. Negative
+  // saves time. Only a trial type's jittered phases count.
+  flatDelta( doc , tt , tr ) {
+    const step = tr || doc.scanner.tr;
+    return tt.phases.reduce( ( sum , phase ) => {
+      const d = phase.duration;
+      return d.kind === "fixed" ? sum : sum + this.span( d , step ).mean - ( d.min + d.max ) / 2;
+    } , 0 );
   },
 
   // Raw functional data: a run's dynamics at its card's size per volume (see

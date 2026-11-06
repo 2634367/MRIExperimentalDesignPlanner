@@ -88,6 +88,7 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         public("/s/{credential}", static_server.serve_login_page),
         public("/s/{credential}/media/{filename}", share.shared_media),
         public("/api/share/open", share.open_shared, ["POST"]),
+        public("/api/share/revision", share.shared_revision, ["POST"]),
         public("/api/share/bundle", share.shared_bundle, ["POST"]),
         public("/api/share/report", report.shared_report, ["POST"]),
         # Any signed-in user.
@@ -126,6 +127,7 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         # app/models/scanner_cards.py). Delete and restore need a session,
         # like an experiment's.
         signed_in("/api/scanner-cards", scanner_cards.list_cards),
+        signed_in("/api/scanner-cards/revisions", scanner_cards.card_revisions),
         signed_in("/api/scanner-cards", scanner_cards.create_card, ["POST"]),
         signed_in("/api/scanner-cards/{card_id}/save", scanner_cards.save_card, ["POST"]),
         signed_in("/api/scanner-cards/{card_id}/backups", scanner_cards.list_backups),
@@ -138,6 +140,7 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/experiments", experiments.list_experiments),
         signed_in("/api/experiments", experiments.create_experiment, ["POST"]),
         signed_in("/api/experiments/{experiment_id}", experiments.get_experiment),
+        signed_in("/api/experiments/{experiment_id}/revision", experiments.get_revision),
         signed_in("/api/experiments/{experiment_id}/save", experiments.save_experiment, ["POST"]),
         signed_in("/api/experiments/{experiment_id}/duplicate", experiments.duplicate_experiment, ["POST"]),
         signed_in("/api/experiments/{experiment_id}/editors", experiments.set_editors, ["POST"]),

@@ -75,9 +75,10 @@ def register(registry: Registry) -> None:
         title="Read an experiment",
         description=(
             "One experiment's full design document (doc) and its revision. The doc holds scanner settings, display "
-            "defaults, the hours budget, media (pictures by sha256), prompt lists (columns + items), trial_types "
-            "(phases with durations and layers; a layer value written {column} is filled from the trial's prompt item), "
-            "runs (blocks of trial types) and sessions (steps)."
+            "defaults, the fixation mark, design-wide jitter, the hours budget, media (pictures by sha256), prompt lists "
+            "(columns + items), trial_types (phases with durations and layers; a layer value written {column} is filled "
+            "from the trial's prompt item; a duration with inherit set follows doc.jitter), runs (blocks of trial types) "
+            "and sessions (steps, each with a repeat count)."
         ),
         call=get_experiment,
         input_schema={
@@ -94,7 +95,7 @@ def register(registry: Registry) -> None:
         description=(
             "Replace an experiment's design document. Send the whole doc as returned by get_experiment, changed, "
             "with base_revision set to the revision it came from. Refused if it has changed since; read it again "
-            "and reapply. Anyone with the experiment open in a browser sees the change on their next save conflict."
+            "and reapply. Anyone with the experiment open in a browser sees the change within a few seconds."
         ),
         call=save_experiment,
         input_schema={
@@ -116,7 +117,7 @@ def register(registry: Registry) -> None:
             "trial, phase, run, block, session, step; verbs are add (fields; returns the new id), update (id, fields; "
             "only those fields change), delete (id; refused while something uses it) and move (id, position from 0). "
             "An item needs list, a phase trial, a block run, a step session: each the parent's id. Also "
-            "settings.update (section: scanner, display, keys, budget, limits or hrf; fields) and experiment.update "
+            "settings.update (section: scanner, display, keys, budget, limits, hrf, jitter, fixation or meta; fields) and experiment.update "
             "(fields: name, notes). A new thing needs only the fields you care about; the rest get their defaults."
         ),
         call=experiment_action,

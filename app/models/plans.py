@@ -16,8 +16,10 @@ ever evaluated.
 
 FORMAT is versioned. A change that a runner could misread bumps it, and the
 runner refuses a plan it does not know rather than guessing. An optional key
-that only labels or describes (block, visit, pilot_blocks) does not: every
-runner still plays such a plan correctly.
+that only labels or describes (block, visit, pilot_blocks, scanner.t0) does
+not: every runner still plays such a plan correctly. (scanner.t0 says why
+dummy_volumes is what it is; that number is what makes a player start on the
+pulse the design chose.)
 """
 from __future__ import annotations
 
@@ -209,7 +211,8 @@ def check_plan(plan: Any) -> dict:
             "seed": _integer(0, 2**53),
             "created": _string(40),
             "scanner": lambda v, w: _object(
-                v, w, {"tr": _number(0.05, 30), "trigger_key": _string(20, False), "dummy_volumes": _integer(0, 1000), "wait": _boolean}
+                v, w, {"tr": _number(0.05, 30), "trigger_key": _string(20, False), "dummy_volumes": _integer(0, 1000), "wait": _boolean},
+                {"t0": _choice("after_dummies", "first_pulse")},
             ),
             "display": lambda v, w: _object(v, w, {"background": _color, "text_color": _color, "font": _string(MAX_NAME)}),
             "keys": lambda v, w: _object(v, w, {"quit": _keys, "advance": _keys}),

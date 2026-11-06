@@ -77,8 +77,10 @@ def shorten(plan, blocks):
         kept.append(segment)
     scanner = plan["scanner"]
     total = round(end, 4)
+    # As compile.js counts them: this t0 pulse is itself a real volume.
+    shared = 1 if scanner.get("t0") == "after_dummies" else 0
     return dict(plan, segments=kept, total_seconds=total, pilot_blocks=blocks,
-                volumes=scanner["dummy_volumes"] + math.ceil(total / scanner["tr"] - 1e-9))
+                volumes=scanner["dummy_volumes"] + math.ceil(total / scanner["tr"] - 1e-9) - shared)
 
 
 def summary(plan):

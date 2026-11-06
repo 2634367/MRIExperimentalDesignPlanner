@@ -11,13 +11,13 @@ const Overview = {
     const budget = Timing.budget( doc );
     root.replaceChildren();
 
-    root.appendChild( Ui.section( Ui.t( "overview.section_experiment" ) , Ui.row( [
+    root.appendChild( Ui.section( Ui.t( "overview.section_experiment" ) , [ Ui.row( [
       Ui.field( "overview.name" , Ui.text( doc.name , ( v ) => {
         if ( !v.trim() ) return Designer.refresh();
         Doc.change( Ui.t( "undo.experiment_renamed" ) , ( d ) => { d.name = v.trim(); } );
       } , { key: "exp.name" } ) , { col: "col-md-6" } ),
       Ui.field( "overview.notes" , Ui.text( doc.notes , ( v ) => Doc.change( Ui.t( "undo.experiment_changed" ) , ( d ) => { d.notes = v; } ) , { key: "exp.notes" } ) , { col: "col-md" } ),
-    ] ) ) );
+    ] ) , this.identity( doc ) ] ) );
 
     // Hours.
     const hours = Dom.el( "div" );
@@ -27,6 +27,7 @@ const Overview = {
       Dom.el( "div" , { class: "col-md" , children: [ this.summary( budget ) ] } ),
     ] ) );
     hours.appendChild( this.bar( doc , budget ) );
+    hours.appendChild( this.split( doc , budget ) );
 
     // Sessions and their counts.
     const table = Dom.el( "table" , { class: "table align-middle mt-3" } );
@@ -63,6 +64,8 @@ const Overview = {
     }
     hours.appendChild( Tables.actions( () => Tables.budget( Doc.doc ) ) );
     root.appendChild( Ui.section( Ui.t( "overview.budget" ) , hours ) );
+    if ( budget.rows.length ) root.appendChild( Ui.section( Ui.t( "figures.heading" ) , Charts.figure( ( light , width ) => Figures.overview( Doc.doc , light , width ) , "overview" ) , { fold: "overview.figure" } ) );
+    root.appendChild( this.calendar( doc ) );
 
     // Your own limits: over one is a warning below, never a refusal.
     const limit = ( key , field , step ) => Ui.field( "overview." + key , Ui.number( doc.limits[ field ] , ( v ) => Doc.change( Ui.t( "undo.budget_changed" ) , ( d ) => { d.limits[ field ] = Math.max( 0 , v ); } ) , { key: "lim." + field , min: 0 , step: step } ) , { col: "col-md-4" } );
@@ -77,6 +80,39 @@ const Overview = {
     root.appendChild( Dom.el( "div" , { class: "mb-3" , children: [ totals ] } ) );
 
     root.appendChild( Ui.section( Ui.t( "overview.problems" ) , Designer.problemList( Validate.check( doc ) ) ) );
+  },
+
+  // Who the exports say this is. Each saves on its own, like the name.
+  identity( doc ) {
+    const field = ( key , name ) => Ui.field( "overview." + key , Ui.text( doc.meta[ name ] , ( v ) => Doc.change( Ui.t( "undo.experiment_changed" ) , ( d ) => { d.meta[ name ] = v.trim(); } ) , { key: "exp." + name } ) , { col: "col-md-4" } );
+    return Ui.row( [ field( "investigator" , "investigator" ) , field( "institution" , "institution" ) , field( "design_id" , "design_id" ) ] , "mt-1" );
+  },
+
+  // Where the hours go, and whether the overhead is charged to them.
+  split( doc , budget ) {
+    const box = Dom.el( "div" , { class: "d-flex flex-wrap gap-3 align-items-center mt-2" } );
+    box.appendChild( Dom.el( "span" , { class: "small" , text: Ui.t( "overview.split" ).replace( "{functional}" , Timing.hours( budget.functional ) ).replace( "{overhead}" , Timing.hours( budget.overhead ) ) } ) );
+    box.appendChild( Ui.check( doc.budget.count_overhead , Ui.t( "overview.count_overhead" ) , ( v ) => Doc.change( Ui.t( "undo.budget_changed" ) , ( d ) => { d.budget.count_overhead = v; } ) , { key: "bud.overhead" } ) );
+    return box;
+  },
+
+  // Whether the study fits the scanner booking. A readout and a warning below,
+  // never a limit on anything.
+  calendar( doc ) {
+    const calendar = Timing.calendar( doc );
+    const field = ( key , name , step ) => Ui.field( "overview." + key , Ui.number( doc.budget[ name ] , ( v ) => Doc.change( Ui.t( "undo.budget_changed" ) , ( d ) => { d.budget[ name ] = Math.max( 0 , v ); } ) , { key: "bud." + name , min: 0 , step: step } ) , { col: "col-6 col-md-3" } );
+    let text = Ui.t( "overview.calendar_unset" );
+    if ( calendar.set ) {
+      text = Ui.t( doc.budget.weeks_available > 0 ? "overview.weeks_needed" : "overview.weeks_needed_open" )
+        .replace( "{needed}" , calendar.weeksNeeded ).replace( "{available}" , calendar.weeksAvailable )
+        .replace( "{sessions}" , calendar.sessions ).replace( "{each}" , doc.budget.sessions_per_week );
+    }
+    const readout = Dom.el( "div" , { class: "budget-summary" + ( calendar.fits ? "" : " over" ) , children: [ Dom.el( "div" , { text: text } ) ] } );
+    return Ui.section( Ui.t( "overview.calendar" ) , [ Ui.row( [
+      field( "sessions_per_week" , "sessions_per_week" , 1 ),
+      field( "weeks_available" , "weeks_available" , 1 ),
+      Dom.el( "div" , { class: "col-md" , children: [ readout ] } ),
+    ] ) ] , { help: Ui.t( "overview.calendar_help" ) } );
   },
 
   color( index ) {
@@ -181,6 +217,7 @@ const Settings = {
       Ui.field( "settings.tr" , Ui.number( doc.scanner.tr , set( "scanner" , "tr" ) , { key: "sc.tr" , min: 0.05 , step: 0.05 } ) , { col: col , help: Ui.t( "settings.tr_help" ) } ),
       Ui.field( "settings.dummy" , Ui.number( doc.scanner.dummy_volumes , ( v ) => set( "scanner" , "dummy_volumes" )( Math.max( 0 , Math.round( v ) ) ) , { key: "sc.dummy" , min: 0 , step: 1 } ) , { col: col , help: Ui.t( "settings.dummy_help" ) } ),
       Ui.field( "settings.trigger" , Ui.text( doc.scanner.trigger_key , set( "scanner" , "trigger_key" ) , { key: "sc.trigger" , maxlength: 20 } ) , { col: col , help: Ui.t( "settings.trigger_help" ) } ),
+      Ui.field( "settings.t0" , Ui.select( doc.scanner.t0 , Schema.T0_MODES.map( ( m ) => [ m , Ui.t( "settings.t0_" + m ) ] ) , set( "scanner" , "t0" ) , { key: "sc.t0" } ) , { col: col , help: Ui.t( "settings.t0_help" ) } ),
     ] ) ] ) );
     root.appendChild( section( Ui.t( "settings.keys" ) , [ Ui.row( [
       Ui.field( "settings.quit_keys" , Ui.text( doc.keys.quit.join( ", " ) , ( v ) => Doc.change( Ui.t( "undo.settings_changed" ) , ( d ) => { d.keys.quit = v.split( /[\s,]+/ ).filter( Boolean ); } ) , { key: "keys.quit" } ) , { col: col , help: Ui.t( "settings.quit_help" ) } ),
@@ -204,5 +241,48 @@ const Settings = {
     const body = display.querySelector( ".card-body" );
     body.appendChild( Dom.el( "div" , { class: "settings-sample mt-3" , children: [ sample ] } ) );
     body.appendChild( Ui.muted( Ui.t( "settings.units_help" ) , "mt-2 mb-0" ) );
+    root.appendChild( this.fixation( doc ) );
+    root.appendChild( this.jitter( doc ) );
+    root.appendChild( Inventory.section( doc ) );
+  },
+
+  // The one fixation mark, and how it looks. Every "fixation" layer shows it.
+  fixation( doc ) {
+    const left = Dom.el( "div" , { class: "col-xl-8" , children: [ LayerEditor.render( {
+      layers: doc.fixation.layers , list: null , key: "fix" , mark: true,
+      edit: ( label , fn ) => Doc.change( label , ( d ) => fn( d.fixation.layers ) ),
+    } ) ] } );
+    const box = Display.screen( doc.display.aspect );
+    Display.preview( box , doc , doc.fixation.layers , null , null , ( sha ) => Doc.mediaUrl( sha ) );
+    const right = Dom.el( "div" , { class: "col-xl-4" , children: [ box ] } );
+    return Ui.section( Ui.t( "settings.fixation" ) , [ Dom.el( "div" , { class: "row g-3" , children: [ left , right ] } ) ] , { help: Ui.t( "settings.fixation_help" ) } );
+  },
+
+  // How the design's jittered phases wait, and what that comes to.
+  jitter( doc ) {
+    const j = doc.jitter;
+    const set = ( field ) => ( v ) => Doc.change( Ui.t( "undo.jitter_changed" ) , ( d ) => { d.jitter[ field ] = v; } );
+    const col = "col-sm-6 col-lg-3";
+    const fields = [ Ui.field( "settings.jitter_mode" , Ui.select( j.mode , Schema.JITTER_MODES.map( ( m ) => [ m , Ui.t( "trials.kind_" + m ) ] ) , set( "mode" ) , { key: "jit.mode" } ) , { col: col } ) ];
+    if ( j.mode === "geometric" ) {
+      fields.push( Ui.field( "settings.jitter_p" , Ui.number( j.p , set( "p" ) , { key: "jit.p" , min: 0.02 , max: 0.98 , step: 0.05 } ) , { col: col , help: Ui.t( "settings.jitter_p_help" ) } ) );
+      fields.push( Ui.field( "settings.jitter_cap" , Ui.number( j.cap_trs , set( "cap_trs" ) , { key: "jit.cap" , min: 0 , step: 1 } ) , { col: col , help: Ui.t( "settings.jitter_cap_help" ) } ) );
+    }
+    if ( j.mode === "exponential" ) fields.push( Ui.field( "settings.jitter_scale" , Ui.number( j.scale , set( "scale" ) , { key: "jit.scale" , min: 0.05 , max: 5 , step: 0.05 } ) , { col: col } ) );
+    const all = Schema.durations( doc );
+    const parts = [ Ui.row( fields ) ];
+    if ( !all.length ) {
+      parts.push( Ui.muted( Ui.t( "settings.jitter_none" ) , "mt-2 mb-0" ) );
+      return Ui.section( Ui.t( "settings.jitter" ) , parts );
+    }
+    parts.push( Ui.muted( Ui.t( "settings.jitter_following" ).replace( "{n}" , all.filter( ( d ) => d.inherit ).length ).replace( "{total}" , all.length ) , "mt-2" ) );
+    doc.trial_types.forEach( ( tt ) => {
+      if ( !tt.phases.some( ( p ) => p.duration.kind !== "fixed" ) ) return;
+      const delta = Timing.flatDelta( doc , tt );
+      const key = Math.abs( delta ) < 0.005 ? "settings.jitter_same" : delta < 0 ? "settings.jitter_saves" : "settings.jitter_costs";
+      parts.push( Dom.el( "div" , { class: "small" , text: Ui.t( key ).replace( "{name}" , tt.name || Ui.t( "trials.unnamed" ) ).replace( "{seconds}" , Tables.f( Math.abs( delta ) , 2 ) ) } ) );
+    } );
+    parts.push( Tables.view( Tables.jitterAll( doc ) , { class: "mt-3" } ) );
+    return Ui.section( Ui.t( "settings.jitter" ) , parts , { help: Ui.t( "settings.jitter_help" ) } );
   },
 };

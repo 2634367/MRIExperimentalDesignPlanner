@@ -18,7 +18,7 @@ from app.mcp.registry import Call, Refusal, Registry, Tool
 from app.models import invite_links
 from app.routes.account import me_row
 from app.routes.admin import RuleRefusal, revoke_access_checked, set_disabled_checked, user_rows
-from app.routes import mcp_tools_experiments
+from app.routes import mcp_tools_experiments, mcp_tools_scanners
 from app.routes.invite_links import invite_link_rows
 from app.routes.team import team_rows
 
@@ -135,4 +135,5 @@ def build_registry() -> Registry:
         admin_only=True,
     ))
     mcp_tools_experiments.register(registry)
+    mcp_tools_scanners.register(registry)
     return registry

@@ -5,7 +5,7 @@ const path = require( "path" );
 const vm = require( "vm" );
 
 const JS = path.join( __dirname , "..", ".." , "static" , "js" );
-const FILES = [ "schema" , "timing" , "hrf" , "compile" , "efficiency" , "validate" , "legacy" , "scanners" ];
+const FILES = [ "schema" , "timing" , "hrf" , "compile" , "efficiency" , "validate" , "legacy" , "scanners" , "onscreen" ];
 
 function load() {
   const context = vm.createContext( { console , crypto: globalThis.crypto , Math , JSON , I18n: { get: ( key ) => key } } );

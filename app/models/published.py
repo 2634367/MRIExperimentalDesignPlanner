@@ -109,6 +109,10 @@ def add_figure(folder: Path, figure: object) -> None:
         raise BadPublishError(f"figure {name}: not an SVG of a size this will keep")
     if sum(1 for _ in (folder / "figures").glob("*.svg")) >= MAX_FIGURES:
         raise BadPublishError(f"at most {MAX_FIGURES} figures")
+    # Two names can come to the same slug, as they can in the report's zip.
+    base, number = name, 2
+    while (folder / "figures" / f"{name}.svg").exists():
+        name, number = f"{base}-{number}", number + 1
     (folder / "figures" / f"{name}.svg").write_text(svg, encoding="utf-8")
     if png:
         if not isinstance(png, str) or len(png) > MAX_PNG_BASE64:

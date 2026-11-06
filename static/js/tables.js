@@ -123,8 +123,12 @@ const Tables = {
 
   summary( doc ) {
     const budget = Timing.budget( doc );
+    const calendar = Timing.calendar( doc );
+    const identity = [ [ "investigator" , doc.meta.investigator ] , [ "institution" , doc.meta.institution ] , [ "design_id" , doc.meta.design_id ] ]
+      .filter( ( entry ) => entry[ 1 ] ).map( ( entry ) => [ this.t( entry[ 0 ] ) , entry[ 1 ] ] );
     const rows = [
       [ this.t( "experiment" ) , doc.name ],
+      ...identity,
       [ this.t( "tr" ) , doc.scanner.tr + " s" ],
       [ this.t( "dummies" ) , doc.scanner.dummy_volumes ],
       [ this.t( "trial_types" ) , doc.trial_types.length ],
@@ -133,7 +137,10 @@ const Tables = {
       [ this.t( "participants" ) , doc.budget.participants ],
       [ this.t( "hours_per_participant" ) , this.f( budget.perParticipant , 2 ) ],
       [ this.t( "hours_used" ) , this.f( budget.used , 1 ) + " / " + this.f( budget.available , 1 ) ],
+      [ this.t( "hours_functional" ) , this.f( budget.functional , 1 ) ],
+      [ this.t( "hours_overhead" ) , this.f( budget.overhead , 1 ) + ( doc.budget.count_overhead ? "" : " " + this.t( "not_charged" ) ) ],
     ];
+    if ( calendar.set ) rows.push( [ this.t( "weeks_needed" ) , calendar.weeksNeeded + ( calendar.weeksAvailable ? " / " + calendar.weeksAvailable : "" ) ] );
     return { id: "summary" , title: this.t( "summary_title" ) , columns: [ this.t( "item" ) , this.t( "value" ) ] , rows: rows };
   },
 
@@ -271,11 +278,15 @@ const Tables = {
 
   budget( doc ) {
     const b = Timing.budget( doc );
-    const rows = b.rows.map( ( r ) => [ r.session.name , r.session.count , Timing.clock( r.info.seconds.mean ) , this.f( r.hours , 2 ) ] );
-    rows.push( [ this.t( "per_participant" ) , "" , "" , this.f( b.perParticipant , 2 ) ] );
-    rows.push( [ this.t( "all_participants" ).replace( "{n}" , doc.budget.participants ) , "" , "" , this.f( b.used , 1 ) ] );
-    rows.push( [ this.t( "available" ) , "" , "" , this.f( b.available , 1 ) ] );
-    return { id: "budget" , title: this.t( "budget_title" ) , columns: [ this.t( "session" ) , this.t( "count" ) , this.t( "length" ) , this.t( "hours" ) ] , rows: rows };
+    const rows = b.rows.map( ( r ) => [ r.session.name , r.session.count , Timing.clock( r.info.seconds.mean ) , this.f( r.functionalHours , 2 ) , this.f( r.overheadHours , 2 ) , this.f( r.hours , 2 ) ] );
+    const people = doc.budget.participants || 1;
+    rows.push( [ this.t( "per_participant" ) , "" , "" , this.f( b.functional / people , 2 ) , this.f( b.overhead / people , 2 ) , this.f( b.perParticipant , 2 ) ] );
+    rows.push( [ this.t( "all_participants" ).replace( "{n}" , doc.budget.participants ) , "" , "" , this.f( b.functional , 1 ) , this.f( b.overhead , 1 ) , this.f( b.used , 1 ) ] );
+    rows.push( [ this.t( "available" ) , "" , "" , "" , "" , this.f( b.available , 1 ) ] );
+    return {
+      id: "budget" , title: this.t( "budget_title" ) ,
+      columns: [ this.t( "session" ) , this.t( "count" ) , this.t( "length" ) , this.t( "functional" ) , this.t( "overhead" ) , this.t( doc.budget.count_overhead ? "hours" : "hours_charged" ) ], rows: rows,
+    };
   },
 
   dataVolume( doc ) {
@@ -323,10 +334,57 @@ const Tables = {
     };
   },
 
+  // Each scanner card the design uses and what acquired with it.
+  scannerCards( doc ) {
+    const used = new Map();
+    const note = ( ref , where ) => {
+      if ( !ref ) return;
+      if ( !used.has( ref.id ) ) used.set( ref.id , { ref: ref , places: [] } );
+      const places = used.get( ref.id ).places;
+      if ( !places.includes( where ) ) places.push( where );
+    };
+    doc.runs.forEach( ( run ) => note( run.card , run.name ) );
+    doc.sessions.forEach( ( session ) => session.steps.forEach( ( step ) => { if ( step.kind === "scan" ) note( step.card , session.name ); } ) );
+    if ( !used.size ) return null;
+    const rows = Array.from( used.values() ).map( ( entry ) => {
+      const a = Scanners.acquisition( entry.ref );
+      return [ a.label , a.sequence , a.tr_ms , a.te_ms , a.flip , a.voxel , a.slices , a.mb , entry.places.join( ", " ) ];
+    } );
+    return {
+      id: "scanner-cards" , title: this.t( "cards_title" ),
+      columns: [ this.t( "card" ) , this.t( "sequence" ) , this.t( "tr_ms" ) , this.t( "te_ms" ) , this.t( "flip" ) , this.t( "voxel" ) , this.t( "slices" ) , this.t( "mb" ) , this.t( "used_by" ) ], rows: rows,
+    };
+  },
+
+  // Every jittered wait in the design on one page: what it can come to and
+  // who decides that.
+  jitterAll( doc ) {
+    const tr = doc.scanner.tr;
+    const row = ( where , d ) => {
+      const span = Timing.span( d , tr );
+      const last = Timing.anticipatable( d , tr );
+      const steps = d.kind === "geometric" ? Timing.geometric( d , tr ).probs.map( ( p , n ) => this.f( d.min + n * tr ) + " s (" + this.f( p * 100 , 0 ) + "%)" ).join( ", " ) : "–";
+      return [ where , this.t( d.inherit ? "follows_design" : "own_setting" ) , this.t( "kind_" + d.kind ) , this.f( span.min ) + "–" + this.f( span.max ) + " s" , steps , this.f( span.mean ) ,
+        this.f( span.mean - ( d.min + d.max ) / 2 ) , last == null ? "–" : this.f( last * 100 , 1 ) + "%" ];
+    };
+    const rows = [];
+    doc.trial_types.forEach( ( tt ) => tt.phases.forEach( ( phase ) => {
+      if ( phase.duration.kind !== "fixed" ) rows.push( row( tt.name + " › " + phase.name , phase.duration ) );
+    } ) );
+    doc.runs.forEach( ( run ) => [ [ run.lead_in , "runs.lead_in" ] , [ run.lead_out , "runs.lead_out" ] ].forEach( ( [ lead , key ] ) => {
+      if ( lead.jitter ) rows.push( row( run.name + " › " + I18n.get( key ) , lead.jitter ) );
+    } ) );
+    return {
+      id: "jitter-all" , title: this.t( "jitter_all_title" ) ,
+      columns: [ this.t( "where" ) , this.t( "setting" ) , this.t( "kind" ) , this.t( "window" ) , this.t( "steps" ) , this.t( "mean_s" ) , this.t( "vs_flat" ) , this.t( "anticipatable" ) ], rows: rows,
+    };
+  },
+
   // Every table, for the report. Efficiency is measured on each run with
   // the given seed.
   all( doc , seed ) {
-    const out = [ this.summary( doc ) , this.budget( doc ) , this.trialTypes( doc ) ];
+    const out = [ this.summary( doc ) , this.budget( doc ) , this.trialTypes( doc ) , Inventory.table( doc ) ];
+    if ( Schema.durations( doc ).length ) out.push( this.jitterAll( doc ) );
     doc.trial_types.forEach( ( tt ) => {
       out.push( this.phases( doc , tt ) );
       tt.phases.forEach( ( p ) => { if ( p.duration.kind !== "fixed" ) out.push( this.jitter( doc , tt , p ) ); } );
@@ -335,6 +393,8 @@ const Tables = {
     doc.runs.forEach( ( run ) => out.push( this.runOutline( doc , run ) ) );
     doc.sessions.forEach( ( s ) => out.push( this.session( doc , s ) ) );
     out.push( this.dataVolume( doc ) );
+    const cards = this.scannerCards( doc );
+    if ( cards ) out.push( cards );
     out.push( this.hrf( doc ) , this.recovery( doc ) );
     if ( Efficiency.regressors( doc ).length ) {
       doc.runs.forEach( ( run ) => {

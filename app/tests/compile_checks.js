@@ -187,6 +187,249 @@ check( "a plan with no saved revision has none" , run( "'revision' in aplans[ 0 
 run( "var vdoc = Schema.normalise( JSON.parse( JSON.stringify( idoc ) ) ); vdoc.scanner.trigger_key = '5'; vdoc.trial_types[ 0 ].phases[ 0 ].response.keys = [ 'num_5' ];" );
 check( "a response on the trigger key is an error" , run( "Validate.check( vdoc ).some( ( p ) => p.level === 'error' && p.text === 'problems.response_is_trigger' )" ) );
 
+// Design-wide jitter.
+run( `
+  var jdoc = Schema.normalise( JSON.parse( JSON.stringify( idoc ) ) );
+  jdoc.trial_types[ 0 ].phases = [
+    Schema.phase( "A" , Schema.jittered( 2 , 10 ) , Schema.fixation() ),
+    Schema.phase( "B" , Object.assign( Schema.duration( "uniform" , 3 , 5 ) ) , Schema.fixation() ),
+  ];
+  jdoc.scanner.tr = 2;
+  jdoc.jitter = { mode: "geometric" , p: 0.25 , scale: 0.5 , cap_trs: 0 };
+  jdoc = Schema.normalise( jdoc );
+  var inherited = jdoc.trial_types[ 0 ].phases[ 0 ].duration;
+  var own = jdoc.trial_types[ 0 ].phases[ 1 ].duration;
+` );
+check( "a phase takes the design's jitter" , run( "inherited.kind === 'geometric' && inherited.p === 0.25" ) );
+check( "a phase with its own jitter keeps it" , run( "own.kind === 'uniform' && own.inherit === false" ) );
+run( "jdoc.jitter.mode = 'exponential'; jdoc.jitter.scale = 0.7; jdoc = Schema.normalise( jdoc ); inherited = jdoc.trial_types[ 0 ].phases[ 0 ].duration; own = jdoc.trial_types[ 0 ].phases[ 1 ].duration;" );
+check( "changing the design changes those who follow it" , run( "inherited.kind === 'exponential' && inherited.scale === 0.7" ) );
+check( "and nobody else" , run( "own.kind === 'uniform'" ) );
+check( "a phase keeps its own window" , run( "inherited.min === 2 && inherited.max === 10" ) );
+run( "jdoc.jitter = { mode: 'geometric' , p: 0.5 , scale: 0.5 , cap_trs: 2 }; jdoc = Schema.normalise( jdoc ); inherited = jdoc.trial_types[ 0 ].phases[ 0 ].duration;" );
+check( "the cap limits a wait to that many TRs" , run( "Timing.span( inherited , 2 ).max" ) === 6 );
+check( "sampling obeys the cap" , run( "var capRng = Compile.rng( 3 ); Array.from( { length: 500 } , () => Timing.sample( inherited , 2 , capRng ) ).every( ( x ) => x <= 6 )" ) );
+check( "a design with no cap uses the whole window" , run( "Timing.span( Object.assign( {} , inherited , { cap_trs: 0 } ) , 2 ).max" ) === 10 );
+run( "var flatTt = { phases: [ { duration: Schema.normalise( { jitter: { mode: 'geometric' , p: 0.5 } , trial_types: [ { phases: [ { duration: { kind: 'uniform' , min: 2 , max: 10 , inherit: true } } ] } ] } ).trial_types[ 0 ].phases[ 0 ].duration } ] }; var flatDoc = { scanner: { tr: 2 } };" );
+check( "a geometric wait saves time against a flat one" , run( "Timing.flatDelta( flatDoc , flatTt )" ) < -1 );
+check( "a fixed trial is the same as flat" , run( "Timing.flatDelta( flatDoc , { phases: [ { duration: Schema.duration( 'fixed' , 3 ) } ] } )" ) === 0 );
+check( "a lead-in can follow the design" , run( `
+  var ldoc = Schema.normalise( JSON.parse( JSON.stringify( jdoc ) ) );
+  ldoc.runs[ 0 ].lead_in.jitter = Schema.jittered( 4 , 10 );
+  ldoc.jitter.mode = "uniform";
+  Schema.normalise( ldoc ).runs[ 0 ].lead_in.jitter.kind === "uniform"
+` ) );
+
+// Format 3 keeps an old design's timing exactly.
+run( `
+  var oldJitter = {
+    name: "x" , format_version: 2 , scanner: { tr: 2 },
+    trial_types: [ { id: "t" , phases: [
+      { id: "a" , duration: { kind: "geometric" , min: 2 , max: 8 , p: 0.3 } },
+      { id: "b" , duration: { kind: "geometric" , min: 2 , max: 8 , p: 0.3 } },
+      { id: "c" , duration: { kind: "geometric" , min: 2 , max: 8 , p: 0.7 } },
+      { id: "d" , duration: { kind: "exponential" , min: 1 , max: 3 , scale: 0.4 } },
+      { id: "e" , duration: { kind: "fixed" , value: 4 } },
+    ] } ],
+  };
+  var migrated = Schema.normalise( oldJitter );
+  var by = ( id ) => migrated.trial_types[ 0 ].phases.find( ( p ) => p.id === id ).duration;
+` );
+check( "a migrated design takes the commonest jitter" , run( "migrated.jitter.mode === 'geometric' && migrated.jitter.p === 0.3" ) );
+check( "those who had it follow it" , run( "by( 'a' ).inherit && by( 'b' ).inherit" ) );
+check( "those who differed keep their own" , run( "!by( 'c' ).inherit && by( 'c' ).p === 0.7 && !by( 'd' ).inherit && by( 'd' ).kind === 'exponential'" ) );
+check( "a migrated design says format 3" , run( "migrated.format_version" ) === 3 );
+check( "migration leaves the document it was given alone" , run( "oldJitter.format_version" ) === 2 );
+check( "the study file draws the same trials after migrating" , run( `
+  var rawStudy = ${ study };
+  var plainly = JSON.parse( JSON.stringify( rawStudy ) );
+  Schema.durations( plainly ).forEach( ( d ) => { d.inherit = false; } );
+  plainly.format_version = 3;
+  var a = Schema.normalise( rawStudy ); var b = Schema.normalise( plainly );
+  var r = a.runs.find( ( x ) => x.blocks.length > 1 ).id;
+  JSON.stringify( Compile.forServer( Compile.runPlans( a , X , r , { seed: 11 } ) ).map( ( p ) => p.segments ) ) === JSON.stringify( Compile.forServer( Compile.runPlans( b , X , r , { seed: 11 } ) ).map( ( p ) => p.segments ) )
+` ) );
+
+// The shared fixation mark.
+run( `
+  var fdoc = Schema.normalise( { name: "f" , trial_types: [ Schema.trialType( "T" ) ] } );
+  fdoc.fixation.layers[ 0 ].text = "x";
+  fdoc.fixation.layers[ 0 ].height = 0.2;
+  fdoc.runs = [ Schema.run( "R" , fdoc.trial_types[ 0 ].id ) ];
+  fdoc = Schema.normalise( fdoc );
+  var fplan = Compile.runPlans( fdoc , X , fdoc.runs[ 0 ].id , { seed: 1 } )[ 0 ];
+  var everyLayer = fplan.segments.flatMap( ( s ) => s.layers );
+` );
+check( "a plan never holds a fixation layer" , run( "everyLayer.every( ( l ) => l.kind !== 'fixation' )" ) );
+check( "a fixation layer draws the design's mark" , run( "fplan.segments.find( ( s ) => s.phase === 'Fixation' ).layers[ 0 ].text" ) === "x" );
+check( "lead-ins show the mark too" , run( "fplan.segments.find( ( s ) => s.kind === 'lead_in' ).layers[ 0 ].height" ) === 0.2 );
+check( "the mark cannot show itself" , run( "Schema.normalise( { fixation: { layers: [ { kind: 'fixation' } , { kind: 'text' , text: '+' } ] } } ).fixation.layers.length" ) === 1 );
+check( "a mark with a column is an error" , run( "fdoc.fixation.layers[ 0 ].text = '{text}'; Validate.check( fdoc ).some( ( p ) => p.text === 'problems.template_no_list' )" ) );
+run( "fdoc.fixation.layers[ 0 ].text = 'x';" );
+
+// What's on screen.
+run( `
+  var sdoc = Schema.normalise( { name: "s" , trial_types: [ Schema.trialType( "T" ) ] } );
+  sdoc.trial_types[ 0 ].phases.push( Schema.phase( "Copy" , Schema.duration( "fixed" , 1 ) , [ Schema.textLayer( "+" , 0.1 ) ] ) );
+  sdoc.trial_types[ 0 ].phases.push( Schema.phase( "Copy 2" , Schema.duration( "fixed" , 1 ) , [ Schema.textLayer( "+" , 0.1 ) ] ) );
+  sdoc = Schema.normalise( sdoc );
+  var copies = Inventory.rows( sdoc ).find( ( r ) => r.layer.text === "+" );
+` );
+check( "copies count as one row" , run( "copies.count" ) === 2 );
+check( "a row says where it is" , run( "copies.places.length" ) === 2 );
+check( "a template cannot become the mark" , run( "!Inventory.linkable( Schema.textLayer( '{text}' ) )" ) );
+run( "Inventory.adopt( sdoc , copies.signature ); sdoc = Schema.normalise( sdoc );" );
+check( "adopting a copy makes it the mark" , run( "sdoc.fixation.layers[ 0 ].height" ) === 0.1 );
+check( "and links its copies" , run( "!Inventory.rows( sdoc ).some( ( r ) => r.layer.kind === 'text' && r.layer.text === '+' )" ) );
+check( "linking changes nothing else" , run( "Inventory.rows( sdoc ).some( ( r ) => r.layer.kind === 'text' && r.layer.text === '{text}' )" ) );
+check( "nothing is linked until asked" , run( `
+  var plain = Schema.normalise( { format_version: 2 , name: "p" , trial_types: [ { phases: [ { layers: [ { kind: "text" , text: "+" , height: 0.08 } ] } ] } ] } );
+  plain.trial_types[ 0 ].phases[ 0 ].layers[ 0 ].kind === "text"
+` ) );
+
+// A step repeated.
+run( `
+  var rdoc = Schema.normalise( JSON.parse( JSON.stringify( bdoc ) ) );
+  var rses = rdoc.sessions.find( ( s ) => s.steps.some( ( st ) => st.kind === "run" ) );
+  var rstep = rses.steps.find( ( st ) => st.kind === "run" );
+  rses.auto_break_minutes = 0;
+  var beforeRepeat = Compile.sessionPlans( rdoc , X , rses.id , { seed: 5 } ).length;
+  var lengthBefore = Timing.session( rdoc , rses ).seconds.mean;
+  var oneRun = Timing.run( rdoc , rdoc.runs.find( ( r ) => r.id === rstep.run ) ).total.mean;
+  rstep.repeat = 3;
+  var repeated = Compile.sessionPlans( rdoc , X , rses.id , { seed: 5 } );
+` );
+check( "a run ×3 plays as three runs" , run( "repeated.length" ) === run( "beforeRepeat" ) + 2 );
+check( "each has its own label" , run( "new Set( repeated.map( ( p ) => p.run.label ) ).size === repeated.length" ) );
+check( "each draws its own trials" , run( `
+  var edoc = Schema.example( "E" );
+  edoc.sessions[ 0 ].steps = [ Object.assign( Schema.step( "run" , edoc.runs[ 0 ].id ) , { repeat: 2 } ) ];
+  var twice = Compile.sessionPlans( edoc , X , edoc.sessions[ 0 ].id , { seed: 5 } );
+  twice.length === 2 && JSON.stringify( twice[ 0 ].segments.map( ( s ) => s.duration ) ) !== JSON.stringify( twice[ 1 ].segments.map( ( s ) => s.duration ) )
+` ) );
+check( "repeats take their time" , Math.abs( run( "Timing.session( rdoc , rses ).seconds.mean - lengthBefore - 2 * oneRun" ) ) < 1e-6 );
+check( "a repeat gets the automatic break" , run( "rses.auto_break_minutes = 2; Timing.items( rdoc , rses ).filter( ( i ) => i.auto ).length" ) >= 2 );
+check( "a repeat survives saving" , run( "Schema.normalise( JSON.parse( JSON.stringify( rdoc ) ) ).sessions.find( ( s ) => s.id === rses.id ).steps.find( ( st ) => st.id === rstep.id ).repeat" ) === 3 );
+check( "a repeat is at least one" , run( "Schema.normalise( { sessions: [ { steps: [ { kind: 'break' , repeat: 0 } ] } ] } ).sessions[ 0 ].steps[ 0 ].repeat" ) === 1 );
+check( "a repeat draws on the list like the runs it stands for" , run( `
+  var tdoc = Schema.normalise( JSON.parse( JSON.stringify( rdoc ) ) );
+  var list = Schema.list( "L" ); list.items = [ Schema.item( { text: "a" } ) , Schema.item( { text: "b" } ) ];
+  var tt = Schema.trialType( "T" ); tt.list = list.id; tt.no_repeat = "session";
+  var run1 = Schema.run( "R" , tt.id ); run1.blocks[ 0 ].mix[ 0 ].count = 2;
+  var one = Object.assign( Schema.step( "run" , run1.id ) , { repeat: 2 } );
+  var ses = Schema.session( "S" ); ses.steps = [ one ];
+  tdoc.lists = [ list ]; tdoc.trial_types = [ tt ]; tdoc.runs = [ run1 ]; tdoc.sessions = [ ses ];
+  Validate.check( Schema.normalise( tdoc ) ).some( ( p ) => p.text === "problems.list_too_short" )
+` ) );
+
+// Functional and overhead hours, and the calendar.
+run( `
+  var hdoc = Schema.normalise( JSON.parse( JSON.stringify( bdoc ) ) );
+  var hses = hdoc.sessions.find( ( s ) => s.steps.some( ( st ) => st.kind === "run" ) );
+  hdoc.sessions = [ hses ];
+  hses.count = 2;
+  hses.steps.push( Object.assign( Schema.step( "break" ) , { minutes: 60 } ) );
+  hdoc.budget.participants = 3;
+  hdoc = Schema.normalise( hdoc );
+  var charged = Timing.budget( hdoc );
+` );
+check( "overhead is what is not a run" , run( "Math.abs( charged.overhead - ( Timing.session( hdoc , hdoc.sessions[ 0 ] ).overhead * 2 * 3 / 3600 ) ) < 1e-9 && charged.overhead >= 6" ) );
+check( "by default all of it is charged" , run( "Math.abs( charged.used - charged.functional - charged.overhead ) < 1e-9" ) );
+run( "hdoc.budget.count_overhead = false; var free = Timing.budget( hdoc );" );
+check( "with the toggle off, only functional time is charged" , run( "Math.abs( free.used - free.functional ) < 1e-9 && free.used < charged.used" ) );
+check( "overhead is still reported" , run( "free.overhead === charged.overhead" ) );
+check( "a calendar with nothing set says nothing" , run( "hdoc.budget.sessions_per_week = 0; hdoc.budget.weeks_available = 0; Timing.calendar( hdoc ).set === false && Timing.calendar( hdoc ).fits" ) );
+run( "hdoc.budget.sessions_per_week = 2; hdoc.budget.weeks_available = 2;" );
+check( "weeks needed rounds up" , run( "Timing.calendar( hdoc ).weeksNeeded" ) === 3 );
+check( "a study that does not fit warns" , run( "Validate.check( hdoc ).some( ( p ) => p.text === 'problems.over_calendar' && p.level === 'warning' )" ) );
+run( "hdoc.budget.weeks_available = 3;" );
+check( "a study that fits does not" , run( "!Validate.check( hdoc ).some( ( p ) => p.text === 'problems.over_calendar' )" ) );
+
+// When the run clock starts.
+run( "var cdoc = Schema.normalise( JSON.parse( JSON.stringify( bdoc ) ) ); cdoc.scanner.dummy_volumes = 4; cdoc.runs.forEach( ( r ) => { r.dummy_volumes = -1; } ); var crun = cdoc.runs[ 0 ].id; var lastDummy = Compile.runPlans( cdoc , X , crun , { seed: 1 , scanner: 'wait' } )[ 0 ];" );
+check( "by default the plan waits for the dummies" , run( "lastDummy.scanner.dummy_volumes === 4 && !( 't0' in lastDummy.scanner )" ) );
+run( "cdoc.scanner.t0 = 'first_pulse'; var firstPulse = Compile.runPlans( cdoc , X , crun , { seed: 1 , scanner: 'wait' } )[ 0 ];" );
+check( "first pulse means no pulses to wait for" , run( "firstPulse.scanner.dummy_volumes === 0 && firstPulse.scanner.t0 === 'first_pulse'" ) );
+check( "and the same run" , run( "firstPulse.total_seconds === lastDummy.total_seconds" ) );
+check( "the plan counts the pulses to expect" , run( "firstPulse.volumes" ) === run( "lastDummy.volumes" ) - 4 );
+check( "the dialog counts what the Runs screen does" , run( "Compile.acquired( cdoc , firstPulse ) === Compile.acquired( cdoc , lastDummy ) && Compile.acquired( cdoc , lastDummy ) === lastDummy.volumes" ) );
+run( "cdoc.scanner.t0 = 'after_dummies'; var afterDummies = Compile.runPlans( cdoc , X , crun , { seed: 1 , scanner: 'wait' } )[ 0 ];" );
+check( "the pulse after the dummies waits for one more" , run( "afterDummies.scanner.dummy_volumes === 5 && afterDummies.scanner.t0 === 'after_dummies'" ) );
+check( "and that pulse is a real volume, so the scan is no longer" , run( "afterDummies.volumes" ) === run( "lastDummy.volumes" ) );
+check( "and the dialog agrees" , run( "Compile.acquired( cdoc , afterDummies ) === lastDummy.volumes" ) );
+check( "a setting that does not exist falls back" , run( "Schema.normalise( { scanner: { t0: 'nonsense' } } ).scanner.t0" ) === "last_dummy" );
+run( "cdoc.scanner.t0 = 'first_pulse';" );
+check( "a run still costs its dummy time" , run( "Timing.run( cdoc , cdoc.runs[ 0 ] ).dummy" ) === 4 );
+
+// The locked order.
+check( "a design starts with nothing locked" , run( "Schema.normalise( {} ).schedule.seed" ) === 0 );
+check( "a lock survives saving" , run( "Schema.normalise( JSON.parse( JSON.stringify( Schema.normalise( { schedule: { seed: 42 , shuffled_at: 'then' , shuffled_by: 'me' } } ) ) ) ).schedule.seed" ) === 42 );
+run( `
+  var odoc = Schema.example( "O" );
+  var drawn = ( seed ) => Compile.lockedGroups( odoc , X , { seed: seed , scanner: "wait" } );
+  var same = ( groups ) => JSON.stringify( groups.map( ( g ) => g.plans.map( ( p ) => p.segments ) ) );
+  var groups = drawn( 7 );
+  var rows = Compile.schedule( groups[ 0 ].plans );
+` );
+check( "the same seed draws the same order" , run( "same( drawn( 7 ) ) === same( groups )" ) );
+check( "another seed draws another" , run( "same( drawn( 8 ) ) !== same( groups )" ) );
+check( "each session and each run is on the list" , run( "groups.map( ( g ) => g.kind ).join()" ) === "session,run" );
+check( "the list has every trial, counted from 1" , run( "rows.length === groups[ 0 ].plans.reduce( ( n , p ) => n + new Set( p.segments.filter( ( s ) => s.kind === 'phase' ).map( ( s ) => s.trial ) ).size , 0 ) && rows[ 0 ].trial === 1" ) );
+check( "a row's phases add up to the plan's" , run( `
+  var plan = groups[ 0 ].plans[ 0 ];
+  var first = plan.segments.filter( ( s ) => s.trial === 0 );
+  rows[ 0 ].onset === first[ 0 ].onset && JSON.stringify( rows[ 0 ].phases.map( ( p ) => p.duration ) ) === JSON.stringify( first.map( ( s ) => s.duration ) )
+` ) );
+check( "the full list has every segment and a header" , run( `
+  var csv = Compile.scheduleCsv( groups ).trim().split( "\\r\\n" );
+  csv[ 0 ].startsWith( "played_as,run,kind" ) && csv.length - 1 === groups.reduce( ( n , g ) => n + g.plans.reduce( ( m , p ) => m + p.segments.filter( ( s ) => s.kind !== "instructions" ).length , 0 ) , 0 )
+` ) );
+check( "a comma in the list stays one cell" , run( "Compile.scheduleCsv( [ { name: 'a,b' , plans: [ { run: { label: 'r' } , segments: [ { kind: 'phase' , trial_type: 'say \"hi\"' , onset: 0 , duration: 1 } ] } ] } ] ).split( '\\r\\n' )[ 1 ]" ) === '"a,b",r,phase,,,"say ""hi""",,,0,1' );
+check( "a cell cannot run as a formula" , run( "Compile.scheduleCsv( [ { name: '=1+1' , plans: [ { run: { label: 'r' } , segments: [ { kind: 'phase' , onset: -1 , duration: 1 } ] } ] } ] ).split( '\\r\\n' )[ 1 ]" ) === "'=1+1,r,phase,,,,,,-1,1" );
+
+// What a card keeps.
+run( `
+  var card = { id: "c" , label: "EPI" , role: "functional" , pages: [ { name: "P" , rows: [
+    { parameter: "Act. TR/TE (ms)" , value: "2000 / 36" }, { parameter: "ACQ voxel MPS (mm)" , value: "2.48 / 2.51 / 2.50" },
+    { parameter: "slices" , value: "58" }, { parameter: "MB Factor" , value: "2" }, { parameter: "Flip angle (deg)" , value: "90" },
+    { parameter: "technique" , value: "FFE" }, { parameter: "Fast Imaging mode" , value: "EPI" },
+  ] } ] };
+  var ref = Scanners.ref( card );
+  var kept = Schema.normalise( { runs: [ { card: ref } ] } ).runs[ 0 ].card;
+  var acquired = Scanners.acquisition( kept );
+` );
+check( "a snapshot keeps the acquisition" , run( "kept.te_ms === 36 && kept.flip === '90' && kept.mb === '2'" ) );
+check( "the sequence reads as the console says" , run( "acquired.sequence" ) === "EPI (FFE)" );
+check( "voxels read as a size" , run( "acquired.voxel" ) === "2.48 × 2.51 × 2.50" );
+check( "TR comes back in ms" , run( "acquired.tr_ms" ) === 2000 );
+check( "an old snapshot is not stale for what it never kept" , run( `
+  Scanners.cards = [ card ]; Scanners.loaded = true;
+  var older = Object.assign( {} , ref , { te_ms: 0 , voxel: "" , slices: "" , mb: "" , flip: "" , sequence: "" } );
+  !Scanners.stale( older ) && Scanners.acquisition( older ).te_ms === 36
+` ) );
+check( "a changed TE is stale" , run( "Scanners.stale( Object.assign( {} , ref , { te_ms: 30 } ) )" ) );
+
+// Importing the old planner's fields.
+run( `
+  var oldFile = {
+    meta: { studyTitle: "Old" , investigator: "A. Person" , institution: "Uni" , designId: "-" , notes: "n" },
+    budget: { totalScannerHours: 50 , sessionsPerWeek: 3 , weeksAvailable: 30 , countOverheadAgainstBudget: false },
+    jitter: { mode: "geometric" , p: 0.4 , truncation: "trs" , nMaxCap: 2 },
+    presentation: { fixation: { text: "o" , height: 0.1 } },
+    trials: [ { id: "t" , name: "T" , phases: [ { name: "Wait" , shows: "fixation" , min: 2 , max: 10 , jitter: true } ] } ],
+    runs: [] , sessions: [ { id: "s" , name: "S" , blocks: [ { kind: "break" , label: "b" , minutes: 5 , count: 3 } ] } ],
+  };
+  var imported = Legacy.convertDesign( oldFile , [] ).doc;
+` );
+check( "the old identity comes across" , run( "imported.meta.investigator === 'A. Person' && imported.meta.institution === 'Uni' && imported.meta.design_id === ''" ) );
+check( "and stays out of the notes" , run( "imported.notes" ) === "n" );
+check( "the old calendar comes across" , run( "imported.budget.sessions_per_week === 3 && imported.budget.weeks_available === 30" ) );
+check( "the old overhead toggle comes across" , run( "imported.budget.count_overhead" ) === false );
+check( "the old jitter is the design's" , run( "imported.jitter.mode === 'geometric' && imported.jitter.p === 0.4 && imported.jitter.cap_trs === 2" ) );
+check( "old phases follow it" , run( "imported.trial_types[ 0 ].phases[ 0 ].duration.inherit" ) === true );
+check( "the old fixation is the design's mark" , run( "imported.fixation.layers[ 0 ].text === 'o' && imported.trial_types[ 0 ].phases[ 0 ].layers[ 0 ].kind === 'fixation'" ) );
+check( "an old count becomes a repeat" , run( "imported.sessions[ 0 ].steps.length === 1 && imported.sessions[ 0 ].steps[ 0 ].repeat === 3" ) );
+
 if ( failures.length ) {
   console.log( failures.join( "\n" ) );
   process.exit( 1 );

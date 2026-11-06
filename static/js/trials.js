@@ -347,17 +347,23 @@ const Trials = {
     const doc = Doc.doc;
     const d = phase.duration;
     const set = ( field ) => ( v ) => editPhase( Ui.t( "undo.duration_changed" ) , ( p ) => { p.duration[ field ] = v; } );
-    const fields = [ Ui.field( "trials.duration" , Ui.select( d.kind , Schema.DURATION_KINDS.map( ( k ) => [ k , Ui.t( "trials.kind_" + k ) ] ) , ( v ) => editPhase( Ui.t( "undo.duration_changed" ) , ( p ) => {
+    // "Design jitter" follows doc.jitter (normalise copies it in); the others
+    // are this phase's own.
+    const kinds = [ [ "fixed" , Ui.t( "trials.kind_fixed" ) ] , [ "inherit" , Ui.t( "trials.kind_inherit" ).replace( "{mode}" , Ui.t( "settings.jitter_mode_" + doc.jitter.mode ) ) ] ]
+      .concat( Schema.JITTER_MODES.map( ( k ) => [ k , Ui.t( "trials.kind_" + k ) ] ) );
+    const fields = [ Ui.field( "trials.duration" , Ui.select( d.inherit ? "inherit" : d.kind , kinds , ( v ) => editPhase( Ui.t( "undo.duration_changed" ) , ( p ) => {
+      const kind = v === "inherit" ? doc.jitter.mode : v;
       // A geometric steps in whole TRs, so give it two rungs above the old
       // value; ±1 s would leave it nothing to vary over at most TRs.
-      if ( v === "geometric" && p.duration.kind === "fixed" ) {
+      if ( kind === "geometric" && p.duration.kind === "fixed" ) {
         p.duration.min = p.duration.value;
         p.duration.max = Timing.round4( p.duration.value + 2 * doc.scanner.tr );
-      } else if ( v !== "fixed" && p.duration.kind === "fixed" ) {
+      } else if ( kind !== "fixed" && p.duration.kind === "fixed" ) {
         p.duration.min = Math.max( 0 , p.duration.value - 1 );
         p.duration.max = p.duration.value + 1;
       }
-      p.duration.kind = v;
+      p.duration.kind = kind;
+      p.duration.inherit = v === "inherit";
     } ) , { small: true , key: key + ".kind" } ) , { col: "col-6 col-md-3" } ) ];
     const n = ( labelKey , field , extra ) => Ui.field( labelKey , Ui.number( d[ field ] , set( field ) , Object.assign( { key: key + "." + field , min: 0 , step: 0.1 , small: true } , extra ) ) , { col: "col-6 col-md-2" } );
     if ( d.kind === "fixed" ) {
@@ -365,8 +371,11 @@ const Trials = {
     } else {
       fields.push( n( "trials.min" , "min" ) );
       fields.push( n( "trials.max" , "max" ) );
-      if ( d.kind === "geometric" ) fields.push( n( "trials.p" , "p" , { min: 0.02 , max: 0.98 , step: 0.05 } ) );
-      if ( d.kind === "exponential" ) fields.push( n( "trials.scale" , "scale" , { min: 0.05 , max: 5 , step: 0.05 } ) );
+      if ( d.kind === "geometric" && !d.inherit ) {
+        fields.push( n( "trials.p" , "p" , { min: 0.02 , max: 0.98 , step: 0.05 } ) );
+        fields.push( n( "trials.cap" , "cap_trs" , { min: 0 , step: 1 } ) );
+      }
+      if ( d.kind === "exponential" && !d.inherit ) fields.push( n( "trials.scale" , "scale" , { min: 0.05 , max: 5 , step: 0.05 } ) );
       if ( d.kind === "uniform" || d.kind === "exponential" ) {
         fields.push( Dom.el( "div" , { class: "col-6 col-md-3" , children: [ Ui.check( d.snap_to_tr , Ui.t( "trials.snap" ) , set( "snap_to_tr" ) , { key: key + ".snap" } ) ] } ) );
       }

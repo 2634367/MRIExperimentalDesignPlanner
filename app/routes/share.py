@@ -103,6 +103,21 @@ async def open_shared(request: Request) -> Response:
         return not_found(INVALID)
 
 
+def _revision(store: Store, credential: object) -> dict:
+    _, experiment = share_links.load_shared(store, credential)
+    return {"revision": experiment.revision, "updated_by_name": ""}
+
+
+async def shared_revision(request: Request) -> Response:
+    body = await read_json(request)
+    if body is None:
+        return bad_request("malformed request body")
+    try:
+        return JSONResponse(await run(_revision, get_store(request), body.get("credential")))
+    except ShareLinkInvalidError:
+        return not_found(INVALID)
+
+
 def _shared_media(store: Store, storage_dir, credential: str, filename: str) -> Response:
     _, experiment = share_links.load_shared(store, credential)
     return media_response(store, storage_dir, experiment.id, filename)

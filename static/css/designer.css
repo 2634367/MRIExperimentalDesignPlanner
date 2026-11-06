@@ -156,9 +156,15 @@ details.ed-section:not([open]) > summary.ed-section-head { border-bottom: 0; }
 .step-list { container-type: inline-size; }
 .step-row {
   display: grid; gap: 0.5rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--app-border);
-  grid-template-columns: 4rem 9.5rem minmax(10rem, 1fr) 8rem auto;
-  grid-template-areas: "start kind what min tail";
+  grid-template-columns: 1.25rem 4rem 9.5rem minmax(10rem, 1fr) 8rem 5rem minmax(15.4rem, auto);
+  grid-template-areas: "grip start kind what min rep tail";
 }
+.step-grip { grid-area: grip; cursor: grab; touch-action: none; color: var(--bs-secondary-color); text-align: center; }
+.step-rep { grid-area: rep; }
+.step-dragging { opacity: 0.5; }
+.locked-list { max-height: 26rem; overflow: auto; }
+.step-drop-before { box-shadow: inset 0 2px 0 var(--bs-primary); }
+.step-drop-after { box-shadow: inset 0 -2px 0 var(--bs-primary); }
 /* Wide enough for "1:45:02", and never wrapped onto two lines. */
 .step-start { grid-area: start; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .step-kind { grid-area: kind; }
@@ -173,11 +179,11 @@ details.ed-section:not([open]) > summary.ed-section-head { border-bottom: 0; }
 .step-end { border-bottom: 0; }
 @container (max-width: 38rem) {
   .step-row {
-    grid-template-columns: 4rem minmax(8rem, 11rem) minmax(0, 1fr);
-    grid-template-areas: "start kind what" ". min tail";
+    grid-template-columns: 1.25rem 5rem minmax(8rem, 11rem) minmax(0, 1fr);
+    grid-template-areas: "grip start kind what" ". rep min tail";
   }
   .step-head, .step-end .step-min, .step-end .step-tail { display: none; }
-  .step-end { grid-template-areas: "start kind kind"; }
+  .step-end { grid-template-areas: ". start kind kind"; }
 }
 .stepper { flex-wrap: nowrap; max-width: 11rem; }
 .stepper .form-control { text-align: center; }

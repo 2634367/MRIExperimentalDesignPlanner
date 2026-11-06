@@ -61,7 +61,7 @@ def _launch(store: Store, cfg, experiment_id: str, user_id: int, body: dict) -> 
     launch = psychopy.start(
         cfg, checked, files, user_id, (label or experiment.name)[:200],
         body.get("scanner", "wait"), body.get("windowed") is True, body.get("screen", 0), body.get("debug") is True,
-        on_end=lambda folder: seen.add_folder(store, experiment.id, folder),
+        on_end=lambda folder: seen.add_folder(store, experiment.id, folder), flip=body.get("flip", "none"),
     )
     return launch.row()
 

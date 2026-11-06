@@ -33,6 +33,7 @@ RUN_SH = r"""#!/usr/bin/env bash
 #   ./run.sh --screen 1               on the second display (--list-screens shows them)
 #   ./run.sh plans/run-02.json        just that run
 #   ./run.sh --from-run 3             start at the third run, after stopping
+#   ./run.sh --planner URL ...        the last published plans, not the ones here
 #
 # Results go in data/.
 set -euo pipefail
@@ -40,19 +41,27 @@ cd "$(dirname "$0")"
 
 plans=()
 args=()
+fetching=0
 for arg in "$@"; do
   if [[ "$arg" == *.json ]]; then plans+=("$arg"); else args+=("$arg"); fi
+  if [[ "$arg" == "--planner" || "$arg" == "--offline" ]]; then fetching=1; fi
 done
-if [[ ${#plans[@]} -eq 0 ]]; then plans=(plans/*.json); fi
+# Fetched plans keep their own pictures, so neither of these applies to them.
+sources=(--media media)
+if [[ $fetching -eq 1 ]]; then
+  sources=()
+elif [[ ${#plans[@]} -eq 0 ]]; then
+  plans=(plans/*.json)
+fi
 
 export PYTHONPATH="$PWD/runner"
 if python3 -c "import psychopy" >/dev/null 2>&1; then
-  exec python3 -m fmri_runner "${plans[@]}" --out data --media media "${args[@]+"${args[@]}"}"
+  exec python3 -m fmri_runner ${plans[@]+"${plans[@]}"} --out data ${sources[@]+"${sources[@]}"} ${args[@]+"${args[@]}"}
 fi
 for app in /Applications/PsychoPy.app "$HOME/Applications/PsychoPy.app"; do
   if [[ -x "$app/Contents/MacOS/python" ]]; then
     export PYTHONHOME="$app/Contents/Resources"
-    exec "$app/Contents/MacOS/python" -m fmri_runner "${plans[@]}" --out data --media media "${args[@]+"${args[@]}"}"
+    exec "$app/Contents/MacOS/python" -m fmri_runner ${plans[@]+"${plans[@]}"} --out data ${sources[@]+"${sources[@]}"} ${args[@]+"${args[@]}"}
   fi
 done
 echo "PsychoPy was not found. Install PsychoPy (https://www.psychopy.org/download.html) or 'pip install psychopy'." >&2
@@ -81,12 +90,19 @@ if "%PY%"=="" (
 )
 set "PLANS="
 set "ARGS="
+set "FETCHING="
 :args
 if "%~1"=="" goto run
+if /i "%~1"=="--planner" set "FETCHING=1"
+if /i "%~1"=="--offline" set "FETCHING=1"
 if /i "%~x1"==".json" (set PLANS=%PLANS% "%~1") else (set ARGS=%ARGS% "%~1")
 shift
 goto args
 :run
+if defined FETCHING (
+  "%PY%" -m fmri_runner --out data %ARGS%
+  exit /b
+)
 if not defined PLANS set "PLANS=plans"
 "%PY%" -m fmri_runner %PLANS% --out data --media media %ARGS%
 """
@@ -106,6 +122,8 @@ Run it
     --scanner none       start straight away
     --windowed           a window instead of full screen
     --screen N           which display to use (--list-screens shows them)
+    --flip WAY           mirror the display for optics that reverse it:
+                         horizontal, vertical or both
     --participant ID     label the results with this participant
     --keyboard event     use window key events, if a Mac blocks PsychoPy's own
                          keyboard (the runner does this itself, with a warning)

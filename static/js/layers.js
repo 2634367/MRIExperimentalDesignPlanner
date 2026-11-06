@@ -6,9 +6,13 @@
 // prompt list; the column chips insert one. Outside a trial (a run's
 // lead-in, say) there is no prompt item, so no chips are offered.
 //
-//   LayerEditor.render( { layers , list , key , edit } )
+//   LayerEditor.render( { layers , list , key , edit , mark } )
 //     edit( label , fn ) applies fn( layersArrayInTheDocument ) through
-//     Doc.change -- the caller knows where these layers live.
+//     Doc.change -- the caller knows where these layers live. mark says these
+//     are the fixation mark's own layers, which cannot show the mark.
+//
+// A "fixation" layer has nothing to set: it shows the design's fixation mark
+// (Scanner & display), so changing the mark changes every screen that has one.
 const LayerEditor = {
   render( options ) {
     const { layers , list , key , edit } = options;
@@ -24,7 +28,7 @@ const LayerEditor = {
         return Schema.imageLayer( column ? "{" + column.key + "}" : "" );
       } ) );
       add.appendChild( adder( Ui.t( "layers.add_shape" ) , "triangle" , () => Schema.shapeLayer( "circle" ) ) );
-      add.appendChild( adder( Ui.t( "layers.add_fixation" ) , "plus-lg" , () => Schema.textLayer( "+" , 0.08 ) ) );
+      if ( !options.mark ) add.appendChild( adder( Ui.t( "layers.add_fixation" ) , "plus-lg" , () => Schema.fixationLayer() ) );
       root.appendChild( add );
     }
     return root;
@@ -36,7 +40,7 @@ const LayerEditor = {
       if ( target ) fn( target , arr );
     } , merge );
     const set = ( field ) => ( value ) => change( Ui.t( "undo.layer_changed" ) , ( l ) => { l[ field ] = value; } );
-    const kindIcon = { text: "fonts" , image: "image" , shape: "triangle" }[ layer.kind ];
+    const kindIcon = { text: "fonts" , image: "image" , shape: "triangle" , fixation: "plus-lg" }[ layer.kind ];
     const head = Dom.el( "div" , { class: "d-flex align-items-center gap-2 mb-2" , children: [
       Dom.el( "i" , { class: "bi bi-" + kindIcon , attrs: { "aria-hidden": "true" } } ),
       Dom.el( "strong" , { class: "small flex-grow-1" , text: Ui.t( "layers.kind_" + layer.kind ) } ),
@@ -50,6 +54,10 @@ const LayerEditor = {
         arr.splice( arr.indexOf( l ) + 1 , 0 , copy );
       } ) ) );
       head.appendChild( Ui.icon( "trash" , Ui.t( "ui.delete" ) , () => change( Ui.t( "undo.layer_deleted" ) , ( l , arr ) => arr.splice( arr.indexOf( l ) , 1 ) ) , { variant: "btn-outline-danger" } ) );
+    }
+
+    if ( layer.kind === "fixation" ) {
+      return Dom.el( "div" , { class: "layer-row" , children: [ head , Dom.el( "a" , { class: "small" , text: Ui.t( "layers.fixation_link" ) , attrs: { href: "#settings" } } ) ] } );
     }
 
     // Every setting gets the same cell, so labels and inputs line up in

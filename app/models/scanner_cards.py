@@ -46,6 +46,7 @@ SLUG_MAX = 120
 SLUG_PATTERN = re.compile(r"[A-Za-z0-9._-]{1,120}")
 BACKUPS_KEPT = 25
 BACKUP_GAP = timedelta(minutes=1)
+PARAMETER_RETRIES = 3
 
 # The cards the library starts with, in the old planner's file format.
 SEED_DIR = Path(__file__).resolve().parent.parent / "seed" / "scanner_cards"
@@ -188,6 +189,31 @@ def get_card(store: Store, card_id: str) -> Card:
     return card
 
 
+def used_by(store: Store, doc: dict[str, Any]) -> list[dict[str, Any]]:
+    """The cards a design's runs and scan steps name, whole, in the order it
+    names them. One that has been deleted is simply not there: the design's own
+    snapshot still says what was taken from it."""
+    wanted: list[str] = []
+
+    def note(holder: object) -> None:
+        card = holder.get("card") if isinstance(holder, dict) else None
+        if isinstance(card, dict) and isinstance(card.get("id"), str) and card["id"] not in wanted:
+            wanted.append(card["id"])
+
+    for run in doc.get("runs") or []:
+        note(run)
+    for session in doc.get("sessions") or []:
+        for step in (session.get("steps") if isinstance(session, dict) else None) or []:
+            note(step)
+    found = []
+    for card_id in wanted:
+        try:
+            found.append(get_card(store, card_id).to_row())
+        except NoSuchCardError:
+            continue
+    return found
+
+
 def _free_slug(store: Store, wanted: str) -> str:
     """wanted, or wanted-2, wanted-3, ... -- deleted cards keep their slug
     until purged, so restoring one never collides."""
@@ -234,6 +260,34 @@ def save_card(store: Store, card_id: str, user_id: int, card: object, base_revis
         _keep_backup(tx, record, user_id)
         _replace(tx, record, checked, user_id)
     return _record_to_card(record)
+
+
+def revisions(store: Store) -> dict[str, int]:
+    """Which cards there are and how far each has got: enough to tell that
+    something changed without reading the cards."""
+    return {card.id: card.revision for card in list_cards(store)}
+
+
+def set_parameter(store: Store, card_id: str, user_id: int, page: str, parameter: str, value: str) -> Card:
+    """One value on one page, tried again if it loses a race: what it says to
+    change holds against any newer copy of the card. The row must already exist,
+    since a new parameter on a console page is a typing slip more often than not."""
+    for attempt in range(PARAMETER_RETRIES):
+        card = get_card(store, card_id)
+        content = json.loads(json.dumps(card.card))
+        target = next((p for p in content["pages"] if p["name"] == page), None)
+        if target is None:
+            raise BadCardError(f"no such page: {page}")
+        row = next((r for r in target["rows"] if r["parameter"].strip().lower() == parameter.strip().lower()), None)
+        if row is None:
+            raise BadCardError(f"no such parameter on {page}: {parameter}")
+        row["value"] = value
+        try:
+            return save_card(store, card_id, user_id, content, card.revision)
+        except CardConflictError:
+            if attempt == PARAMETER_RETRIES - 1:
+                raise
+    raise AssertionError("unreachable")
 
 
 def _replace(tx: Transaction, record: Record, content: dict[str, Any], user_id: int) -> None:

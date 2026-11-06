@@ -42,6 +42,7 @@ from app.models import utc_now
 logger = logging.getLogger(__name__)
 
 RUNNER_DIR = Path(__file__).resolve().parents[2] / "runner"
+FLIPS = ("none", "horizontal", "vertical", "both")
 LAUNCHES_DIR_NAME = "launches"
 # The last line says whether macOS lets this Python read the keyboard directly
 # (see keyboard_works in the runner); asked here, under this server, because
@@ -269,7 +270,7 @@ def _write_launch_folder(storage_dir: Path, plans: list[dict], media_files: dict
 
 def start(cfg: Config, plans: list[dict], media_files: dict[str, Path], user_id: int, label: str,
           scanner: str, windowed: bool, screen: int = 0, debug: bool = False,
-          on_end: Callable[[Path], object] | None = None) -> Launch:
+          on_end: Callable[[Path], object] | None = None, flip: str = "none") -> Launch:
     """plans must already have passed app.models.plans.check_plans, and
     media_files maps media/<name> to files the caller has checked belong to
     the experiment. on_end is called with the data folder when the runner
@@ -281,6 +282,8 @@ def start(cfg: Config, plans: list[dict], media_files: dict[str, Path], user_id:
         raise ValueError("scanner must be wait, simulate or none")
     if not isinstance(screen, int) or isinstance(screen, bool) or not 0 <= screen <= MAX_SCREEN:
         raise ValueError(f"screen must be a number from 0 to {MAX_SCREEN}")
+    if flip not in FLIPS:
+        raise ValueError("flip must be none, horizontal, vertical or both")
     with _launch_lock:
         if any(launch.process.poll() is None for launch in _launches.values()):
             raise AlreadyRunningError()
@@ -291,6 +294,8 @@ def start(cfg: Config, plans: list[dict], media_files: dict[str, Path], user_id:
         argv += [str(folder / "plans" / f"{plan['run']['label']}.json") for plan in plans]
         argv += ["--out", str(folder / "data"), "--media", str(folder / "media"), "--scanner", scanner]
         argv += ["--screen", str(screen)]
+        if flip != "none":
+            argv += ["--flip", flip]
         if windowed:
             argv.append("--windowed")
         if debug:

@@ -1,6 +1,8 @@
 """Playing one plan on one clock.
 
-Time zero (t0) is the last trigger pulse of the dummy volumes. Every segment
+Time zero (t0) is the last pulse the plan waits for, dummy_volumes of them. The
+design decides what that means for its scanner (Run clock starts at): the last
+dummy pulse, the one after it, or with 0 the first pulse of all. Every segment
 boundary in the plan is an absolute offset from that instant, so timing error
 never accumulates across a long run. A segment's measured onset is the time
 of its first flip. This is the old Inner Speech session.py's loop, minus
@@ -32,7 +34,7 @@ import psychopy
 from psychopy import core, visual
 from psychopy.hardware import keyboard
 
-from .display import Painter, draw_all
+from .display import Painter, draw_all, text_stim
 from .keys import Abort, Keys, WindowKeys, hear_other_apps, press_time, trigger_names
 from .log import now_iso
 
@@ -72,16 +74,17 @@ def screens():
 class Window:
     """One window for the whole sitting, shared by every plan played in it."""
 
-    def __init__(self, display, windowed, screen=0, keyboard_backend=None):
+    def __init__(self, display, windowed, screen=0, keyboard_backend=None, view_scale=None):
         self.win = visual.Window(
             size=(1280, 800), fullscr=not windowed, screen=screen, color=display["background"], colorSpace="hex",
-            units="height", allowGUI=windowed, waitBlanking=True,
+            units="height", allowGUI=windowed, waitBlanking=True, viewScale=view_scale,
         )
         self.win.mouseVisible = windowed
         self.frame = self.win.monitorFramePeriod or 1.0 / 60
         self.kb = Keys(self._reader(keyboard_backend))
         self.text_color = display["text_color"]
-        self.message = visual.TextStim(self.win, text="", height=0.04, color=self.text_color, colorSpace="hex", wrapWidth=1.4)
+        self.view_scale = view_scale
+        self.message = text_stim(self.win, view_scale, text="", height=0.04, color=self.text_color, colorSpace="hex", wrapWidth=1.4)
 
     def _reader(self, backend):
         if backend == "event":
@@ -123,7 +126,7 @@ class Player:
         # and count there, with a time from before it opened.
         self.response_keys = sorted({key for segment in plan["segments"]
                                      for key in (segment.get("response") or {}).get("keys") or []})
-        self.painter = Painter(self.win, plan)
+        self.painter = Painter(self.win, plan, window.view_scale)
         self.readout = readout
         self.pause_keys = list(pause_keys)
         self.pause_wanted = False
@@ -281,7 +284,7 @@ class Player:
         self.log.log("pause", t=entry["at"])
         keys = "/".join(self.pause_keys)
         self.readout.note(f"[pause] at {entry['at']:.1f}s -- {keys} to resume")
-        label = visual.TextStim(self.win, text=PAUSED_TEXT.format(keys=keys), height=0.025, pos=(0, -0.46),
+        label = text_stim(self.win, self.window.view_scale, (0, -0.46), text=PAUSED_TEXT.format(keys=keys), height=0.025,
                                 color=self.window.text_color, colorSpace="hex")
         waiting = True
         while waiting:
@@ -361,6 +364,9 @@ class Player:
         # One either way is the scanner stopping as the run ends.
         if pulses and pulses["expected"] is not None and not record["aborted"] and abs(pulses["seen"] - pulses["expected"]) > 1:
             line += " -- WARNING: pulses do not match the plan; check the scan covered the run"
+            dummies = self.scanner["dummy_volumes"]
+            if dummies > 1 and abs(pulses["expected"] - pulses["seen"] - dummies) <= 1:
+                line += ". Short by about the dummy volumes: if the scanner sends no pulses during them, t0 was late; set Run clock starts at to First pulse"
         return line
 
     def play(self, write_row=None):
@@ -438,7 +444,7 @@ class Player:
             record["dropped_frames"] = self.dropped_frames
             record["worst_frame_ms"] = round(self.worst_frame * 1000, 3)
             if self.mode == "wait":
-                record["pulses"] = {"seen": self.dummy_pulses + len(self.triggers), "expected": self.plan.get("volumes")}
+                record["pulses"] = {"seen": self.dummy_pulses + len(self.triggers), "expected": self.plan.get("volumes"), "before_t0": self.dummy_pulses}
                 record["pulse_gaps"] = self.pulse_gaps
             if self.pause_keys:
                 record["debug"] = True

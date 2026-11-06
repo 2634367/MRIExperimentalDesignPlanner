@@ -1,12 +1,128 @@
-// Figures of a design for papers and slides: a trial, a run (zooming from
-// the run to one block to one trial), a session. Each is a plain <svg>
-// built from the document and Timing alone, drawn in the light palette for
-// export or the page's palette on screen (Charts.palette), at the width
+// Figures of a design for papers and slides: the whole study, a trial, a run
+// (zooming from the run to one block to one trial), a session. Each is a plain
+// <svg> built from the document and Timing alone, drawn in the light palette
+// for export or the page's palette on screen (Charts.palette), at the width
 // given (the export's WIDTH by default). Everything is to scale at mean
 // durations; jittered parts are hatched.
+//
+// A trial figure shows each phase's screen as the first item draws it. Its
+// pictures are embedded, as small copies, so the figure stands alone wherever
+// it is saved. Those copies load in the background: load() waits for them, and
+// a figure drawn sooner shows a labelled box and is redrawn when they arrive.
 const Figures = {
   WIDTH: 820,
   MIN_WIDTH: 560,
+  THUMB_HEIGHT: 320,
+  pictures: {},   // sha -> a small copy as a data URL, "" if it could not be read
+  loading: null,
+
+  // What the trial figures show: the first item's resolved layers, per phase.
+  screens( doc , tt ) {
+    const list = doc.lists.find( ( l ) => l.id === tt.list ) || null;
+    const item = Compile.itemsFor( tt , list )[ 0 ] || null;
+    return tt.phases.map( ( phase ) => Compile.resolveLayers( doc , phase.layers , item , list ) );
+  },
+
+  picturesNeeded( doc ) {
+    const found = new Set();
+    doc.trial_types.forEach( ( tt ) => this.screens( doc , tt ).forEach( ( layers ) => layers.forEach( ( layer ) => {
+      if ( layer.kind === "image" ) found.add( layer.media );
+    } ) ) );
+    return Array.from( found );
+  },
+
+  async smallCopy( sha ) {
+    try {
+      const response = await fetch( Doc.mediaUrl( sha ) , { credentials: "same-origin" } );
+      const bitmap = await createImageBitmap( await response.blob() );
+      const k = Math.min( 1 , this.THUMB_HEIGHT / bitmap.height );
+      const canvas = document.createElement( "canvas" );
+      canvas.width = Math.max( 1 , Math.round( bitmap.width * k ) );
+      canvas.height = Math.max( 1 , Math.round( bitmap.height * k ) );
+      canvas.getContext( "2d" ).drawImage( bitmap , 0 , 0 , canvas.width , canvas.height );
+      return canvas.toDataURL( "image/png" );
+    } catch ( error ) {
+      return "";
+    }
+  },
+
+  // Resolves once every picture the trial figures need is ready to embed.
+  load( doc ) {
+    if ( this.loading ) return this.loading;
+    const missing = this.picturesNeeded( doc ).filter( ( sha ) => this.pictures[ sha ] === undefined );
+    if ( !missing.length ) return Promise.resolve( false );
+    this.loading = Promise.all( missing.map( async ( sha ) => { this.pictures[ sha ] = await this.smallCopy( sha ); } ) ).then( () => {
+      this.loading = null;
+      return true;
+    } );
+    return this.loading;
+  },
+
+  // The screen a layer list makes, in a box x, y, w, h: the same geometry as
+  // display.js, in plain SVG so it survives being saved.
+  screen( svg , pal , doc , x , y , w , h , layers ) {
+    const clip = "screen" + Math.random().toString( 36 ).slice( 2 , 8 );
+    const path = Charts.node( "clipPath" , { id: clip } , Charts.node( "defs" , {} , svg ) );
+    Charts.node( "rect" , { x: x , y: y , width: w , height: h , rx: 3 } , path );
+    Charts.node( "rect" , { x: x , y: y , width: w , height: h , rx: 3 , fill: doc.display.background } , svg );
+    const inside = Charts.node( "g" , { "clip-path": "url(#" + clip + ")" } , svg );
+    const X = ( px ) => x + w / 2 + px * h;
+    const Y = ( py ) => y + h / 2 - py * h;
+    layers.forEach( ( layer ) => {
+      if ( layer.kind === "text" ) this.screenText( inside , doc , layer , X , Y , h );
+      else if ( layer.kind === "image" ) this.screenPicture( inside , pal , doc , layer , X , Y , h );
+      else this.screenShape( inside , layer , X , Y , h );
+    } );
+    Charts.node( "rect" , { x: x , y: y , width: w , height: h , rx: 3 , fill: "none" , stroke: pal.axis } , svg );
+  },
+
+  screenText( parent , doc , layer , X , Y , h ) {
+    const size = layer.height * h;
+    const perLine = Math.max( 1 , Math.floor( ( layer.wrap || 1.2 ) / ( layer.height * 0.5 ) ) );
+    const lines = [];
+    layer.text.split( "\n" ).forEach( ( paragraph ) => {
+      let line = "";
+      paragraph.split( " " ).forEach( ( word ) => {
+        if ( line && ( line + " " + word ).length > perLine ) {
+          lines.push( line );
+          line = word;
+        } else {
+          line = line ? line + " " + word : word;
+        }
+      } );
+      lines.push( line );
+    } );
+    const top = Y( layer.pos[ 1 ] ) - ( ( lines.length - 1 ) * size * 1.2 ) / 2 + size * 0.35;
+    lines.forEach( ( line , index ) => Charts.text( parent , X( layer.pos[ 0 ] ) , top + index * size * 1.2 , line , {
+      "text-anchor": "middle" , fill: layer.color , "font-size": size , "font-weight": layer.bold ? 700 : 400 , "font-family": doc.display.font,
+    } ) );
+  },
+
+  screenPicture( parent , pal , doc , layer , X , Y , h ) {
+    const entry = doc.media.find( ( m ) => m.id === layer.media );
+    const height = layer.height * h;
+    const width = layer.width ? layer.width * h : height * ( entry ? entry.w / entry.h : 1 );
+    const left = X( layer.pos[ 0 ] ) - width / 2;
+    const top = Y( layer.pos[ 1 ] ) - height / 2;
+    const data = this.pictures[ layer.media ];
+    if ( data ) {
+      Charts.node( "image" , { href: data , x: left , y: top , width: width , height: height , preserveAspectRatio: "none" } , parent );
+      return;
+    }
+    Charts.node( "rect" , { x: left , y: top , width: width , height: height , fill: pal.axis , "fill-opacity": 0.4 } , parent );
+    Charts.text( parent , left + width / 2 , top + height / 2 + 3 , ( entry ? entry.name : "" ).slice( 0 , 16 ) , { "text-anchor": "middle" , fill: "#ffffff" , "font-size": 8 } );
+  },
+
+  screenShape( parent , layer , X , Y , h ) {
+    const size = layer.size * h;
+    const cx = X( layer.pos[ 0 ] );
+    const cy = Y( layer.pos[ 1 ] );
+    const paint = { fill: layer.fill === false ? "none" : layer.color , stroke: layer.color , "stroke-width": 1 };
+    if ( layer.ori ) paint.transform = "rotate(" + layer.ori + " " + cx + " " + cy + ")";
+    if ( layer.shape === "circle" ) Charts.node( "circle" , Object.assign( { cx: cx , cy: cy , r: size / 2 } , paint ) , parent );
+    else if ( layer.shape === "square" ) Charts.node( "rect" , Object.assign( { x: cx - size / 2 , y: cy - size / 2 , width: size , height: size } , paint ) , parent );
+    else Charts.node( "polygon" , Object.assign( { points: Display.points( layer ).map( ( p ) => ( cx + p[ 0 ] * size ).toFixed( 2 ) + "," + ( cy + p[ 1 ] * size ).toFixed( 2 ) ).join( " " ) } , paint ) , parent );
+  },
 
   hatch( svg , pal ) {
     const defs = Charts.node( "defs" , {} , svg );
@@ -76,22 +192,60 @@ const Figures = {
 
   // -- a trial ---------------------------------------------------------------
 
+  // Each phase's screen and length across the top, the cumulative mean onset
+  // of each on a line below, and then the same phases to scale.
   trial( doc , tt , light , size ) {
     const pal = Charts.palette( light );
     const w = Math.max( this.MIN_WIDTH , Math.round( size || this.WIDTH ) );
-    const h = 170;
+    const parts = this.phaseParts( doc , tt );
+    const slot = ( w - 32 ) / Math.max( 1 , parts.length );
+    const screenWidth = Math.min( 150 , slot - 12 );
+    const screenHeight = screenWidth / doc.display.aspect;
+    const labels = 52 + screenHeight + 16;
+    const axis = labels + 46;
+    const bar = axis + 38;
+    const h = bar + 40 + 62;
     const svg = Charts.svg( w , h , pal );
     const hatch = this.hatch( svg , pal );
     const span = Timing.trial( doc , tt );
     this.title( svg , pal , tt.name || I18n.get( "trials.unnamed" ) , I18n.get( "figures.trial_sub" ).replace( "{span}" , Timing.describe( span ) ) );
-    const parts = this.phaseParts( doc , tt );
-    const placed = this.strip( svg , pal , hatch , 16 , 56 , w - 32 , 44 , parts );
-    // Onsets at mean durations, and which phases are modelled.
-    placed.forEach( ( p ) => {
-      Charts.node( "line" , { x1: p.x0 , x2: p.x0 , y1: 50 , y2: 104 , stroke: pal.axis , "stroke-width": 0.8 } , svg );
-      if ( p.part.phase.modelled ) Charts.text( svg , p.x0 + 3 , 116 , "◆ " + I18n.get( "figures.modelled" ) , { fill: pal.series[ 0 ] , "font-size": 9.5 } );
+
+    const screens = this.screens( doc , tt );
+    const fit = ( text , size ) => String( text ).slice( 0 , Math.max( 4 , Math.floor( slot / size ) ) );
+    let onset = 0;
+    const onsets = [ 0 ];
+    parts.forEach( ( part , index ) => {
+      const cx = 16 + slot * ( index + 0.5 );
+      this.screen( svg , pal , doc , cx - screenWidth / 2 , 52 , screenWidth , screenHeight , screens[ index ] );
+      Charts.text( svg , cx , labels , fit( part.label , 6.2 ) , { "text-anchor": "middle" , fill: pal.text , "font-size": 11 , "font-weight": 600 } );
+      Charts.text( svg , cx , labels + 13 , part.sub , { "text-anchor": "middle" , fill: pal.series[ 0 ] , "font-size": 10.5 } );
+      const d = part.phase.duration;
+      if ( d.kind !== "fixed" ) {
+        const note = I18n.get( "figures.jitter_note" ).replace( "{kind}" , I18n.get( "settings.jitter_mode_" + d.kind ) ).replace( "{mean}" , Charts.number( Math.round( part.span.mean * 100 ) / 100 ) );
+        Charts.text( svg , cx , labels + 25 , fit( note , 4.9 ) , { "text-anchor": "middle" , fill: pal.muted , "font-size": 9.5 } );
+      }
+      onset += part.span.mean;
+      onsets.push( onset );
     } );
-    this.ruler( svg , pal , 16 , 132 , w - 32 , parts.reduce( ( s , p ) => s + p.seconds , 0 ) , I18n.get( "figures.seconds_mean" ) );
+
+    Charts.node( "line" , { x1: 16 , x2: w - 16 , y1: axis , y2: axis , stroke: pal.text , "stroke-width": 1.5 } , svg );
+    onsets.forEach( ( t , index ) => {
+      const x = 16 + slot * index;
+      Charts.node( "line" , { x1: x , x2: x , y1: axis - 11 , y2: axis , stroke: pal.series[ 0 ] , "stroke-width": 1.5 } , svg );
+      Charts.node( "polygon" , { points: ( x - 3 ) + "," + ( axis - 10 ) + " " + ( x + 3 ) + "," + ( axis - 10 ) + " " + x + "," + ( axis - 15 ) , fill: pal.series[ 0 ] } , svg );
+      const anchor = index === 0 ? "start" : index === onsets.length - 1 ? "end" : "middle";
+      Charts.text( svg , x , axis + 14 , I18n.get( "figures.onset" ).replace( "{t}" , Charts.number( Math.round( t * 100 ) / 100 ) ) , { "text-anchor": anchor , fill: pal.text , "font-size": 10 } );
+    } );
+
+    const placed = this.strip( svg , pal , hatch , 16 , bar , w - 32 , 40 , parts );
+    placed.forEach( ( p ) => {
+      Charts.node( "line" , { x1: p.x0 , x2: p.x0 , y1: bar - 5 , y2: bar + 44 , stroke: pal.axis , "stroke-width": 0.8 } , svg );
+      if ( p.part.phase.modelled ) Charts.text( svg , p.x0 + 3 , bar + 56 , "◆ " + I18n.get( "figures.modelled" ) , { fill: pal.series[ 0 ] , "font-size": 9.5 } );
+    } );
+    this.ruler( svg , pal , 16 , bar + 62 - 2 , w - 32 , parts.reduce( ( s , p ) => s + p.seconds , 0 ) );
+    if ( this.picturesNeeded( doc ).some( ( sha ) => this.pictures[ sha ] === undefined ) ) {
+      this.load( doc ).then( ( fresh ) => { if ( fresh ) Designer.repaint( Nav.current() ); } );
+    }
     return svg;
   },
 
@@ -170,6 +324,71 @@ const Figures = {
     return svg;
   },
 
+  // -- the whole study --------------------------------------------------------
+
+  // Every session type at its count, for everyone, against the hours you have.
+  overview( doc , light , size ) {
+    const pal = Charts.palette( light );
+    const w = Math.max( this.MIN_WIDTH , Math.round( size || this.WIDTH ) );
+    const budget = Timing.budget( doc );
+    const people = doc.budget.participants;
+    const rows = budget.rows.map( ( row , index ) => ( { row: row , color: Overview.color( index ) , hours: row.hours * people } ) ).filter( ( r ) => r.hours > 0 );
+    const x = 96;
+    const width = w - x - 84;
+    const legend = [];
+    let line = [];
+    let used = 0;
+    rows.forEach( ( r ) => {
+      const text = ( r.row.session.name || I18n.get( "sessions.unnamed" ) ) + " ×" + r.row.session.count * people + " · " + Timing.hours( r.hours );
+      const need = 26 + text.length * 5.8;
+      if ( line.length && used + need > w - 32 ) {
+        legend.push( line );
+        line = [];
+        used = 0;
+      }
+      line.push( { text: text , color: r.color , at: used } );
+      used += need;
+    } );
+    if ( line.length ) legend.push( line );
+    const h = 160 + legend.length * 18 + 22;
+    const svg = Charts.svg( w , h , pal );
+    const hatch = this.hatch( svg , pal );
+    const key = budget.available > 0 ? "figures.overview_title" : "figures.overview_title_open";
+    this.title( svg , pal , doc.name || I18n.get( "experiments.untitled" ) , I18n.get( key ).replace( "{used}" , Timing.hours( budget.used ) ).replace( "{available}" , Timing.hours( budget.available ) ) );
+    const scale = Math.max( budget.available , budget.used , 1e-9 );
+    const X = ( hours ) => x + ( hours / scale ) * width;
+    const step = Charts.niceStep( scale , Math.max( 3 , Math.round( width / 90 ) ) );
+    for ( let t = 0; t <= scale + 1e-9; t += step ) {
+      Charts.node( "line" , { x1: X( t ) , x2: X( t ) , y1: 62 , y2: 136 , stroke: pal.axis , "stroke-opacity": 0.4 } , svg );
+      Charts.text( svg , X( t ) , 58 , Charts.number( t ) + " h" , { "text-anchor": "middle" , fill: pal.muted , "font-size": 10 } );
+    }
+    const label = ( y , text ) => Charts.text( svg , x - 8 , y , text , { "text-anchor": "end" , fill: pal.muted , "font-size": 11 , "font-weight": 600 } );
+    label( 90 , I18n.get( "figures.row_study" ) );
+    this.strip( svg , pal , hatch , x , 68 , X( budget.used ) - x , 36 , rows.map( ( r ) => ( {
+      label: ( r.row.session.name || I18n.get( "sessions.unnamed" ) ) + " ×" + r.row.session.count * people , seconds: r.hours * 3600 , color: r.color,
+    } ) ) );
+    Charts.text( svg , X( budget.used ) + 6 , 90 , Timing.hours( budget.used ) , { fill: pal.text , "font-size": 11 } );
+    if ( budget.available > 0 ) {
+      label( 127 , I18n.get( "figures.row_available" ) );
+      const over = budget.used > budget.available;
+      Charts.node( "rect" , { x: x , y: 114 , width: X( budget.available ) - x , height: 18 , rx: 2 , fill: "none" , stroke: pal.axis } , svg );
+      Charts.node( "rect" , { x: x , y: 114 , width: X( Math.min( budget.used , budget.available ) ) - x , height: 18 , rx: 2 , fill: over ? pal.series[ 3 ] : pal.series[ 0 ] , "fill-opacity": 0.75 } , svg );
+      Charts.text( svg , X( Math.max( budget.available , budget.used ) ) + 6 , 127 , Math.round( ( budget.used / budget.available ) * 100 ) + "%" , { fill: pal.text , "font-size": 11 } );
+    }
+    legend.forEach( ( entries , row ) => entries.forEach( ( entry ) => {
+      const y = 150 + row * 18;
+      Charts.node( "rect" , { x: 16 + entry.at , y: y , width: 11 , height: 11 , rx: 2 , fill: entry.color } , svg );
+      Charts.text( svg , 16 + entry.at + 16 , y + 10 , entry.text , { fill: pal.muted , "font-size": 10.5 } );
+    } ) );
+    const runs = budget.rows.reduce( ( n , r ) => n + r.info.runs * r.session.count , 0 ) * people;
+    const trials = budget.rows.reduce( ( n , r ) => n + r.info.trials * r.session.count , 0 ) * people;
+    const data = Timing.dataVolume( doc );
+    let footer = I18n.get( "figures.overview_footer" ).replace( "{sessions}" , Timing.calendar( doc ).sessions ).replace( "{runs}" , runs ).replace( "{trials}" , trials );
+    if ( data.total > 0 ) footer += " · " + Timing.size( data.total );
+    Charts.text( svg , 16 , 160 + legend.length * 18 + 8 , footer , { fill: pal.muted , "font-size": 10.5 } );
+    return svg;
+  },
+
   // -- a session -------------------------------------------------------------
 
   session( doc , session , light , size ) {
@@ -206,6 +425,7 @@ const Figures = {
   // Every figure of a document, for the report: [{ name, make(light, width) }].
   all( doc ) {
     const out = [];
+    if ( doc.sessions.length ) out.push( { name: "overview" , make: ( light , width ) => this.overview( doc , light , width ) } );
     doc.trial_types.forEach( ( tt ) => out.push( { name: "trial-" + ( tt.name || tt.id ) , make: ( light , width ) => this.trial( doc , tt , light , width ) } ) );
     doc.runs.forEach( ( run ) => out.push( { name: "run-" + ( run.name || run.id ) , make: ( light , width ) => this.run( doc , run , light , width ) } ) );
     doc.sessions.forEach( ( s ) => out.push( { name: "session-" + ( s.name || s.id ) , make: ( light , width ) => this.session( doc , s , light , width ) } ) );

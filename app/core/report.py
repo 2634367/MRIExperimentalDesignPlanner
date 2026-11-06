@@ -8,11 +8,12 @@ what arrives and packages it; check_report refuses anything malformed or
 too big before a byte is written.
 
 The zip:
-    report.xlsx          a Summary sheet, then one sheet per table
+    report.xlsx          a Summary sheet, one sheet per table, one per scanner card
     report.md            every table, then the methods
     methods.txt
     markdown/<table>.md
     figures/<name>.svg   and .png where the browser could draw one
+    scanner-cards/<name>.json  each card the design uses, whole
     experiment.json      the document, as stored
     README.txt
 """
@@ -42,6 +43,7 @@ MAX_PNG_BASE64 = 8 * 1024 * 1024
 MAX_FIGURE_TOTAL = 24 * 1024 * 1024
 MAX_METHODS = 100 * 1024
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+IDENTITY = (("investigator", "Investigator"), ("institution", "Institution"), ("design_id", "Design ID"))
 
 
 class BadReportError(ValueError):
@@ -196,7 +198,35 @@ def _sheet_title(title: str, taken: set[str]) -> str:
     return candidate
 
 
-def workbook(name: str, report: Report) -> bytes:
+def identity(doc: dict) -> list[str]:
+    """Who the document says it is, as lines for the top of each export."""
+    meta = doc.get("meta")
+    if not isinstance(meta, dict):
+        return []
+    return [f"{label}: {meta[key]}" for key, label in IDENTITY if isinstance(meta.get(key), str) and meta[key].strip()]
+
+
+def card_sheet(book: Workbook, card: dict, taken: set[str]) -> None:
+    """A scanner card as the console pages it: one row per parameter."""
+    sheet = book.create_sheet(_sheet_title(f"Card {card['label']}", taken))
+    sheet.sheet_view.showGridLines = False
+    sheet.append(["Page", "Parameter", "Value"])
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="EEEEEE")
+    for page in card["pages"]:
+        for row in page["rows"]:
+            sheet.append([page["name"], "  " * row.get("indent", 0) + row["parameter"], row["value"]])
+    for line in sheet.iter_rows():
+        for cell in line:
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                cell.data_type = "s"
+    sheet.freeze_panes = "A2"
+    for column, width in zip("ABC", (16, 44, 32)):
+        sheet.column_dimensions[column].width = width
+
+
+def workbook(name: str, report: Report, lines: list[str] | None = None, cards: list[dict] | None = None) -> bytes:
     book = Workbook()
     bold = Font(bold=True)
     head_fill = PatternFill("solid", fgColor="EEEEEE")
@@ -206,14 +236,16 @@ def workbook(name: str, report: Report) -> bytes:
     summary["A1"] = name
     summary["A1"].font = Font(bold=True, size=14)
     summary["A2"] = "Made " + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    summary["A4"] = "Sheet"
-    summary["B4"] = "Table"
-    summary["A4"].font = summary["B4"].font = bold
+    for offset, line in enumerate(lines or []):
+        summary.cell(row=3 + offset, column=1, value=line).data_type = "s"
+    head = 4 + len(lines or [])
+    summary.cell(row=head, column=1, value="Sheet").font = bold
+    summary.cell(row=head, column=2, value="Table").font = bold
     taken = {"summary"}
     for index, table in enumerate(report.tables):
         title = _sheet_title(table.title or table.slug, taken)
-        summary.cell(row=5 + index, column=1, value=title)
-        summary.cell(row=5 + index, column=2, value=table.title)
+        summary.cell(row=head + 1 + index, column=1, value=title)
+        summary.cell(row=head + 1 + index, column=2, value=table.title)
         sheet = book.create_sheet(title)
         sheet.sheet_view.showGridLines = False
         sheet.append(table.columns)
@@ -243,17 +275,21 @@ def workbook(name: str, report: Report) -> bytes:
         sheet["A1"].data_type = "s"
         sheet["A1"].alignment = Alignment(wrap_text=True, vertical="top")
         sheet.column_dimensions["A"].width = 120
+    for card in cards or []:
+        card_sheet(book, card, taken)
     out = io.BytesIO()
     book.save(out)
     return out.getvalue()
 
 
-def build(name: str, doc: dict, report: Report) -> bytes:
-    """The zip, or the workbook alone when report.only_xlsx."""
-    xlsx = workbook(name, report)
+def build(name: str, doc: dict, report: Report, cards: list[dict] | None = None) -> bytes:
+    """The zip, or the workbook alone when report.only_xlsx. cards are the
+    scanner cards the design uses, whole, as rows."""
+    lines = identity(doc)
+    xlsx = workbook(name, report, lines, cards)
     if report.only_xlsx:
         return xlsx
-    markdown = f"# {name}\n\n"
+    markdown = f"# {name}\n\n" + "".join(f"{line}  \n" for line in lines) + ("\n" if lines else "")
     markdown += "\n".join(f"## {t.title}\n\n{markdown_table(t)}" for t in report.tables)
     if report.methods:
         markdown += f"\n## Methods\n\n{report.methods}\n"
@@ -265,7 +301,10 @@ def build(name: str, doc: dict, report: Report) -> bytes:
         "figures/             each figure as SVG (and PNG at twice its size)",
         "experiment.json      the experiment, as saved; import it in the app",
     ]
-    readme = f"{name}\n\nMade {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.\n\n" + "\n".join(listing) + "\n"
+    if cards:
+        listing.insert(-1, "scanner-cards/       each scanner card the design uses, whole")
+    about = "".join(f"{line}\n" for line in lines)
+    readme = f"{name}\n{about}\nMade {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.\n\n" + "\n".join(listing) + "\n"
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("README.txt", readme)
@@ -279,4 +318,8 @@ def build(name: str, doc: dict, report: Report) -> bytes:
             archive.writestr(f"figures/{figure.slug}.svg", figure.svg)
             if figure.png:
                 archive.writestr(f"figures/{figure.slug}.png", figure.png)
+        taken: set[str] = set()
+        for card in cards or []:
+            content = {key: card.get(key) for key in ("id", "label", "role", "note", "pages")}
+            archive.writestr(f"scanner-cards/{_unique(slug(card['label'], 'card'), taken)}.json", json.dumps(content, indent=2, ensure_ascii=False))
     return out.getvalue()

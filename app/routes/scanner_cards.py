@@ -34,6 +34,10 @@ async def list_cards(request: Request) -> Response:
     return JSONResponse([card.to_row() for card in cards])
 
 
+async def card_revisions(request: Request) -> Response:
+    return JSONResponse(await run(scanner_cards.revisions, get_store(request)))
+
+
 async def create_card(request: Request) -> Response:
     body = await _checked_body(request)
     if isinstance(body, Response):

@@ -67,6 +67,48 @@ const Sessions = {
     return wrap;
   },
 
+  // A handle to drag a step to another place. Pointer events rather than
+  // HTML drag and drop, so a finger works too; the arrows do the same from
+  // the keyboard.
+  grip( row , list , session , step ) {
+    const grip = Dom.el( "span" , { class: "step-grip" , attrs: { title: Ui.t( "sessions.drag" ) , "aria-hidden": "true" } , children: [ Dom.el( "i" , { class: "bi bi-grip-vertical" } ) ] } );
+    grip.addEventListener( "pointerdown" , ( down ) => {
+      down.preventDefault();
+      grip.setPointerCapture( down.pointerId );
+      const rows = Array.from( list.querySelectorAll( ".step-real" ) );
+      const from = rows.indexOf( row );
+      let before = from;
+      const clear = () => rows.forEach( ( r ) => r.classList.remove( "step-drop-before" , "step-drop-after" ) );
+      row.classList.add( "step-dragging" );
+      const move = ( event ) => {
+        const found = rows.findIndex( ( r ) => { const box = r.getBoundingClientRect(); return event.clientY < box.top + box.height / 2; } );
+        before = found < 0 ? rows.length : found;
+        clear();
+        if ( before < rows.length ) rows[ before ].classList.add( "step-drop-before" );
+        else rows[ rows.length - 1 ].classList.add( "step-drop-after" );
+      };
+      const end = ( event ) => {
+        grip.removeEventListener( "pointermove" , move );
+        grip.removeEventListener( "pointerup" , end );
+        grip.removeEventListener( "pointercancel" , end );
+        clear();
+        row.classList.remove( "step-dragging" );
+        const to = before > from ? before - 1 : before;
+        if ( event.type === "pointerup" && to !== from ) {
+          this.edit( Ui.t( "undo.step_moved" ) , ( s ) => {
+            const target = s.steps.find( ( x ) => x.id === step.id );
+            s.steps.splice( s.steps.indexOf( target ) , 1 );
+            s.steps.splice( to , 0 , target );
+          } );
+        }
+      };
+      grip.addEventListener( "pointermove" , move );
+      grip.addEventListener( "pointerup" , end );
+      grip.addEventListener( "pointercancel" , end );
+    } );
+    return grip;
+  },
+
   editor( session ) {
     const doc = Doc.doc;
     const info = Timing.session( doc , session );
@@ -99,7 +141,8 @@ const Sessions = {
     } ) , { variant: "btn-primary" , small: true , disabled: info.runs === 0 } );
     box.appendChild( Ui.section( Ui.t( "sessions.section_length" ) , stats , { actions: [ play ] , fold: "sessions.length" } ) );
 
-    // One grid row per step: start | kind | what | minutes | length + actions.
+    // One grid row per step: grip | start | kind | what | minutes | times |
+    // length + actions.
     // In a narrow editor the minutes and actions drop to a second line
     // instead of squeezing the name to nothing (see .step-row).
     const list = Dom.el( "div" , { class: "step-list" } );
@@ -108,6 +151,7 @@ const Sessions = {
       Dom.el( "span" , { class: "step-kind" , text: Ui.t( "sessions.col_kind" ) } ),
       Dom.el( "span" , { class: "step-what" , text: Ui.t( "sessions.col_what" ) } ),
       Dom.el( "span" , { class: "step-min" , text: Ui.t( "sessions.col_minutes" ) } ),
+      Dom.el( "span" , { class: "step-rep" , text: Ui.t( "sessions.col_repeat" ) } ),
       Dom.el( "span" , { class: "step-tail" , text: Ui.t( "sessions.col_length" ) } ),
     ] } ) );
     let clock = 0;
@@ -122,6 +166,7 @@ const Sessions = {
           Dom.el( "span" , { class: "step-kind" , text: Ui.t( "sessions.kind_break" ) } ),
           Dom.el( "span" , { class: "step-what fst-italic" , text: Ui.t( "sessions.auto_break_row" ) } ),
           Dom.el( "span" , { class: "step-min" } ),
+          Dom.el( "span" , { class: "step-rep" } ),
           Dom.el( "div" , { class: "step-tail" , children: [ Dom.el( "span" , { class: "step-length small" , text: Timing.clock( autoBreak ) } ) ] } ),
         ] } ) );
         clock += autoBreak;
@@ -156,24 +201,36 @@ const Sessions = {
           ] } );
       }
       what.setAttribute( "aria-label" , Ui.t( "sessions.col_what" ) );
-      const tail = Dom.el( "div" , { class: "step-tail" , children: [ Dom.el( "span" , { class: "step-length small" , text: on ? Timing.clock( seconds ) : Ui.t( "sessions.step_is_off" ) } ) ] } );
+      // A run repeated has an automatic break between its repeats too.
+      const gaps = step.kind === "run" ? ( step.repeat - 1 ) * autoBreak : 0;
+      const length = seconds * step.repeat + gaps;
+      const repeat = Ui.number( step.repeat , ( v ) => editStep( Ui.t( "undo.step_changed" ) , ( st ) => { st.repeat = Math.max( 1 , Math.round( v ) ); } ) , { key: key + ".rep" , min: 1 , max: 100 , step: 1 } );
+      repeat.setAttribute( "aria-label" , Ui.t( "sessions.repeat_label" ) );
+      const times = Dom.el( "div" , { class: "input-group" , children: [ Dom.el( "span" , { class: "input-group-text px-1" , text: "×" } ) , repeat ] } );
+      const tail = Dom.el( "div" , { class: "step-tail" , children: [ Dom.el( "span" , { class: "step-length small" , text: on ? Timing.clock( length ) : Ui.t( "sessions.step_is_off" ) } ) ] } );
       if ( !Doc.readOnly ) {
         tail.appendChild( Dom.el( "div" , { class: "row-actions flex-nowrap" , children: [
           Ui.icon( on ? "toggle-on" : "toggle-off" , Ui.t( on ? "sessions.switch_off" : "sessions.switch_on" ) , () => editStep( Ui.t( "undo.step_changed" ) , ( st ) => { st.enabled = !on; } ) ),
           Ui.icon( "arrow-up" , Ui.t( "ui.move_up" ) , () => editStep( Ui.t( "undo.step_moved" ) , ( st , s ) => Ui.move( s.steps , s.steps.indexOf( st ) , -1 ) ) , { disabled: index === 0 } ),
           Ui.icon( "arrow-down" , Ui.t( "ui.move_down" ) , () => editStep( Ui.t( "undo.step_moved" ) , ( st , s ) => Ui.move( s.steps , s.steps.indexOf( st ) , 1 ) ) , { disabled: index === session.steps.length - 1 } ),
+          Ui.icon( "files" , Ui.t( "ui.duplicate" ) , () => editStep( Ui.t( "undo.step_added" ) , ( st , s ) => {
+            s.steps.splice( s.steps.indexOf( st ) + 1 , 0 , Object.assign( JSON.parse( JSON.stringify( st ) ) , { id: Schema.uid( "st" ) } ) );
+          } ) ),
           Ui.icon( "trash" , Ui.t( "ui.delete" ) , () => editStep( Ui.t( "undo.step_deleted" ) , ( st , s ) => s.steps.splice( s.steps.indexOf( st ) , 1 ) ) , { variant: "btn-outline-danger" } ),
         ] } ) );
       }
-      list.appendChild( Dom.el( "div" , { class: "step-row" + ( on ? "" : " step-off" ) , children: [
+      const row = Dom.el( "div" , { class: "step-row step-real" + ( on ? "" : " step-off" ) , children: [
         Dom.el( "span" , { class: "step-start small text-body-secondary" , text: on ? Timing.clock( clock ) : "" } ),
         Dom.el( "div" , { class: "step-kind" , children: [ kind ] } ),
         Dom.el( "div" , { class: "step-what" , children: [ what ] } ),
         Dom.el( "div" , { class: "step-min" , children: [ minutes ] } ),
+        Dom.el( "div" , { class: "step-rep" , children: [ times ] } ),
         tail,
-      ] } ) );
+      ] } );
+      if ( !Doc.readOnly ) row.prepend( this.grip( row , list , session , step ) );
+      list.appendChild( row );
       if ( on ) {
-        clock += seconds;
+        clock += length;
         previous = step;
       }
     } );

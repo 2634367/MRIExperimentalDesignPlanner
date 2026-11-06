@@ -431,7 +431,8 @@ const Charts = {
       lastWidth = host.clientWidth;
       host.replaceChildren( make( false , lastWidth || undefined ) );
     };
-    new ResizeObserver( () => { if ( Math.abs( host.clientWidth - lastWidth ) >= 2 ) draw(); } ).observe( host );
+    // A width of 0 is a screen going away, maybe with its document.
+    new ResizeObserver( () => { if ( host.clientWidth > 0 && Math.abs( host.clientWidth - lastWidth ) >= 2 ) draw(); } ).observe( host );
     draw();
     return Dom.el( "div" , { class: "chart" , children: [ host , this.downloads( ( light ) => make( light ) , filename ) ] } );
   },

@@ -8,6 +8,12 @@
 // server answers 409 and the conflict banner offers to reload theirs or keep
 // this one -- nothing is overwritten silently.
 //
+// An open page also follows other people's edits. Every few seconds, while it
+// can be seen, it asks how far the experiment has got. With nothing unsaved
+// here it takes their version; with unsaved work it shows the conflict banner
+// at once rather than at the next save. A half-typed field waits: its text
+// would be lost. If the experiment has gone, a banner says so.
+//
 // A share link opens a document read-only: change() refuses, and nothing is
 // ever saved.
 const Doc = {
@@ -22,7 +28,11 @@ const Doc = {
   saving: false,
   dirty: false,
   conflict: false,
+  gone: false,
+  followTimer: 0,
+  typingIn: null,
   SAVE_DELAY: 700,
+  FOLLOW_EVERY: 6000,
 
   on( listener ) {
     this.listeners.push( listener );
@@ -52,6 +62,7 @@ const Doc = {
     this.shareCredential = settings.shareCredential || "";
     this.dirty = false;
     this.setConflict( false );
+    this.setGone( false );
     if ( !this.readOnly ) {
       try { window.localStorage.setItem( "last-experiment" , row.id ); } catch ( error ) { /* not remembered */ }
       const url = new URL( window.location.href );
@@ -119,7 +130,7 @@ const Doc = {
   },
 
   async save() {
-    if ( !this.doc || this.readOnly || this.conflict ) return;
+    if ( !this.doc || this.readOnly || this.conflict || this.gone ) return;
     if ( this.saving ) {
       this.scheduleSave();
       return;
@@ -169,6 +180,91 @@ const Doc = {
     this.conflict = on;
     Dom.show( Dom.get( "conflict-banner" ) , on );
     if ( on ) this.showSaveState( "conflict" );
+  },
+
+  setGone( on ) {
+    this.gone = on;
+    Dom.show( Dom.get( "gone-banner" ) , on );
+    Dom.show( Dom.get( "gone-leave" ) , !this.shareCredential );
+    if ( on ) Dom.text( Dom.get( "gone-text" ) , I18n.get( this.shareCredential ? "doc.gone_shared" : "doc.gone" ) );
+  },
+
+  // -- following other people's edits ---------------------------------------
+
+  // Start asking. One timer for the whole page; what it asks about depends on
+  // what is on screen, so a tab costs the server one small request at a time.
+  follow() {
+    document.addEventListener( "input" , ( event ) => { this.typingIn = event.target; } );
+    document.addEventListener( "change" , () => { this.typingIn = null; } );
+    document.addEventListener( "visibilitychange" , () => { if ( !document.hidden ) this.tick(); } );
+    this.tick();
+  },
+
+  async tick() {
+    window.clearTimeout( this.followTimer );
+    try {
+      if ( !document.hidden ) await this.followScreen();
+    } catch ( error ) {
+      // A missed check is made up for by the next.
+    }
+    this.followTimer = window.setTimeout( () => this.tick() , this.FOLLOW_EVERY );
+  },
+
+  // A field holding text it has not committed yet: repainting would lose it.
+  typing() {
+    return Boolean( this.typingIn && this.typingIn.isConnected && this.typingIn === document.activeElement );
+  },
+
+  followScreen() {
+    const screen = Nav.current();
+    if ( screen === "scanners" ) return Scanners.follow();
+    if ( screen === "experiments" ) return Experiments.follow();
+    return this.followDoc();
+  },
+
+  async followDoc() {
+    if ( !this.doc || this.conflict || this.saving || this.gone ) return;
+    const id = this.id;
+    const credential = this.shareCredential;
+    let row;
+    try {
+      row = credential ? await Api.sharedRevision( credential ) : await Api.experimentRevision( id );
+    } catch ( error ) {
+      if ( error.status === 404 && id === this.id ) this.setGone( true );
+      return;
+    }
+    if ( id !== this.id || this.saving || row.revision <= this.revision ) return;
+    if ( this.dirty ) {
+      this.setConflict( true );
+      return;
+    }
+    if ( this.typing() ) return;
+    const fresh = credential ? await Api.openShared( credential ) : await Api.getExperiment( id );
+    if ( id !== this.id || this.saving || this.dirty || this.typing() ) return;
+    this.takeTheirs( fresh , row.updated_by_name );
+  },
+
+  // Their version, without touching where you are on the page. Undo history
+  // goes: it was steps on a document that is no longer this one.
+  takeTheirs( row , who ) {
+    this.revision = row.revision;
+    this.row = Object.assign( this.row , row );
+    this.doc = Schema.normalise( row.doc );
+    Undo.clear();
+    this.emit( "remote" );
+    this.showSaveState( "saved" );
+    Dom.toast( who ? I18n.get( "doc.followed" ).replace( "{name}" , who ) : I18n.get( "doc.followed_you" ) , "ok" );
+  },
+
+  // Off a screen that needs this experiment, back to the list.
+  async leaveGone() {
+    this.dirty = false;
+    Undo.clear();
+    this.close();
+    this.setGone( false );
+    await Experiments.load();
+    Nav.show( "experiments" );
+    Designer.repaint( "experiments" );
   },
 
   // The conflict banner's two answers.
