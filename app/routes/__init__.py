@@ -318,6 +318,9 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/experiments/{experiment_id}/published/figures/{name}", published.serve_figure),
         signed_in("/api/experiments/{experiment_id}/seen", psychopy.read_seen, ["POST"]),
         signed_in("/api/experiments/{experiment_id}/seen/add", psychopy.add_seen, ["POST"]),
+        signed_in("/api/experiments/{experiment_id}/results", psychopy.read_results),
+        signed_in("/api/experiments/{experiment_id}/results/add", psychopy.add_results, ["POST"]),
+        signed_in("/api/experiments/{experiment_id}/results/remove", psychopy.remove_result, ["POST"]),
         signed_in("/api/experiments/{experiment_id}/report", report.download_report, ["POST"]),
         # Share links are credentials, so making one needs a session; listing
         # and revoking are safe for a key.

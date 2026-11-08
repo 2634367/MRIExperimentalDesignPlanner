@@ -104,6 +104,19 @@ const Compile = {
     return list.items.filter( ( item ) => tt.filter.values.includes( item.values[ tt.filter.column ] == null ? "" : String( item.values[ tt.filter.column ] ) ) );
   },
 
+  // What a phase listens for, and the key it expects from this item, if it
+  // scores responses: the fixed key, or the one the item's value in the
+  // chosen column stands for. An item whose value has no key is not scored,
+  // and neither is one only listed among the keys it cannot press.
+  response( phase , item ) {
+    const out = { keys: phase.response.keys.slice() , ends_phase: phase.response.ends_phase };
+    const want = phase.response.correct;
+    const value = want.column && item ? String( item.values[ want.column ] == null ? "" : item.values[ want.column ] ) : "";
+    const key = want.column ? want.map[ value ] || "" : want.key;
+    if ( key && out.keys.includes( key ) ) out.correct = key;
+    return out;
+  },
+
   // The item's text and number columns, for the logs: { key: value }, empty
   // values left out.
   itemValues( item , list ) {
@@ -319,7 +332,7 @@ const Compile = {
             segment.item_label = label;
             segment.item_values = this.itemValues( picked.item , picked.list );
           }
-          if ( phase.response.keys.length ) segment.response = { keys: phase.response.keys.slice() , ends_phase: phase.response.ends_phase };
+          if ( phase.response.keys.length ) segment.response = this.response( phase , picked.item );
           push( segment , { trial_type: tt.id , phase: phase.id } );
         } );
         trialIndex += 1;
@@ -406,7 +419,7 @@ const Compile = {
         segment.item_label = this.itemLabel( item , list );
         segment.item_values = this.itemValues( item , list );
       }
-      if ( phase.response.keys.length ) segment.response = { keys: phase.response.keys.slice() , ends_phase: phase.response.ends_phase };
+      if ( phase.response.keys.length ) segment.response = this.response( phase , item );
       segments.push( segment );
       t += segment.duration;
     } );

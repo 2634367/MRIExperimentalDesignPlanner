@@ -1,6 +1,6 @@
 // Wires the design screens together. Each screen (experiments.js,
 // overview.js, prompts.js, media.js, trials.js, runs.js, sessions.js,
-// hrfview.js, report.js) owns
+// results.js, hrfview.js, report.js) owns
 // its own render( root ); this file decides when they run:
 //
 //   - after every change to the open experiment (Doc.on), the screen on
@@ -13,10 +13,10 @@ const Designer = {
   screens: {},
   stale: {},
   // Screens that need an open experiment.
-  docScreens: [ "overview" , "prompts" , "pictures" , "trials" , "runs" , "sessions" , "hrf" , "report" , "settings" ],
+  docScreens: [ "overview" , "prompts" , "pictures" , "trials" , "runs" , "sessions" , "results" , "hrf" , "report" , "settings" ],
 
   register() {
-    [ Experiments , Overview , Prompts , MediaLibrary , Trials , Runs , Sessions , HrfView , Report , Settings , Scanners ].forEach( ( screen ) => {
+    [ Experiments , Overview , Prompts , MediaLibrary , Trials , Runs , Sessions , Results , HrfView , Report , Settings , Scanners ].forEach( ( screen ) => {
       this.screens[ screen.name ] = screen;
       this.stale[ screen.name ] = true;
     } );
@@ -101,9 +101,10 @@ const Designer = {
     Dom.show( Dom.get( "signed-in" ) , true );
     Dom.show( Dom.get( "share-banner" ) , true );
     Dom.text( Dom.get( "share-banner-text" ) , I18n.get( "share.banner" ).replace( "{name}" , row.name ) );
-    // Only the design screens; no account, no experiments list.
-    Dom.all( "#sidebar-nav > .nav-link, #sidebar-admin, #sidebar-you, [data-nav=\"experiments\"], [data-nav=\"scanners\"]" ).forEach( ( node ) => node.remove() );
-    Dom.all( '.view[data-view="experiments"], .view[data-view="scanners"], .view[data-view="account"], .view[data-view="appearance"], .view[data-view="pin"], .view[data-view="api-keys"]' ).forEach( ( node ) => node.remove() );
+    // Only the design screens; no account, no experiments list, and no
+    // results, which name participants.
+    Dom.all( "#sidebar-nav > .nav-link, #sidebar-admin, #sidebar-you, [data-nav=\"experiments\"], [data-nav=\"scanners\"], [data-nav=\"results\"]" ).forEach( ( node ) => node.remove() );
+    Dom.all( '.view[data-view="experiments"], .view[data-view="scanners"], .view[data-view="account"], .view[data-view="appearance"], .view[data-view="pin"], .view[data-view="api-keys"], .view[data-view="results"]' ).forEach( ( node ) => node.remove() );
     Nav.fallback = "overview";
     this.chrome();
     Dom.show( Dom.get( "sidebar-design" ) , true );

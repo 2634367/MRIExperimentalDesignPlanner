@@ -17,7 +17,7 @@
 //   media[]      pictures: { id (sha256), name, ext, w, h, ... }
 //   lists[]      prompt lists: { columns[{ key, label, type }], items[{ id, values{} }] }
 //   trial_types[] { list, filter{ column, values[] }, order, balance_by, no_repeat,
-//                  phases[{ duration, layers[], response, modelled }] }
+//                  phases[{ duration, layers[], response{ keys, ends_phase, correct }, modelled }] }
 //   runs[]       { tr, dummy_volumes (0 / -1: the scanner's), card, instructions, lead_in, lead_out,
 //                  blocks[{ mix[{ trial_type, count }], repeat, order, rest_after }] }
 //   sessions[]   { count, auto_break_minutes, steps[{ kind: run|scan|break, run, name, minutes, card, repeat }] }
@@ -143,7 +143,7 @@ const Schema = {
     return Object.assign( this.duration( this.DEFAULT_JITTER , a , b ) , { inherit: true } );
   },
   phase( name , duration , layers ) {
-    return { id: this.uid( "ph" ) , name: name || "" , duration: duration || this.duration( "fixed" , 1 ) , layers: layers || [] , response: { keys: [] , ends_phase: false } , modelled: false };
+    return { id: this.uid( "ph" ) , name: name || "" , duration: duration || this.duration( "fixed" , 1 ) , layers: layers || [] , response: { keys: [] , ends_phase: false , correct: { column: "" , key: "" , map: {} } } , modelled: false };
   },
   trialType( name ) {
     return {
@@ -198,6 +198,18 @@ const Schema = {
     const keys = ( value , fallback ) => {
       const list = Array.isArray( value ) ? value : typeof value === "string" ? value.split( /[\s,]+/ ) : fallback;
       return list.map( ( k ) => String( k ).trim() ).filter( ( k ) => /^[A-Za-z0-9_]{1,20}$/.test( k ) );
+    };
+    // The key a phase expects, to score a response right or wrong: one fixed
+    // key (column ""), or the key each value of a list column stands for
+    // (answer: yes -> 1, no -> 2). key "" with column "" scores nothing.
+    const correct = ( value ) => {
+      const column = value && /^[a-z_][a-z0-9_]*$/.test( value.column ) ? value.column : "";
+      const one = ( k ) => ( typeof k === "string" && /^[A-Za-z0-9_]{1,20}$/.test( k ) ? k : "" );
+      const map = {};
+      if ( column && value.map && typeof value.map === "object" ) {
+        Object.keys( value.map ).slice( 0 , 200 ).forEach( ( v ) => { if ( one( value.map[ v ] ) ) map[ v ] = value.map[ v ]; } );
+      }
+      return { column: column , key: column ? "" : one( value && value.key ) , map: map };
     };
     const pos = ( value ) => ( Array.isArray( value ) && value.length === 2 ? [ num( value[ 0 ] , 0 , -10 , 10 ) , num( value[ 1 ] , 0 , -10 , 10 ) ] : [ 0 , 0 ] );
 
@@ -359,7 +371,10 @@ const Schema = {
           id: id( ph && ph.id , "ph" ) , name: str( ph && ph.name ) ,
           duration: duration( ph && ph.duration ) ,
           layers: layers( ph && ph.layers ) ,
-          response: { keys: keys( ph && ph.response && ph.response.keys , [] ) , ends_phase: Boolean( ph && ph.response && ph.response.ends_phase ) },
+          response: {
+            keys: keys( ph && ph.response && ph.response.keys , [] ) , ends_phase: Boolean( ph && ph.response && ph.response.ends_phase ) ,
+            correct: correct( ph && ph.response && ph.response.correct ) ,
+          },
           modelled: Boolean( ph && ph.modelled ),
         } ) ),
       } ) ),

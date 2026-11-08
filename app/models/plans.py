@@ -122,6 +122,11 @@ def _keys(value: Any, where: str) -> None:
             _fail(f"{where}[{index}]", "must be a key name like space, escape, 1 or a")
 
 
+def _key(value: Any, where: str) -> None:
+    if not isinstance(value, str) or not KEY.match(value):
+        _fail(where, "must be a key name like space, escape, 1 or a")
+
+
 def _item_values(value: Any, where: str) -> None:
     """The drawn item's columns, { column key: text }, logged with the trial."""
     if not isinstance(value, dict) or len(value) > MAX_ITEM_VALUES:
@@ -188,7 +193,7 @@ def _segment(value: Any, where: str) -> None:
             "item": _string(MAX_NAME),
             "item_label": _string(MAX_TEXT),
             "item_values": _item_values,
-            "response": lambda response, at: _object(response, at, {"keys": _keys}, {"ends_phase": _boolean}),
+            "response": lambda response, at: _object(response, at, {"keys": _keys}, {"ends_phase": _boolean, "correct": _key}),
         },
     )
 

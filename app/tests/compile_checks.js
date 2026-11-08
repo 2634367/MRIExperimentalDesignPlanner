@@ -430,6 +430,23 @@ check( "old phases follow it" , run( "imported.trial_types[ 0 ].phases[ 0 ].dura
 check( "the old fixation is the design's mark" , run( "imported.fixation.layers[ 0 ].text === 'o' && imported.trial_types[ 0 ].phases[ 0 ].layers[ 0 ].kind === 'fixation'" ) );
 check( "an old count becomes a repeat" , run( "imported.sessions[ 0 ].steps.length === 1 && imported.sessions[ 0 ].steps[ 0 ].repeat === 3" ) );
 
+// Expected keys: from a column through a value -> key table, or fixed.
+run( `
+  var scored = Schema.normalise( JSON.parse( JSON.stringify( doc ) ) );
+  var press = scored.trial_types.find( ( tt ) => tt.phases.some( ( p ) => p.response.keys.length ) );
+  var pressPhase = press.phases.find( ( p ) => p.response.keys.length );
+  var pressList = scored.lists.find( ( l ) => l.id === press.list );
+  pressPhase.response.correct = { column: "answer" , key: "" , map: { yes: "1" , no: "2" } };
+  var yesItem = pressList.items.find( ( i ) => i.values.answer === "yes" );
+  var noItem = pressList.items.find( ( i ) => i.values.answer === "no" );
+` );
+check( "a column's value picks the expected key" , run( "Compile.response( pressPhase , yesItem ).correct === '1' && Compile.response( pressPhase , noItem ).correct === '2'" ) );
+check( "a value with no key is not scored" , run( "Compile.response( pressPhase , { values: { answer: 'maybe' } } ).correct === undefined" ) );
+check( "a fixed key is expected of every item" , run( "pressPhase.response.correct = { column: '' , key: '2' , map: {} }; Compile.response( pressPhase , yesItem ).correct === '2'" ) );
+check( "a key the phase does not record is never expected" , run( "pressPhase.response.correct = { column: '' , key: 'q' , map: {} }; Compile.response( pressPhase , yesItem ).correct === undefined" ) );
+check( "an unscored phase stays as it was" , run( "JSON.stringify( Compile.response( doc.trial_types.find( ( tt ) => tt.id === press.id ).phases.find( ( p ) => p.response.keys.length ) , yesItem ) ) === JSON.stringify( { keys: [ '1' , '2' ] , ends_phase: true } )" ) );
+check( "normalise keeps a column's table and drops bad keys" , run( "JSON.stringify( Schema.normalise( { trial_types: [ { phases: [ { response: { keys: [ '1' ] , correct: { column: 'answer' , map: { yes: '1' , no: 'bad key' } } } } ] } ] } ).trial_types[ 0 ].phases[ 0 ].response.correct ) === JSON.stringify( { column: 'answer' , key: '' , map: { yes: '1' } } )" ) );
+
 if ( failures.length ) {
   console.log( failures.join( "\n" ) );
   process.exit( 1 );

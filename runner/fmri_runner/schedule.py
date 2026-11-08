@@ -355,6 +355,9 @@ class Player:
         total = sum(1 for segment in self.plan["segments"] if segment["kind"] != "instructions")
         answered = sum(1 for segment in record["segments"] if segment.get("response"))
         parts = [f"{len(record['segments'])}/{total} segments", f"{answered} responses"]
+        scored = [segment for segment in record["segments"] if "correct" in segment]
+        if scored:
+            parts.append(f"{sum(1 for segment in scored if segment['correct'])}/{len(scored)} correct")
         pulses = record.get("pulses")
         if pulses and pulses["expected"] is not None:
             parts.append(f"{pulses['seen']}/{pulses['expected']} pulses")
@@ -397,10 +400,15 @@ class Player:
                 if segment.get("item") and segment["item"] not in record["shown_items"]:
                     record["shown_items"].append(segment["item"])
                 onset, offset, answered = self._present(segment, stims, t_end, upcoming)
+                expected = (segment.get("response") or {}).get("correct")
                 measured = {
                     "index": index, "kind": segment["kind"], "label": segment["label"],
                     "planned_onset": segment["onset"], "onset": onset, "offset": offset, "response": answered,
                 }
+                if expected:
+                    # No answer is a wrong one; the response column says which.
+                    measured["expected"] = expected
+                    measured["correct"] = bool(answered and answered["key"] == expected)
                 record["segments"].append(measured)
                 self.log.log("segment", **{k: v for k, v in measured.items() if k != "response"},
                              trial=segment.get("trial"), item=segment.get("item"),
@@ -419,6 +427,8 @@ class Player:
                     "response": answered["key"] if answered else None,
                     "response_time": answered["rt"] if answered else None,
                     "planned_onset": segment["onset"],
+                    "expected_response": expected,
+                    "correct": (1 if measured["correct"] else 0) if expected else None,
                 }
                 for key, value in (segment.get("item_values") or {}).items():
                     row.setdefault("item_" + key, value)

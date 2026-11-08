@@ -61,6 +61,7 @@ Press **Add phase** for each screen in the trial. For each one, set:
 - **Model this phase in the HRF analysis (one regressor)**: tick this on the phases you will analyse.
 - **Record keys**: the keys to record in this phase, for example `1, 2`. The first press is the response, with its time. Every press stays in the run record.
 - **Blank the screen after a response**: this clears the screen when the key comes. The phase still runs to its full length, so the timing does not change.
+- **Expected key**: which key is right, so answers can be scored. **Always 1** expects the same key on every trial. **From column: Answer** lists each value of that column this trial type can draw (yes, no) and lets you pick a key for each: yes → 1, no → 2. For an opposite-answer control, map them the other way round. A value left on **not scored**, such as a question with no right answer, is not counted. The runner writes `expected_response` and `correct` into the events file, and **Results** shows accuracy and reaction times.
 
 A response key must not also be the **Trigger key**. **Things to fix** flags that as an error, and the runner refuses to start in wait mode.
 
@@ -398,7 +399,7 @@ The app records what each participant has actually been shown, so a later visit 
 This comes from run records, not plans. A run stopped early counts for exactly what reached the screen. A bundle that was never played counts for nothing.
 
 - **Run in PsychoPy** records it when the runner exits.
-- **Download for PsychoPy**: press **Add run results** and choose the `.json` run records from the bundle's data folder. Adding a file twice changes nothing.
+- **Download for PsychoPy**: press **Add run results** and choose the `.json` run records from the bundle's data folder. They go on Results too. Adding a file twice changes nothing.
 - **Play in browser** records nothing.
 - Pilots, single-trial previews and runs with no participant do not count.
 
@@ -419,6 +420,8 @@ Quit keys stop the run. Whatever ran is saved. The runner prints the `--from-run
 Between runs, the screen shows the planned break, and a continue key starts the next run. That gives you time to restart the scanner.
 
 Results are named and laid out as in [the README](README.md#where-results-go). Each start of the runner gets its own folder, so nothing is overwritten. Before you trust a run, read its closing line: segments played, responses, pulses seen against planned, and dropped frames.
+
+The **Results** screen keeps that check for every run. A local launch's runs appear when PsychoPy closes. For a bundle, press **Add run results** (on Results or in the run dialog) and choose the `.json` records. Each run gets a verdict: **OK**, **Check** (late screens, dropped frames, a quiet scanner) or **Unusable** (stopped, failed, paused, or pulses that do not cover the run), with the reasons beside it. Use **Everyone** to pick one participant. Where phases have an Expected key, each run also shows how many answers were right, the misses and the mean reaction time of right answers, and **Behaviour** adds these up per participant, or per trial type for one participant.
 
 ### Before a real participant
 

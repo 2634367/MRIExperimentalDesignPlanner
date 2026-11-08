@@ -31,7 +31,7 @@ from app.core.request_id import RequestID
 from app.core.request_log import RequestLog
 from app.core.security import LoadActor
 from app.core.static_files import StaticServer
-from app.models import experiments, published, scanner_cards, seen, share_links
+from app.models import experiments, published, results, scanner_cards, seen, share_links
 from app.models import webhooks as webhook_models
 from app.routes import build_routes
 
@@ -42,13 +42,14 @@ CONFIG_POLL_SECONDS = 2
 def purge_designer(store: db.Store, storage_dir: Path) -> tuple[str, str]:
     """The designer's own housekeeping, as a job beside the template's purge
     (app/core/housekeeping.py): deleted experiments past their undo window,
-    share links whose experiment is gone, seen/published records with no
+    share links whose experiment is gone, seen/published/results records with no
     experiment, and deleted scanner cards. Like the template's purge, every
     step runs even when one fails, and the errors are reported together."""
     steps: tuple[tuple[str, Callable[[], int | None]], ...] = (
         ("deleted experiments", lambda: experiments.purge_deleted_experiments(store)),
         ("orphaned share links", lambda: share_links.purge_orphaned_share_links(store)),
         ("orphaned seen records", lambda: seen.purge_orphans(store)),
+        ("orphaned run results", lambda: results.purge_orphans(store)),
         ("orphaned published plans", lambda: published.purge_orphans(store, storage_dir)),
         ("deleted scanner cards", lambda: scanner_cards.purge_deleted_cards(store)),
     )

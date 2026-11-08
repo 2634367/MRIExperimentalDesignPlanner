@@ -131,7 +131,7 @@ To reword the UI in a container, put a `language.yaml` in the data directory. It
 |---|---|
 | `app/` | The Starlette server. `python -m app` is the single entry point. |
 | `app/routes/` | HTTP handlers and MCP tools. `__init__.py` is the complete URL map. |
-| `app/models/` | Records and their rules: experiments, plans, actions, published copies, scanner cards, seen items, keys, users. |
+| `app/models/` | Records and their rules: experiments, plans, actions, published copies, scanner cards, seen items, run results, keys, users. |
 | `app/core/` | Config, database, encryption, security guards, bundle building, report building, starting PsychoPy. |
 | `app/mcp/` | The JSON-RPC protocol and the shape of a tool. |
 | `app/seed/scanner_cards/` | The cards an empty library starts with. |
@@ -154,6 +154,7 @@ The sidebar shows the design screens once an experiment is open.
 | Design | Trial types | Phases, durations, jitter, what is on screen, recorded keys, which phases are modelled. Predicted response graph. |
 | Design | Runs | Instructions, lead-in, blocks, rests, lead-out. Length, volumes, timeline and Design efficiency. |
 | Design | Sessions | Steps of a visit: runs, other scans, breaks. |
+| Design | Results | How each run brought back went: screens shown, onset error, dropped frames, pulses, and a verdict. Not on a share link. |
 | Setup | Overview | Name and identity fields, scanner hours, calendar, limits, trial totals, Things to fix. |
 | Setup | Prompts | Prompt lists: columns, items, CSV import and export. |
 | Setup | Pictures | Every picture the experiment can show. |
@@ -275,6 +276,7 @@ sub-01_ses-01_task-MyStudy_acq-pilot_run-01    a shortened run
 | `item`, `item_label` | The drawn item's id, and the item as shown. |
 | `response`, `response_time` | The first key pressed on this screen, and its time from the measured onset. |
 | `planned_onset` | The onset in the plan, from t0. |
+| `expected_response`, `correct` | The key the phase's Expected key asks for, and `1` if the first key pressed was it, `0` if another key or none. `n/a` on screens that are not scored. |
 | `item_<column>` | One column for each text or number column of the drawn items. |
 
 Empty values are `n/a`.
@@ -282,7 +284,7 @@ Empty values are `n/a`.
 `<name>.json` is the run record:
 
 - the whole plan
-- the measured onset of every segment
+- the measured onset of every segment, and on a scored screen its `expected` key and whether the answer was `correct`
 - every press and trigger
 - `shown_items`, the items actually shown
 - `dropped_frames` and `worst_frame_ms`
@@ -293,6 +295,22 @@ Empty values are `n/a`.
 - `debug` and `pauses`, in debug mode
 
 It says `"aborted": true` from the moment the run starts until it is saved, so a crash cannot pass for a finished run.
+
+### The Results screen
+
+Each run record that reaches the app goes on Results: a local launch's when the runner exits, and a bundle's through **Add run results**. Pilots and debug runs are listed. Single-trial previews are not. Removing a run from Results leaves its files alone.
+
+`app/models/results.py` works out each run's numbers and verdict:
+
+| Verdict | When |
+|---|---|
+| Unusable | Stopped early, failed, paused in debug, or pulses seen differ from the plan by more than one. |
+| Check | The worst screen was over 1.5 frames late, the mean onset error over half a frame, frames were dropped, or the scanner went quiet for 3 TRs. |
+| OK | None of these. |
+
+Simulated-pulse and no-scanner runs are labelled, not marked down: fine for checking a task, not for data.
+
+Where a phase has an **Expected key** (Trial types, on a phase that records keys), answers are scored: right out of scored, misses, and the mean reaction time of right answers, per run in the table. Under it, **Behaviour** adds them up per participant, or per trial type when one participant is chosen, leaving out pilots and paused runs.
 
 ## Tests
 

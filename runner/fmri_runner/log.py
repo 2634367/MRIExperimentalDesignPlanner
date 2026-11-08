@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 TSV_COLUMNS = ["onset", "duration", "trial_type", "phase", "trial", "block", "item", "item_label",
-               "response", "response_time", "planned_onset"]
+               "response", "response_time", "planned_onset", "expected_response", "correct"]
 COLUMN_MEANINGS = {
     "onset": {"Description": "Measured time of the first frame, from t0, the trigger the run started on", "Units": "s"},
     "duration": {"Description": "Measured time on screen", "Units": "s"},
@@ -43,6 +43,9 @@ COLUMN_MEANINGS = {
     "response": {"Description": "First key pressed on this screen; the run record has every press"},
     "response_time": {"Description": "That press, from the measured onset", "Units": "s"},
     "planned_onset": {"Description": "Onset in the plan, from t0", "Units": "s"},
+    "expected_response": {"Description": "The key the design expects on this screen, when it scores responses"},
+    "correct": {"Description": "1 if the first key pressed was the expected one, 0 if another key or none; n/a when not scored",
+                "Levels": {"1": "correct", "0": "wrong or no response"}},
 }
 
 

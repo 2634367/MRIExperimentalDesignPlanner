@@ -14,7 +14,7 @@ from starlette.responses import JSONResponse, Response
 from app.core import bundle, psychopy
 from app.core.db import Store
 from app.core.security import actor_from, check_csrf
-from app.models import experiments, seen
+from app.models import experiments, results, seen
 from app.models.experiments import NoSuchExperimentError
 from app.models.plans import BadPlanError, check_plans
 from app.routes.helpers import bad_request, conflict, error, forbidden, get_config, get_store, not_found, read_json, run
@@ -61,9 +61,18 @@ def _launch(store: Store, cfg, experiment_id: str, user_id: int, body: dict) -> 
     launch = psychopy.start(
         cfg, checked, files, user_id, (label or experiment.name)[:200],
         body.get("scanner", "wait"), body.get("windowed") is True, body.get("screen", 0), body.get("debug") is True,
-        on_end=lambda folder: seen.add_folder(store, experiment.id, folder), flip=body.get("flip", "none"),
+        on_end=lambda folder: _collect(store, experiment.id, folder), flip=body.get("flip", "none"),
     )
     return launch.row()
+
+
+def _collect(store: Store, experiment_id: str, folder) -> None:
+    """What a finished launch left: what was seen, and how each run went.
+    One failing does not stop the other."""
+    try:
+        seen.add_folder(store, experiment_id, folder)
+    finally:
+        results.add_folder(store, experiment_id, folder)
 
 
 async def launch(request: Request) -> Response:
@@ -125,6 +134,64 @@ async def add_seen(request: Request) -> Response:
     except seen.BadRunError as refusal:
         return bad_request(str(refusal))
     return JSONResponse({"added": added})
+
+
+def _read_results(store: Store, experiment_id: str, user_id: int) -> dict:
+    experiment = experiments.experiment_for(store, experiment_id, user_id)
+    return {"runs": results.read(store, experiment.id)}
+
+
+async def read_results(request: Request) -> Response:
+    """How every run brought back went, newest first, each with a verdict."""
+    try:
+        row = await run(_read_results, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id)
+    except NoSuchExperimentError:
+        return not_found("no such experiment")
+    return JSONResponse(row)
+
+
+def _add_results(store: Store, experiment_id: str, user_id: int, records: object) -> int:
+    experiment = experiments.experiment_for(store, experiment_id, user_id)
+    return results.add_records(store, experiment.id, records)
+
+
+async def add_results(request: Request) -> Response:
+    """Run records brought back from a bundle, trimmed by the run dialog to
+    what results.summarise reads."""
+    body = await read_json(request)
+    if body is None:
+        return bad_request("malformed request body")
+    if not check_csrf(request, body.get("csrf_token")):
+        return forbidden("invalid csrf token")
+    try:
+        added = await run(_add_results, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id, body.get("records"))
+    except NoSuchExperimentError:
+        return not_found("no such experiment")
+    except results.BadRecordError as refusal:
+        return bad_request(str(refusal))
+    return JSONResponse({"added": added})
+
+
+def _remove_result(store: Store, experiment_id: str, user_id: int, name: object) -> bool:
+    experiment = experiments.experiment_for(store, experiment_id, user_id)
+    return isinstance(name, str) and results.remove(store, experiment.id, name)
+
+
+async def remove_result(request: Request) -> Response:
+    """Forget one run's results, for a record brought back by mistake. The
+    files themselves are untouched."""
+    body = await read_json(request)
+    if body is None:
+        return bad_request("malformed request body")
+    if not check_csrf(request, body.get("csrf_token")):
+        return forbidden("invalid csrf token")
+    try:
+        removed = await run(_remove_result, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id, body.get("run"))
+    except NoSuchExperimentError:
+        return not_found("no such experiment")
+    if not removed:
+        return not_found("no such run")
+    return JSONResponse({"removed": True})
 
 
 async def latest_launch(request: Request) -> Response:

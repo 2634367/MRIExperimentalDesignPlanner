@@ -257,6 +257,11 @@ details.ed-section:not([open]) > summary.ed-section-head { border-bottom: 0; }
 /* -- run dialog ---------------------------------------------------------------- */
 .run-summary { padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--app-accent) 8%, var(--app-surface)); }
 .launch-log { max-height: 14rem; overflow: auto; font-size: 0.75rem; padding: 0.5rem; margin: 0; border-radius: var(--app-radius); background: #111; color: #ddd; white-space: pre-wrap; }
+/* Results: the verdict's reasons get room to read as sentences. */
+.results-table td:nth-last-child(2) { min-width: 12rem; }
+/* Expected key: each answer value beside the key it stands for. */
+.expected-pair > span:first-child { flex: 0 0 auto; max-width: 12rem; }
+.expected-pair .form-select { width: auto; }
 
 /* -- the player: full screen, the experiment's own colours ------------------- */
 .player-overlay { position: fixed; inset: 0; z-index: 2000; background: #000; outline: none; cursor: none; }

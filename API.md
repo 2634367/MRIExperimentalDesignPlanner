@@ -134,6 +134,9 @@ A picture is PNG, JPEG, GIF or WebP, named by its sha256. Adding one puts it in 
 | `POST /api/experiments/{id}/bundle` | Key | `{plans: [...]}`, 1 to 64 plans. Answers the zip. |
 | `POST /api/experiments/{id}/seen` | Key | `{participant}`. Answers `{items, runs, highest_visit}`. A POST, so the label stays out of URLs and logs. |
 | `POST /api/experiments/{id}/seen/add` | Key | `{runs: [{experiment, participant, run, items, visit}]}`, at most 200. Answers `{added}`. A run already recorded, or from another experiment, is skipped. |
+| `GET /api/experiments/{id}/results` | Key | `{runs: [...]}`, newest first: each run's numbers from `app/models/results.py` summarise, plus `level` (`ok`, `check`, `bad`) and `reasons`. |
+| `POST /api/experiments/{id}/results/add` | Key | `{records: [...]}`: runner records (`<name>.json`), whole or trimmed as the run dialog sends them, at most 200. Answers `{added}`. A run already kept, a preview, or one from another experiment is skipped. |
+| `POST /api/experiments/{id}/results/remove` | Key | `{run}`, the `run` of a row. Answers `{removed: true}`, or 404. The files are untouched. |
 | `POST /api/experiments/{id}/report` | Key | `{tables, methods, figures, only}`, as the Report screen builds it. `only: "xlsx"` gives the workbook alone. Answers the file. |
 | `GET /api/psychopy` | Key | `{available, reason}`, and when available `python`, `psychopy_version`, `python_version`, `source` and `keyboard`. `?refresh=1` checks again. |
 | `POST /api/experiments/{id}/launch` | Session | `{plans, scanner, windowed, screen, debug, flip, label}`. Answers 201 with the launch. 409 if one is running. 503 if PsychoPy cannot start here. |
@@ -480,10 +483,12 @@ A trial type:
  "list": "list_...", "filter": {"column": "", "values": []},
  "order": "shuffle", "balance_by": "", "balance_pct": 50, "no_repeat": "session",
  "phases": [{"id": "ph_...", "name": "", "duration": {}, "layers": [],
-             "response": {"keys": [], "ends_phase": false}, "modelled": false}]}
+             "response": {"keys": [], "ends_phase": false,
+                          "correct": {"column": "", "key": "", "map": {}}},
+             "modelled": false}]}
 ```
 
-`order` is `shuffle` or `sequential`. `no_repeat` is `session`, `run` or `none`. A `filter` narrows the list to items whose column holds one of `values`; an empty column means every item. A phase that is `modelled` is one regressor.
+`order` is `shuffle` or `sequential`. `no_repeat` is `session`, `run` or `none`. A `filter` narrows the list to items whose column holds one of `values`; an empty column means every item. A phase that is `modelled` is one regressor. A phase's `response.correct` is the key it expects, for scoring: `key` alone for one fixed key, or `column` with `map` from each value of that list column to a key (`{"column": "answer", "map": {"yes": "1", "no": "2"}}`). A value with no key, or a key the phase does not record, is not scored.
 
 A duration:
 
@@ -583,7 +588,7 @@ The format is `fmri-run-plan/1`. A change a runner could misread bumps it, and t
 | `trial_type`, `phase` | no | Names. |
 | `item`, `item_label` | no | The drawn item's id, and its text. |
 | `item_values` | no | `{column key: text}`, at most 32. The text and number columns, for the results. |
-| `response` | no | `{keys: [...], ends_phase}`. |
+| `response` | no | `{keys: [...], ends_phase, correct}`. `correct`, when present, is the key this screen expects, already worked out for its item. |
 
 An `instructions` segment comes before t0, has onset and duration 0, and is shown until a continue key. Other segments must run forward on one clock: a segment cannot start before the one before it ends, to within 1 ms.
 

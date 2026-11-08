@@ -271,10 +271,11 @@ const RunDialog = {
     } );
   },
 
-  // Run records brought back from another machine, so what a bundle showed
-  // counts as seen too. Only what app/models/seen.py needs of each file goes
-  // to the server. Hidden on a share link, which cannot write.
-  resultsButton() {
+  // Run records brought back from another machine: what each showed counts
+  // as seen, and how each went goes on the Results screen. Only what the
+  // server reads of each file is sent (runSummary, trimRecord). Hidden on a
+  // share link, which cannot write. onDone, if given, runs after an upload.
+  resultsButton( onDone ) {
     const t = ( key ) => I18n.get( key );
     if ( Doc.shareCredential ) return null;
     const picker = Dom.el( "input" , { attrs: { type: "file" , accept: ".json" , multiple: "multiple" , hidden: "hidden" } } );
@@ -282,22 +283,35 @@ const RunDialog = {
       const files = Array.from( picker.files );
       picker.value = "";
       const runs = [];
+      const records = [];
       for ( const file of files ) {
         try {
-          const run = this.runSummary( JSON.parse( await file.text() ) );
+          const record = JSON.parse( await file.text() );
+          const run = this.runSummary( record );
           if ( run ) runs.push( run );
+          const trimmed = this.trimRecord( record );
+          if ( trimmed ) records.push( trimmed );
         } catch ( error ) { /* not a run record: skipped, and counted below */ }
       }
       try {
         const row = runs.length ? await Api.addSeen( Doc.id , runs ) : { added: 0 };
-        Dom.toast( t( "run.results_added" ).replace( "{added}" , row.added ).replace( "{files}" , files.length ) , "ok" );
+        let kept = 0;
+        for ( let i = 0; i < records.length; i += this.RECORDS_PER_REQUEST ) {
+          kept += ( await Api.addResults( Doc.id , records.slice( i , i + this.RECORDS_PER_REQUEST ) ) ).added;
+        }
+        Dom.toast( t( "run.results_added" ).replace( "{added}" , row.added ).replace( "{kept}" , kept ).replace( "{files}" , files.length ) , "ok" );
       } catch ( error ) {
         Dom.toast( error.message , "error" );
       }
+      if ( onDone ) onDone();
     } );
     const button = Ui.button( t( "run.results" ) , "upload" , () => picker.click() , { title: t( "run.results_help" ) } );
+    button.disabled = false;
     return Dom.el( "span" , { children: [ picker , button ] } );
   },
+
+  // Small enough that a request of them stays well under the body limit.
+  RECORDS_PER_REQUEST: 20,
 
   // The browser's copy of seen.summarise: the same answer, without sending a
   // whole plan to the server to get it.
@@ -310,6 +324,38 @@ const RunDialog = {
       experiment: plan.experiment ? plan.experiment.id : "" , participant: participant,
       run: plan.run.label + "@" + record.started , items: record.shown_items || [] , visit: plan.visit || 0,
     };
+  },
+
+  // A run record with only what app/models/results.py summarise reads, in
+  // the same shape, so the server works the numbers out once for both ways
+  // in. The plan's screens keep their kind, trial type and expected key; the
+  // measured ones their onsets and the key pressed.
+  trimRecord( record ) {
+    const plan = record && record.plan;
+    if ( !plan || !plan.run || !plan.run.label || plan.run.label.startsWith( "trial-" ) ) return null;
+    const pick = ( from , keys ) => {
+      const out = {};
+      keys.forEach( ( key ) => { if ( from[ key ] !== undefined ) out[ key ] = from[ key ]; } );
+      return out;
+    };
+    const out = pick( record , [ "participant" , "started" , "ended" , "scanner_mode" , "aborted" , "error" , "duration" , "frame_ms" ,
+      "dropped_frames" , "worst_frame_ms" , "pulses" , "pulse_gaps" , "debug" , "pauses" , "flip" , "psychopy" ] );
+    out.plan = Object.assign( pick( plan , [ "participant" , "visit" , "pilot_blocks" , "total_seconds" ] ) , {
+      run: { label: plan.run.label },
+      experiment: { id: plan.experiment ? plan.experiment.id : "" },
+      segments: ( plan.segments || [] ).map( ( s ) => {
+        const kept = { kind: s && s.kind };
+        if ( s && s.trial_type !== undefined ) kept.trial_type = s.trial_type;
+        if ( s && s.response && s.response.correct ) kept.response = { correct: s.response.correct };
+        return kept;
+      } ),
+    } );
+    out.segments = ( record.segments || [] ).map( ( s ) => {
+      const kept = pick( s || {} , [ "index" , "planned_onset" , "onset" , "expected" ] );
+      kept.response = s && s.response ? { key: s.response.key , rt: s.response.rt } : null;
+      return kept;
+    } );
+    return out;
   },
 
   showCommand( box , filename , state ) {
@@ -355,6 +401,11 @@ const RunDialog = {
         children[ 0 ].appendChild( Ui.button( I18n.get( "run.stop" ) , "stop-fill" , async () => {
           try { paint( await Api.stopLaunch( current.id ) ); } catch ( error ) { Dom.toast( error.message , "error" ); }
         } , { small: true , variant: "btn-outline-danger" } ) );
+      }
+      if ( !current.running ) {
+        children.push( Dom.el( "a" , { class: "small" , attrs: { href: "#results" } , text: I18n.get( "run.see_results" ) } ) );
+        // The server reads the records as the runner exits; give it a moment.
+        window.setTimeout( () => Results.load() , 1500 );
       }
       box.replaceChildren( ...children );
       const log = box.querySelector( ".launch-log" );

@@ -66,6 +66,8 @@ BUCKET_CARD_BACKUPS = "scanner_card_backups"
 BUCKET_SEEN = "seen_items"
 # The last Publish of each experiment (app/models/published.py).
 BUCKET_PUBLISHED = "published"
+# How each run went, per experiment (app/models/results.py).
+BUCKET_RESULTS = "run_results"
 
 BUCKETS = (
     BUCKET_USERS,
@@ -87,6 +89,7 @@ BUCKETS = (
     BUCKET_CARD_BACKUPS,
     BUCKET_SEEN,
     BUCKET_PUBLISHED,
+    BUCKET_RESULTS,
 )
 
 # How long a writer waits for another writer before giving up. Without it a

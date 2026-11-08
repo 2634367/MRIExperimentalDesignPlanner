@@ -206,6 +206,48 @@ const Trials = {
     return strip;
   },
 
+  // Which key is right on this phase, so the Results screen can score it:
+  // none, always the same key, or the key each value of a list column stands
+  // for (answer: yes -> 1, no -> 2). Only the values this trial type can draw
+  // are offered, so a filtered trial type shows only its own answers.
+  expectedKey( tt , phase , list , key , editPhase ) {
+    const want = phase.response.correct;
+    const keys = phase.response.keys;
+    const columns = list ? list.columns.filter( ( c ) => c.type !== "image" ) : [];
+    const options = [ [ "" , Ui.t( "trials.expected_none" ) ] ]
+      .concat( keys.map( ( k ) => [ "key:" + k , Ui.t( "trials.expected_always" ).replace( "{key}" , k ) ] ) )
+      .concat( columns.map( ( c ) => [ "col:" + c.key , Ui.t( "trials.expected_column" ).replace( "{column}" , c.label || c.key ) ] ) );
+    const current = want.column ? "col:" + want.column : want.key ? "key:" + want.key : "";
+    const set = ( fn ) => editPhase( Ui.t( "undo.phase_changed" ) , ( p ) => fn( p.response.correct ) );
+    const choose = Ui.select( current , options , ( v ) => set( ( c ) => {
+      const [ kind , name ] = [ v.slice( 0 , 4 ) , v.slice( 4 ) ];
+      c.column = kind === "col:" ? name : "";
+      c.key = kind === "key:" ? name : "";
+      if ( kind !== "col:" ) c.map = {};
+    } ) , { key: key + ".expected" , small: true } );
+    const parts = [ Ui.row( [ Ui.field( "trials.expected" , choose , { col: "col-md-6" , help: Ui.t( "trials.expected_help" ) } ) ] , "mt-1" ) ];
+    if ( want.column && list ) {
+      const values = Array.from( new Set( Compile.itemsFor( tt , list ).map( ( item ) => String( item.values[ want.column ] == null ? "" : item.values[ want.column ] ) ) ) ).sort().slice( 0 , 40 );
+      const grid = Dom.el( "div" , { class: "expected-map d-flex flex-wrap gap-2" } );
+      values.forEach( ( value ) => {
+        const pick = Ui.select( want.map[ value ] || "" , [ [ "" , Ui.t( "trials.expected_not_scored" ) ] ].concat( keys.map( ( k ) => [ k , k ] ) ) , ( v ) => set( ( c ) => {
+          if ( v ) c.map[ value ] = v;
+          else delete c.map[ value ];
+        } ) , { small: true } );
+        pick.setAttribute( "aria-label" , Ui.t( "trials.expected_for" ).replace( "{value}" , value || "–" ) );
+        grid.appendChild( Dom.el( "label" , { class: "expected-pair small d-flex align-items-center gap-1" , children: [
+          Dom.el( "span" , { class: "text-truncate" , text: value || Ui.t( "trials.expected_empty" ) , attrs: { title: value } } ), Dom.el( "span" , { text: "→" } ), pick,
+        ] } ) );
+      } );
+      const unscored = values.filter( ( v ) => !want.map[ v ] || !keys.includes( want.map[ v ] ) ).length;
+      parts.push( values.length ? grid : Ui.muted( Ui.t( "trials.expected_no_values" ) ) );
+      if ( unscored ) parts.push( Ui.muted( Ui.t( "trials.expected_unscored" ).replace( "{n}" , unscored ) , "mt-1" ) );
+    } else if ( want.key && !keys.includes( want.key ) ) {
+      parts.push( Ui.muted( Ui.t( "trials.expected_missing_key" ).replace( "{key}" , want.key ) ) );
+    }
+    return Dom.el( "div" , { children: parts } );
+  },
+
   phaseCard( tt , phase , index , list , item ) {
     const doc = Doc.doc;
     const key = "ph." + phase.id;
@@ -243,6 +285,7 @@ const Trials = {
       Ui.field( "trials.response_keys" , Ui.text( phase.response.keys.join( ", " ) , ( v ) => editPhase( Ui.t( "undo.phase_changed" ) , ( p ) => { p.response.keys = v.split( /[\s,]+/ ).filter( Boolean ); } ) , { key: key + ".keys" , placeholder: Ui.t( "trials.response_placeholder" ) , small: true } ) , { col: "col-md-6" , help: Ui.t( "trials.response_help" ) } ),
       phase.response.keys.length ? Dom.el( "div" , { class: "col-md-6" , children: [ Ui.check( phase.response.ends_phase , Ui.t( "trials.blank_after_response" ) , ( v ) => editPhase( Ui.t( "undo.phase_changed" ) , ( p ) => { p.response.ends_phase = v; } ) , { key: key + ".ends" } ) ] } ) : null,
     ] , "mt-1" ) );
+    if ( phase.response.keys.length ) left.appendChild( this.expectedKey( tt , phase , list , key , editPhase ) );
     left.appendChild( Ui.heading( Ui.t( "trials.on_screen" ) , 4 , "mt-3" ) );
     left.appendChild( LayerEditor.render( {
       layers: phase.layers , list: list , key: key,
