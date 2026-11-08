@@ -14,84 +14,163 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
+from typing import AsyncIterator, Callable
 
-import uvicorn
 from starlette.applications import Starlette
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware import Middleware
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 
-from app.core import assets, bootstrap, config, db, language
+from app.core import assets, bootstrap, config, config_live, db, graceful, housekeeping, jobs, language, logs, server_lock
+from app.core import metrics
+from app.core import sse
+from app.core import webhooks
+from app.core.maintenance import Maintenance
 from app.core.middleware import EXCEPTION_HANDLERS, RateLimit, SecurityHeaders
+from app.core.request_id import RequestID
+from app.core.request_log import RequestLog
 from app.core.security import LoadActor
 from app.core.static_files import StaticServer
-from app.models import api_keys, experiments, invite_links, login_tokens, published, scanner_cards, seen, sessions, share_links
+from app.models import experiments, published, scanner_cards, seen, share_links
+from app.models import webhooks as webhook_models
 from app.routes import build_routes
 
-PURGE_INTERVAL_SECONDS = 60 * 60
+# How often config.yaml is checked for edits made outside the Settings screen.
+CONFIG_POLL_SECONDS = 2
 
 
-def purge_once(store: db.Store, storage_dir: Path) -> None:
-    """Drop expired sessions, expired login tokens, and the API keys and
-    invite links that have been dead long enough to stop being worth listing.
-    None of it is a correctness issue -- every one of those is already refused
-    on read -- so this runs quietly in the background purely to keep the file
-    from growing forever."""
-    removed_sessions = sessions.purge_expired_sessions(store)
-    removed_tokens = login_tokens.purge_expired_login_tokens(store)
-    removed_keys = api_keys.purge_dead_api_keys(store)
-    removed_invites = invite_links.purge_dead_invite_links(store)
-    removed_experiments = experiments.purge_deleted_experiments(store)
-    removed_shares = share_links.purge_orphaned_share_links(store)
-    seen.purge_orphans(store)
-    published.purge_orphans(store, storage_dir)
-    removed_cards = scanner_cards.purge_deleted_cards(store)
-    if removed_sessions or removed_tokens or removed_keys or removed_invites or removed_experiments or removed_shares or removed_cards:
-        print(
-            f"[purge] removed {removed_sessions} expired sessions, {removed_tokens} expired login tokens, "
-            f"{removed_keys} dead api keys, {removed_invites} dead invite links, "
-            f"{removed_experiments} deleted experiments, {removed_shares} orphaned share links, "
-            f"{removed_cards} deleted scanner cards",
-            flush=True,
-        )
-
-
-async def purge_loop(store: db.Store, storage_dir: Path) -> None:
-    while True:
-        await asyncio.sleep(PURGE_INTERVAL_SECONDS)
+def purge_designer(store: db.Store, storage_dir: Path) -> tuple[str, str]:
+    """The designer's own housekeeping, as a job beside the template's purge
+    (app/core/housekeeping.py): deleted experiments past their undo window,
+    share links whose experiment is gone, seen/published records with no
+    experiment, and deleted scanner cards. Like the template's purge, every
+    step runs even when one fails, and the errors are reported together."""
+    steps: tuple[tuple[str, Callable[[], int | None]], ...] = (
+        ("deleted experiments", lambda: experiments.purge_deleted_experiments(store)),
+        ("orphaned share links", lambda: share_links.purge_orphaned_share_links(store)),
+        ("orphaned seen records", lambda: seen.purge_orphans(store)),
+        ("orphaned published plans", lambda: published.purge_orphans(store, storage_dir)),
+        ("deleted scanner cards", lambda: scanner_cards.purge_deleted_cards(store)),
+    )
+    removed: list[str] = []
+    errors: list[str] = []
+    for name, step in steps:
         try:
-            await run_in_threadpool(purge_once, store, storage_dir)
-        except Exception as error:  # noqa: BLE001 -- housekeeping must never take the server down
-            print(f"[purge] failed: {error}", flush=True)
+            count = step()
+        except Exception as error:  # noqa: BLE001 -- the next step still runs
+            errors.append(f"{name}: {error}")
+            continue
+        if count:
+            removed.append(f"{count} {name}")
+    note = f"removed {', '.join(removed)}" if removed else "nothing to remove"
+    if removed:
+        print(f"[purge] {note}", flush=True)
+    return note, "; ".join(errors)
+
+
+async def config_watch(settings: config_live.Holder) -> None:
+    """Apply edits to config.yaml made by hand, or by `config set`, while the
+    server runs. See config_live.Holder.poll."""
+    while True:
+        await asyncio.sleep(CONFIG_POLL_SECONDS)
+        try:
+            await run_in_threadpool(settings.poll)
+        except Exception as error:  # noqa: BLE001 -- a bad poll must never take the server down
+            print(f"[config] check failed: {error}", flush=True)
 
 
 def build_app(
-    cfg: config.Config, store: db.Store, lang: language.Language, static_server: StaticServer, version: str = "dev"
+    settings: config_live.Holder, store: db.Store, lang: language.Language, static_server: StaticServer, version: str = "dev"
 ) -> Starlette:
+    # The configuration the server started with: what is set up once (the
+    # body limit, the log's routes and directory). Everything read per
+    # request comes from settings, which follows edits to config.yaml.
+    cfg = settings.boot()
+    # The activity log writes from its own thread; closing it, last, lets the
+    # final requests make it to disk.
+    logger = logs.Logger(cfg.logs, cfg.secret_key, cfg.encrypt_at_rest)
+
+    # A change to config.yaml reaches the activity log's own settings, and is
+    # reported on stdout and in the log itself.
+    settings.on_change(lambda old, new: logger.apply(new.logs))
+
+    def report(level: str, message: str, detail: dict) -> None:
+        print(f"[config] {message}", flush=True)
+        logger.system(level, message, detail)
+
+    settings.report = report
+
+    registry = jobs.Registry(store, logger)
+    housekeeping.register(registry, store, settings, logger)
+    registry.register("designer-purge", housekeeping.HOUR_SECONDS, lambda: purge_designer(store, cfg.storage_dir))
+    dispatcher = webhooks.Dispatcher(store, settings)
+    dispatcher.registry = registry
+    registry.register(webhooks.JOB_NAME, webhooks.JOB_INTERVAL_SECONDS, dispatcher.run)
+
+    def job_failed(name: str) -> None:
+        # Not its own failure: that would queue a delivery about being unable
+        # to deliver.
+        if name != webhooks.JOB_NAME:
+            dispatcher.emit(webhook_models.EVENT_JOB_FAILED, {"job": name})
+
+    registry.on_failure = job_failed
+    log_hub = sse.Hub()
+    measured = metrics.Metrics()
+
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
-        task = asyncio.create_task(purge_loop(store, cfg.storage_dir))
+        loop = asyncio.get_running_loop()
+        logger.on_flushed = lambda: sse.publish_from_thread(loop, log_hub, sse.CHANGED)
+        dispatcher.loop = loop
+        logger.start()
+        logger.system(logs.LEVEL_INFO, "server started", {"version": version})
+        if cfg.secret_migrated:
+            logger.system(logs.LEVEL_WARN, "secret key moved to secret.key", {"config": str(cfg.config_file), "secret": str(cfg.secret_file)})
+        watcher = asyncio.create_task(config_watch(settings))
+        registry.start()
         try:
             yield
         finally:
-            task.cancel()
+            # By now requests have finished and streams have ended (serve's
+            # on_stop). Jobs next, since they write to the log; the log last.
+            watcher.cancel()
+            dispatcher.loop = None
+            await registry.stop()
+            log_hub.close()
+            logger.on_flushed = None
+            logger.system(logs.LEVEL_INFO, "server stopped")
+            await run_in_threadpool(logger.close)
 
     app = Starlette(
         routes=build_routes(static_server, cfg),
-        # Outermost first. Headers go on everything; the rate limit runs
-        # before anything touches the database, so a flood is cheap to refuse;
-        # then the caller is resolved once for every route behind it.
+        # Outermost first. Every request gets its reference and is counted,
+        # whatever becomes of it; headers go on everything; the body limit is
+        # here rather than Starlette's max_body_size= because that one sits
+        # outside all of this, and its 413 would have neither; the rate limit
+        # runs before anything touches the database, so a flood is cheap to
+        # refuse; then the caller is resolved once for every route behind it;
+        # then each request is written to the activity log, knowing who made
+        # it; and only then can maintenance mode refuse it, knowing who asked.
         middleware=[
-            Middleware(SecurityHeaders, cfg=cfg),
-            Middleware(RateLimit, cfg=cfg),
-            Middleware(LoadActor, store=store, cfg=cfg),
+            Middleware(RequestID),
+            Middleware(metrics.MeasureRequests, metrics=measured),
+            Middleware(SecurityHeaders, settings=settings),
+            Middleware(RequestBodyLimitMiddleware, max_body_size=cfg.body_limit_bytes),
+            Middleware(RateLimit, settings=settings),
+            Middleware(LoadActor, store=store, settings=settings),
+            Middleware(RequestLog, settings=settings, logger=logger),
+            Middleware(Maintenance, store=store, settings=settings),
         ],
         exception_handlers=EXCEPTION_HANDLERS,
         lifespan=lifespan,
-        max_body_size=cfg.body_limit_bytes,
     )
-    app.state.config = cfg
+    app.state.settings = settings
     app.state.store = store
+    app.state.logs = logger
+    app.state.jobs = registry
+    app.state.webhooks = dispatcher
+    app.state.log_hub = log_hub
+    app.state.metrics = measured
     app.state.language = lang
     # Reported to MCP clients as serverInfo.version.
     app.state.version = version
@@ -100,6 +179,14 @@ def build_app(
 
 def serve(version: str) -> None:
     cfg = config.load()
+    if cfg.rotation_pending:
+        raise RuntimeError(config.ROTATION_PENDING_MESSAGE)
+    if cfg.rotation_finished:
+        print(f"[secret] finished a key rotation that had been cut short; the new key is in {cfg.secret_file}", flush=True)
+    # Held until the process ends. See app/core/server_lock.py.
+    lock = server_lock.acquire(cfg.app_dir / config.SERVER_LOCK_NAME, timeout_seconds=5)
+    if lock is None:
+        raise RuntimeError(f"another server is already running on {cfg.app_dir}")
     bundle = assets.resolve(cfg.static_dir, cfg.language_file)
     store = db.open_store(cfg.database_path, cfg.secret_key, cfg.encrypt_at_rest)
     lang = language.parse(bundle.language_yaml)
@@ -110,21 +197,37 @@ def serve(version: str) -> None:
     if seeded:
         print(f"[seed]   {seeded} scanner cards added to the empty library", flush=True)
 
-    app = build_app(cfg, store, lang, static_server, version)
+    app = build_app(config_live.Holder(cfg), store, lang, static_server, version)
 
     print(f"[start] {cfg.project_name} {version} listening on {cfg.listen_address} (secure cookies: {cfg.secure_cookies})")
     print(f"[url]    {cfg.url}  (from {cfg.url_source})")
     if cfg.config_created:
-        print(f"[config] {cfg.config_file} (created, with a new secret key -- back it up)")
+        print(f"[config] {cfg.config_file} (created; edits apply while the server runs)")
     else:
-        print(f"[config] {cfg.config_file}")
+        print(f"[config] {cfg.config_file} (edits apply while the server runs)")
+    if cfg.secret_migrated:
+        print(f"[secret] {cfg.secret_file}")
+        print("[secret] ================================================================")
+        print(f"[secret] MOVED server.secret_key out of {cfg.config_file}")
+        print(f"[secret] into {cfg.secret_file} (mode 0600). config.yaml holds no secret now.")
+        print("[secret] Back secret.key up with the database: nothing else can read it.")
+        print("[secret] ================================================================")
+    elif cfg.secret_created:
+        print(f"[secret] {cfg.secret_file} (created, with a new key -- back it up)")
+    else:
+        print(f"[secret] {cfg.secret_file}")
     if cfg.config_warning:
         print(f"[config] warning: {cfg.config_warning}")
     print(f"[state]  {cfg.app_dir}")
+    if cfg.logs.enabled:
+        print(f"[logs]   {cfg.logs.dir} (keeping {cfg.logs.retention_days} days, up to {cfg.logs.max_total_bytes // 1024 // 1024} MB)")
     print(f"[assets] {bundle.source}", flush=True)
 
-    uvicorn.run(
+    graceful.run(
         app,
+        # Before uvicorn waits for connections: it would otherwise wait the
+        # full 10 seconds for a stream that is never going to finish.
+        on_stop=app.state.log_hub.close,
         host=cfg.host,
         port=cfg.port,
         # An empty Server header keeps the response from advertising which
@@ -141,4 +244,8 @@ def serve(version: str) -> None:
         timeout_graceful_shutdown=10,
         lifespan="on",
         log_level="info",
+        # Every request is in the activity log already, and with logs.echo
+        # on, a one-line summary goes to stdout from there (with the real
+        # client address and who it was); uvicorn's own line would repeat it.
+        access_log=False,
     )

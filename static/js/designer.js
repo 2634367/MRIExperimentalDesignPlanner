@@ -40,9 +40,22 @@ const Designer = {
     Dom.get( "gone-leave" ).addEventListener( "click" , () => Doc.leaveGone() );
   },
 
+  // Everyone an experiment could be shared with. /api/team answers a page at a
+  // time ({ members , next }), and the editor picker needs all of them.
+  async loadTeam() {
+    const members = [];
+    let offset = 0;
+    while ( offset !== null && offset !== undefined ) {
+      const page = await Api.listTeam( offset );
+      members.push( ...page.members );
+      offset = page.next;
+    }
+    return members;
+  },
+
   async init( me ) {
     this.register();
-    Experiments.team = await Api.listTeam().catch( () => [] );
+    Experiments.team = await this.loadTeam().catch( () => [] );
     Dom.show( document.querySelector( '.view[data-view="scanners"]' ) , true );
     // Runs and scan steps pick from the card library, so it loads up front.
     Scanners.load().then( () => {

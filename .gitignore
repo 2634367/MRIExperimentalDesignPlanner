@@ -76,3 +76,10 @@ $RECYCLE.BIN/
 
 # The two projects this one replaced, kept beside it for reference only.
 _old-*/
+
+# From python-webserver 3f84d17: the secret key now lives in its own file
+# beside config.yaml, and Settings/`config set` write temp and backup copies.
+secret.key
+secret.key.*
+.config.yaml.*.tmp
+config.yaml.bak
