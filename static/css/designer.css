@@ -6,8 +6,9 @@
   they show the experiment's own background, not the app's.
 */
 
-/* The editors are wide tables and side-by-side previews. */
-.app-main { max-width: 96rem; }
+/* The editors are wide tables and side-by-side previews: the designer's
+   screens take 96rem, wider than the template's 60rem screens (.view). */
+.view.view-designer { max-width: 96rem; }
 
 /* -- sidebar ---------------------------------------------------------------- */
 /* min-width: 0 so a long name can't widen the column; the name wraps to two
