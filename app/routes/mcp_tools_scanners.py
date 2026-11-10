@@ -14,7 +14,8 @@ from typing import Any
 
 from app.mcp.registry import Call, Refusal, Registry, Tool
 from app.models import scanner_cards
-from app.models.scanner_cards import BadCardError, CardConflictError, NoSuchCardError
+from app.models.scanner_cards import BadCardError, CardConflictError, NoSuchBackupError, NoSuchCardError
+from app.routes.scanner_cards import _backup_rows
 
 CARD_ID = {"type": "string", "description": "The card's id, from list_scanner_cards."}
 CARD_SCHEMA = {
@@ -74,6 +75,29 @@ def set_scanner_parameter(call: Call) -> dict[str, Any]:
         raise Refusal(f"{stale} -- try again") from None
 
 
+def scanner_card_revisions(call: Call) -> dict[str, Any]:
+    call.bind({})
+    return {"revisions": scanner_cards.revisions(call.store)}
+
+
+def list_scanner_card_backups(call: Call) -> dict[str, Any]:
+    args = call.bind({"card_id": str})
+    try:
+        return {"backups": _backup_rows(call.store, args["card_id"])}
+    except NoSuchCardError:
+        raise Refusal(NO_SUCH) from None
+
+
+def restore_scanner_card_backup(call: Call) -> dict[str, Any]:
+    args = call.bind({"card_id": str, "revision": int})
+    try:
+        return _brief(scanner_cards.restore_backup(call.store, args["card_id"], call.actor.user.id, args["revision"]).to_row())
+    except NoSuchCardError:
+        raise Refusal(NO_SUCH) from None
+    except NoSuchBackupError:
+        raise Refusal("no such backup") from None
+
+
 def _schema(properties: dict[str, Any]) -> dict[str, Any]:
     return {"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False}
 
@@ -84,6 +108,7 @@ def register(registry: Registry) -> None:
         title="List scanner cards",
         description="Every card in the team's shared library: id, label, role, note and revision. Read one with get_scanner_card for its parameters.",
         call=list_scanner_cards,
+        route="GET /api/scanner-cards",
         read_only=True,
     ))
     registry.register(Tool(
@@ -91,6 +116,7 @@ def register(registry: Registry) -> None:
         title="Read a scanner card",
         description="One card whole: the console's pages (INFO PAGE, GEOMETRY, ...), each a list of parameter rows, and its revision.",
         call=get_scanner_card,
+        route="GET /api/scanner-cards",
         input_schema=_schema({"card_id": CARD_ID}),
         read_only=True,
     ))
@@ -99,6 +125,7 @@ def register(registry: Registry) -> None:
         title="Add a scanner card",
         description="Add a card to the shared library. Its id comes from its label.",
         call=create_scanner_card,
+        route="POST /api/scanner-cards",
         input_schema=_schema({"card": CARD_SCHEMA}),
     ))
     registry.register(Tool(
@@ -110,6 +137,7 @@ def register(registry: Registry) -> None:
             "changes the card for everyone."
         ),
         call=save_scanner_card,
+        route="POST /api/scanner-cards/{card_id}/save",
         input_schema=_schema({"card_id": CARD_ID, "card": CARD_SCHEMA, "base_revision": {"type": "integer", "minimum": 1}}),
     ))
     registry.register(Tool(
@@ -121,10 +149,36 @@ def register(registry: Registry) -> None:
             "the card for everyone."
         ),
         call=set_scanner_parameter,
+        route="POST /api/scanner-cards/{card_id}/save",
         input_schema=_schema({
             "card_id": CARD_ID,
             "page": {"type": "string", "description": "The page's name, such as CONTRAST."},
             "parameter": {"type": "string", "description": "The parameter's name, such as Flip angle (deg)."},
             "value": {"type": "string"},
         }),
+    ))
+    registry.register(Tool(
+        name="scanner_card_revisions",
+        title="Scanner card revisions",
+        description="Each card's id and revision only: a cheap way to see which cards changed since they were read.",
+        call=scanner_card_revisions,
+        route="GET /api/scanner-cards/revisions",
+        read_only=True,
+    ))
+    registry.register(Tool(
+        name="list_scanner_card_backups",
+        title="A scanner card's backups",
+        description="The earlier versions of a card kept when it was saved over: revision, who saved it and when.",
+        call=list_scanner_card_backups,
+        route="GET /api/scanner-cards/{card_id}/backups",
+        input_schema=_schema({"card_id": CARD_ID}),
+        read_only=True,
+    ))
+    registry.register(Tool(
+        name="restore_scanner_card_backup",
+        title="Put a scanner card back to a backup",
+        description="Makes an earlier version (revision, from list_scanner_card_backups) the card again. What it replaces is kept as a backup too. The library is shared: this changes the card for everyone.",
+        call=restore_scanner_card_backup,
+        route="POST /api/scanner-cards/{card_id}/backups/restore",
+        input_schema=_schema({"card_id": CARD_ID, "revision": {"type": "integer", "minimum": 1}}),
     ))

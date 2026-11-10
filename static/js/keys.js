@@ -1,10 +1,11 @@
-// The API keys screen: what has standing, non-browser access to this app.
+// API keys: what has standing, non-browser access to this app. Your own are a
+// card on the Account screen; an admin's view of every key is its own screen.
 //
 // Its own file with its own init(), per the convention in the frontend
 // reference -- app.js stays the account/admin screen rather than growing a
 // second one. app.js calls Keys.init( me ) once it knows who is signed in.
 //
-// Two sections, and the difference matters: "my keys" is for every signed-in
+// Two places, and the difference matters: "my keys" is for every signed-in
 // user, and the all-keys table is the admin's answer to "who and what can get
 // in". A key created here carries a role from the same set users have, and can
 // never be given more than the account that owns it.
@@ -25,6 +26,11 @@ const Keys = {
     if ( me.api_keys_enabled === false ) return;
 
     Dom.show( Dom.get( "api-keys-panel" ) , true );
+    // What a key can call: openapi.json in app.repo, else the server's own.
+    if ( me.openapi_url ) {
+      Dom.get( "key-spec-link" ).setAttribute( "href" , me.openapi_url );
+      Dom.show( Dom.get( "key-spec-line" ) , true );
+    }
     // Only an admin is offered the role choice. A non-admin has exactly one
     // option, and an "admin" entry the server would refuse is worse than no
     // choice at all.

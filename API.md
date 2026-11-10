@@ -289,6 +289,19 @@ Any key:
 | `create_scanner_card` | `card` | The card, without its pages. Its id comes from its label. |
 | `save_scanner_card` | `card_id`, `card`, `base_revision` | The card, without its pages. Replaces it for everyone, and keeps a backup. |
 | `set_scanner_parameter` | `card_id`, `page`, `parameter`, `value` | The card, without its pages. Sets one row that already exists; `parameter` ignores case. `value` is a string. Keeps a backup. |
+| `scanner_card_revisions` | none | `{revisions}`: each card's id and revision. |
+| `list_scanner_card_backups` | `card_id` | `{backups}`: the earlier versions kept when the card was saved over. |
+| `restore_scanner_card_backup` | `card_id`, `revision` | The card, without its pages. Makes that backup the card again, for everyone, and keeps what it replaced. |
+| `create_experiment` | `doc` | The new experiment's row and `doc`. `doc` needs at least `name` and `format_version` (3); the rest gets its defaults. |
+| `experiment_revision` | `experiment_id` | `{revision, updated_by_name}`, as `GET /api/experiments/{id}/revision`. |
+| `duplicate_experiment` | `experiment_id`, `name` (optional) | The copy's row and `doc`, owned by you, with its pictures. |
+| `set_experiment_editors` | `experiment_id`, `editors` | The row. `editors` is a list of user ids from `list_team`. Owner only. |
+| `get_published` | `experiment_id` | The manifest of the last publish, as `GET /api/experiments/{id}/published`. |
+| `list_share_links` | `experiment_id` | `{links}`. |
+| `revoke_share_link` | `experiment_id`, `link_id` | `{ok}`. The link stops working for good. Destructive. |
+| `psychopy_status` | `refresh` (optional) | As `GET /api/psychopy`. |
+
+The template's own account tools are there too (`rename_account`, `set_shortcuts`, `set_themes`, `set_theme`, and for admins the theme defaults). `config/mcp.json` lists every tool with the route it stands for. A route a key may call that has no tool says why in `config/openapi.json` (`x-mcp-http`): pictures, the bundle, the report and published files are files, publishing needs the plans the browser compiles, and the PsychoPy runner's records stay its own HTTP exchange.
 
 Admin-scoped keys only:
 

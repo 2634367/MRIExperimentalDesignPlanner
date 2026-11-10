@@ -40,6 +40,7 @@ from app.routes import (
     jobs,
     join,
     logs,
+    mcp_manifest,
     mcp_tools,
     media,
     meta,
@@ -55,6 +56,7 @@ from app.routes import (
     share,
     shortcuts,
     team,
+    themes,
     two_factor,
     webhooks,
 )
@@ -214,6 +216,8 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/me", account.me),
         signed_in("/api/account/rename", account.rename, ["POST"]),
         signed_in("/api/account/shortcuts", shortcuts.set_my_shortcuts, ["POST"]),
+        signed_in("/api/account/themes", themes.set_my_themes, ["POST"]),
+        signed_in("/api/account/theme", themes.set_my_theme, ["POST"]),
         # A session only: a PIN lets its holder sign in through an invite
         # link, so a key that could set one could turn itself into a session.
         pin_sessions("/api/account/pin", account.set_pin, ["POST"]),
@@ -235,6 +239,7 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/logout", account.logout, ["POST"]),
         signed_in("/api/team", team.list_team),
         signed_in("/api/openapi.json", openapi.get_openapi),
+        group(RequireLogin, RequireMCP)("/api/mcp.json", mcp_manifest.get_mcp_manifest),
         my_keys("/api/keys", api_keys.list_my_keys),
         my_keys("/api/keys", api_keys.create_my_key, ["POST"]),
         my_keys("/api/keys/{key_id}/rename", api_keys.rename_my_key, ["POST"]),
@@ -271,6 +276,9 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         admin_sessions("/api/admin/users/{user_id}/sessions", sessions.list_user_sessions),
         admin_sessions("/api/admin/users/{user_id}/sessions/{session_id}/revoke", sessions.revoke_user_session, ["POST"]),
         admin_files("/api/admin/storage", files.all_storage),
+        # The themes everyone starts from. Not a credential, so a key may.
+        admins("/api/admin/theme-defaults", themes.get_theme_defaults),
+        admins("/api/admin/theme-defaults", themes.set_theme_defaults, ["POST"]),
         # Invite links: one link for a group, each person who opens it joins
         # as a new user (see invite_links.py). Creating one needs a session for
         # the same reason as creating a user -- the link mints accounts and

@@ -99,8 +99,9 @@ class ScannerToolsTest(StoreTestCase):
 
     def test_nothing_deletes_a_card(self) -> None:
         names = list(self.registry._tools)
-        self.assertEqual(len(names), 5)
-        self.assertFalse([name for name in names if "delete" in name or "restore" in name])
+        self.assertEqual(len(names), 8)
+        # Restoring a backup only puts an earlier version back; nothing deletes a card.
+        self.assertFalse([name for name in names if "delete" in name or ("restore" in name and name != "restore_scanner_card_backup")])
 
     def test_a_parameter_change_survives_losing_a_race(self) -> None:
         card_id = self.make()

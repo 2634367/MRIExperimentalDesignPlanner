@@ -29,6 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
+from typing import Any
 
 from app.core.db import BUCKET_META, BUCKET_USERS, Record, Store, Transaction
 from app.models import from_iso, to_iso, utc_now
@@ -75,6 +76,10 @@ class User:
     # The keyboard shortcuts this person changed, by action name. See
     # app/models/shortcuts.py.
     shortcuts: dict[str, str] = field(default_factory=dict)
+    # This person's own list on the Appearance screen; None follows the app's
+    # defaults. theme_id is the one they use. See app/models/themes.py.
+    themes: list[dict[str, Any]] | None = None
+    theme_id: str = ""
 
     @property
     def disabled(self) -> bool:
@@ -100,6 +105,8 @@ class User:
             "totp_last_step": self.totp_last_step,
             "recovery_hashes": self.recovery_hashes,
             "shortcuts": self.shortcuts,
+            "themes": self.themes,
+            "theme_id": self.theme_id,
         }
 
     @classmethod
@@ -119,6 +126,8 @@ class User:
             totp_last_step=record.get("totp_last_step", 0),
             recovery_hashes=record.get("recovery_hashes", []),
             shortcuts=record.get("shortcuts") or {},
+            themes=record.get("themes"),
+            theme_id=record.get("theme_id", ""),
         )
 
 
