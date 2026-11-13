@@ -1015,6 +1015,7 @@ experiments:
   heading: "Experiments"
   section_new: "New experiment"
   section_list: "Your experiments"
+  no_such: "No experiment of yours is at that address. It may have been renamed or deleted."
   description: "Each experiment is one design: its prompt lists, pictures, trial types, runs and sessions, and the scanner hours they need. Open one to edit it."
   name: "Name"
   name_placeholder: "e.g. Inner speech pilot"

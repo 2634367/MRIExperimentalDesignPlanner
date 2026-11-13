@@ -28,7 +28,7 @@ const App = {
     }
 
     Dom.all( "input[type=password]" ).forEach( ( input ) => Dom.revealable( input ) );
-    // Not a plain #main link: the hash is which screen is showing.
+    // Not a plain #main link: that would add a history step.
     Dom.get( "skip-link" ).addEventListener( "click" , ( event ) => {
       event.preventDefault();
       Dom.get( "main" ).focus();
@@ -83,9 +83,10 @@ const App = {
     Password.initLogin();
   },
 
-  // A share link is /s/<credential>.
+  // A share link is /s/<credential>, and /s/<credential>/<screen>[/<item>]
+  // once it is open.
   shareCredential() {
-    const match = /^\/s\/([^/]+)\/?$/.exec( window.location.pathname );
+    const match = /^\/s\/([^/]+)(?:\/[^/]+){0,2}\/?$/.exec( window.location.pathname );
     if ( !match ) return "";
     try {
       return decodeURIComponent( match[ 1 ] );

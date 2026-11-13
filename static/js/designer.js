@@ -23,6 +23,8 @@ const Designer = {
     Doc.on( ( reason ) => {
       Object.keys( this.stale ).forEach( ( name ) => { this.stale[ name ] = true; } );
       this.chrome();
+      // A rename moves the address to the new name.
+      if ( reason !== "open" && Doc.isOpen() && !Doc.readOnly && Nav.where().slug ) Nav.noteItem( Nav.item() );
       if ( reason === "open" ) {
         Experiments.loadLinks();
         Nav.refresh();
@@ -30,7 +32,8 @@ const Designer = {
       }
       this.refresh();
     } );
-    window.addEventListener( "hashchange" , () => {
+    window.addEventListener( "nav" , async () => {
+      await this.followSlug();
       this.followLink();
       this.refresh( true );
       this.noteItem();
@@ -63,7 +66,16 @@ const Designer = {
       this.refresh();
     } );
     await Experiments.load();
-    const wanted = new URLSearchParams( window.location.search ).get( "e" ) || this.lastOpened();
+    const legacy = this.legacyAddress();
+    const where = Nav.where();
+    let wanted = legacy.id || this.lastOpened();
+    if ( where.slug ) {
+      wanted = Experiments.idOf( where.slug );
+      if ( !wanted ) {
+        Dom.toast( I18n.get( "experiments.no_such" ) , "error" );
+        window.history.replaceState( null , "" , "/experiments" );
+      }
+    }
     if ( wanted && Experiments.rows.some( ( row ) => row.id === wanted ) ) {
       try {
         const row = await Api.getExperiment( wanted );
@@ -74,8 +86,52 @@ const Designer = {
     }
     this.chrome();
     Dom.show( Dom.get( "sidebar-design" ) , true );
-    if ( !window.location.hash ) window.location.hash = Doc.isOpen() ? "#overview" : "#experiments";
+    // "/" (just signed in, or the brand link) opens the experiment last open,
+    // or the list; an old /?e=<id>#screen/item link opens what it named.
+    if ( !Nav.where().screen ) {
+      const screen = legacy.screen || ( Doc.isOpen() ? "overview" : "experiments" );
+      const doc = Nav.docScreens.includes( screen );
+      window.history.replaceState( null , "" , doc && !Doc.isOpen() ? "/experiments" : Nav.url( screen , legacy.item ) + legacy.card );
+    }
     Doc.follow();
+  },
+
+  // The addresses before paths: /?e=<id>#screen/item, or #card on its own.
+  legacyAddress() {
+    const found = { id: "" , screen: "" , item: "" , card: "" };
+    if ( window.location.pathname !== "/" ) return found;
+    found.id = new URLSearchParams( window.location.search ).get( "e" ) || "";
+    const hash = window.location.hash.replace( /^#/ , "" ).split( "/" );
+    let name = "";
+    try { name = decodeURIComponent( hash[ 0 ] || "" ); } catch ( error ) { name = ""; }
+    if ( Nav.topScreens.includes( name ) || Nav.docScreens.includes( name ) ) {
+      found.screen = name;
+      try { found.item = decodeURIComponent( hash[ 1 ] || "" ); } catch ( error ) { found.item = ""; }
+    } else if ( name ) {
+      // A card (#two-factor-panel): it is on Account.
+      found.screen = "account";
+      found.card = "#" + name;
+    }
+    return found;
+  },
+
+  // Back or Forward to another experiment's address opens that experiment.
+  async followSlug() {
+    const where = Nav.where();
+    if ( !where.slug || Doc.readOnly || ( Doc.isOpen() && Experiments.slugOf( Doc.id ) === where.slug ) ) return;
+    const id = Experiments.idOf( where.slug );
+    if ( !id ) {
+      Dom.toast( I18n.get( "experiments.no_such" ) , "error" );
+      Nav.go( "/experiments" , { replace: true } );
+      return;
+    }
+    try {
+      await Doc.flush();
+      Undo.clear();
+      Doc.open( await Api.getExperiment( id ) );
+    } catch ( error ) {
+      Dom.toast( error.message , "error" );
+    }
   },
 
   lastOpened() {
@@ -108,7 +164,7 @@ const Designer = {
     Nav.fallback = "overview";
     this.chrome();
     Dom.show( Dom.get( "sidebar-design" ) , true );
-    if ( !window.location.hash ) window.location.hash = "#overview";
+    if ( !Nav.where().screen ) window.history.replaceState( null , "" , "/s/" + encodeURIComponent( credential ) + "/overview" );
     Doc.follow();
     return true;
   },
@@ -152,7 +208,7 @@ const Designer = {
     if ( typeof Nav !== "undefined" && Nav.current() === name ) this.refresh();
   },
 
-  // Open the item a link names (#sessions/<id>), once, when the link is
+  // Open the item a link names (/<slug>/sessions/<id>), once, when the link is
   // followed: from then on the screen's own selection is what counts.
   followLink() {
     if ( typeof Nav === "undefined" ) return;

@@ -57,7 +57,7 @@ const LayerEditor = {
     }
 
     if ( layer.kind === "fixation" ) {
-      return Dom.el( "div" , { class: "layer-row" , children: [ head , Dom.el( "a" , { class: "small" , text: Ui.t( "layers.fixation_link" ) , attrs: { href: "#settings" } } ) ] } );
+      return Dom.el( "div" , { class: "layer-row" , children: [ head , Dom.el( "a" , { class: "small" , text: Ui.t( "layers.fixation_link" ) , attrs: { href: Nav.url( "settings" ) } } ) ] } );
     }
 
     // Every setting gets the same cell, so labels and inputs line up in

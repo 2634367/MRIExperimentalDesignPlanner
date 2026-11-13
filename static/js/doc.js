@@ -65,9 +65,13 @@ const Doc = {
     this.setGone( false );
     if ( !this.readOnly ) {
       try { window.localStorage.setItem( "last-experiment" , row.id ); } catch ( error ) { /* not remembered */ }
-      const url = new URL( window.location.href );
-      url.searchParams.set( "e" , row.id );
-      window.history.replaceState( null , "" , url.pathname + url.search + url.hash );
+      // On a design screen the address moves to this experiment's (the item
+      // open there belonged to the other one); elsewhere it stays.
+      const where = Nav.where();
+      if ( where.slug ) {
+        const slug = Experiments.slugOf( row.id );
+        window.history.replaceState( null , "" , Nav.url( where.screen , where.slug === slug ? where.item : "" , slug ) );
+      }
     }
     this.emit( "open" );
   },
@@ -76,9 +80,7 @@ const Doc = {
     this.id = null;
     this.doc = null;
     this.row = null;
-    const url = new URL( window.location.href );
-    url.searchParams.delete( "e" );
-    window.history.replaceState( null , "" , url.pathname + url.search + url.hash );
+    // Nav.render then moves a design screen's address to the list.
     this.emit( "open" );
   },
 

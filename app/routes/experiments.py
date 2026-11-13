@@ -37,6 +37,7 @@ def experiment_row(store: Store, experiment: Experiment, user_id: int, with_doc:
         "is_owner": experiment.owner == user_id,
         "editors": [{"id": editor, "display_name": names.get(editor, "")} for editor in experiment.editors],
         "revision": experiment.revision,
+        "created_at": experiment.created_at.isoformat(),
         "updated_at": experiment.updated_at.isoformat(),
         "updated_by_name": names.get(experiment.updated_by, ""),
     }

@@ -155,7 +155,7 @@ const AppSettings = {
     this.applyFilter();
   },
 
-  // By script rather than a #link, because the hash says which screen this is.
+  // By script rather than a #link, which would add a history step.
   // Measured, because the tools above stay on screen and can wrap.
   jumpTo( block ) {
     const tools = document.querySelector( ".settings-tools" );

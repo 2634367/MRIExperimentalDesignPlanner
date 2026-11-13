@@ -403,7 +403,7 @@ const RunDialog = {
         } , { small: true , variant: "btn-outline-danger" } ) );
       }
       if ( !current.running ) {
-        children.push( Dom.el( "a" , { class: "small" , attrs: { href: "#results" } , text: I18n.get( "run.see_results" ) } ) );
+        children.push( Dom.el( "a" , { class: "small" , attrs: { href: Nav.url( "results" ) } , text: I18n.get( "run.see_results" ) } ) );
         // The server reads the records as the runner exits; give it a moment.
         window.setTimeout( () => Results.load() , 1500 );
       }

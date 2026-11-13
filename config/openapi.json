@@ -11302,6 +11302,98 @@
         }
       }
     },
+    "/s/{credential}/{screen}": {
+      "get": {
+        "summary": "The page a share link opens, on one of its screens",
+        "operationId": "get_s_credential_screen",
+        "tags": [
+          "Share links"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "credential",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "screen",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file, or for /s/ the page"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
+    "/s/{credential}/{screen}/{item}": {
+      "get": {
+        "summary": "The page a share link opens, on one item of a screen",
+        "operationId": "get_s_credential_screen_item",
+        "tags": [
+          "Share links"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "credential",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "screen",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "item",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file, or for /s/ the page"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        }
+      }
+    },
     "/s/{credential}/media/{filename}": {
       "get": {
         "summary": "A picture, through a share link",

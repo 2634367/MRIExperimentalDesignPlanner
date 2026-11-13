@@ -91,7 +91,7 @@ Requests are limited per client address: 1200 per 60 seconds by default (`server
 
 | Method and path | Auth | Body and answer |
 |---|---|---|
-| `GET /api/experiments` | Key | The list: `id`, `name`, `owner`, `owner_name`, `is_owner`, `editors`, `revision`, `updated_at`, `updated_by_name`. |
+| `GET /api/experiments` | Key | The list: `id`, `name`, `owner`, `owner_name`, `is_owner`, `editors`, `revision`, `created_at`, `updated_at`, `updated_by_name`. |
 | `POST /api/experiments` | Key | `{doc}`. Answers 201 with the row and `doc`. |
 | `GET /api/experiments/{id}` | Key | The row and `doc`. |
 | `GET /api/experiments/{id}/revision` | Key | `{revision, updated_by_name}`. What an open page polls. `updated_by_name` is empty if you made the last save. |

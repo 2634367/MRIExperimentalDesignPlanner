@@ -25,7 +25,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
 
-from app.core import error_page
+from app.core import error_page, pages
 
 # Extensions that are text, change often, and must never go stale.
 ALWAYS_FRESH_EXTENSIONS = {
@@ -110,12 +110,14 @@ class StaticServer:
         if request_path == "" or request_path.endswith("/"):
             request_path = posixpath.join(request_path, self.index_file)
 
-        # No fallback to index.html. The app navigates by hash, and the two
-        # paths it does read have their own routes (/login/..., /join/...), so
-        # anything else is a real 404. An app that adds a path-routed page
-        # gives it a route before this one, as serve_login_page does.
+        # No blanket fallback to index.html. The page's own addresses
+        # (/account, /<experiment-slug>/overview -- see pages.py) get it; the
+        # login, join and share paths have their own routes; anything else
+        # is a real 404.
         path = self.resolve(request_path)
         if path is None or not path.is_file():
+            if pages.is_app_page(request_path):
+                return await self.serve_app_page(request)
             return _not_found(request)
 
         return await self._send(request, path)
@@ -128,6 +130,20 @@ class StaticServer:
             # The credential is in this URL too.
             response.headers["referrer-policy"] = "no-referrer"
             return response
+        return await self.serve_login_page(request)
+
+    async def serve_app_page(self, request: Request) -> Response:
+        """index.html at one of the page's own addresses (pages.py)."""
+        path = self.resolve(self.index_file)
+        if path is None or not path.is_file():
+            return _not_found(request)
+        return await self._send(request, path)
+
+    async def serve_share_page(self, request: Request) -> Response:
+        """A share link on one of its screens: /s/<credential>/<screen>."""
+        params = request.path_params
+        if not pages.is_share_screen(params.get("screen", ""), params.get("item", "")):
+            return _not_found(request)
         return await self.serve_login_page(request)
 
     async def serve_login_page(self, request: Request) -> Response:

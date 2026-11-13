@@ -17,6 +17,41 @@ const Experiments = {
     }
   },
 
+  // Every experiment's address part: /<slug>/overview. The name, lowercased,
+  // with anything but letters and digits as "-"; a name two of yours share
+  // gets -2, -3 on the later-made ones. A name that is already an address of
+  // its own (Account, Logs) gets "-experiment". The open one goes by its name
+  // as it stands, so a rename moves its address at once.
+  slugs() {
+    const rows = this.rows.map( ( row ) => ( { id: row.id , name: row.name , created: row.created_at || "" } ) );
+    if ( Doc.isOpen() && !Doc.readOnly ) {
+      const open = rows.find( ( row ) => row.id === Doc.id );
+      if ( open ) open.name = Doc.doc.name;
+      else rows.push( { id: Doc.id , name: Doc.doc.name , created: "~" } );
+    }
+    rows.sort( ( a , b ) => ( a.created < b.created ? -1 : a.created > b.created ? 1 : a.id < b.id ? -1 : 1 ) );
+    const byId = {};
+    const bySlug = {};
+    rows.forEach( ( row ) => {
+      let base = String( row.name || "" ).toLowerCase().normalize( "NFKD" ).replace( /[̀-ͯ]/g , "" )
+        .replace( /[^a-z0-9]+/g , "-" ).replace( /^-+|-+$/g , "" ).slice( 0 , 60 ).replace( /-+$/ , "" ) || "untitled";
+      if ( Nav.isReserved( base ) ) base += "-experiment";
+      let slug = base;
+      for ( let n = 2 ; bySlug[ slug ] ; n += 1 ) slug = base + "-" + n;
+      bySlug[ slug ] = row.id;
+      byId[ row.id ] = slug;
+    } );
+    return { byId , bySlug };
+  },
+
+  slugOf( id ) {
+    return this.slugs().byId[ id ] || "";
+  },
+
+  idOf( slug ) {
+    return this.slugs().bySlug[ slug ] || "";
+  },
+
   // The list, kept current while it is on screen.
   async follow() {
     if ( Doc.typing() ) return;
@@ -99,7 +134,7 @@ const Experiments = {
     const body = Dom.el( "tbody" );
     this.rows.forEach( ( row ) => {
       const isOpen = Doc.id === row.id;
-      const name = Dom.el( "a" , { text: row.name || Ui.t( "experiments.untitled" ) , attrs: { href: "#overview" } } );
+      const name = Dom.el( "a" , { text: row.name || Ui.t( "experiments.untitled" ) , attrs: { href: Nav.url( "overview" , "" , this.slugOf( row.id ) ) } } );
       name.addEventListener( "click" , async ( event ) => {
         event.preventDefault();
         await this.open( row.id , "overview" );

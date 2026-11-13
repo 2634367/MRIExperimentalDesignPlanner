@@ -208,6 +208,8 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         # permission, checked on every request; the GET only serves the page.
         public("/s/{credential}", static_server.serve_login_page),
         public("/s/{credential}/media/{filename}", share.shared_media),
+        public("/s/{credential}/{screen}", static_server.serve_share_page),
+        public("/s/{credential}/{screen}/{item}", static_server.serve_share_page),
         public("/api/share/open", share.open_shared, ["POST"]),
         public("/api/share/revision", share.shared_revision, ["POST"]),
         public("/api/share/bundle", share.shared_bundle, ["POST"]),

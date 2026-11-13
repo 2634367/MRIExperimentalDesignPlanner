@@ -65,7 +65,7 @@ const HrfView = {
         const swatch = Dom.el( "span" , { class: "swatch" } );
         swatch.style.background = reg.trial_type.color;
         const span = Timing.span( reg.phase.duration , doc.scanner.tr );
-        list.appendChild( Dom.el( "a" , { class: "list-group-item list-group-item-action d-flex align-items-center gap-2" , attrs: { href: "#trials" } ,
+        list.appendChild( Dom.el( "a" , { class: "list-group-item list-group-item-action d-flex align-items-center gap-2" , attrs: { href: Nav.url( "trials" , reg.trial_type.id ) } ,
           on: { click: () => Trials.focus( reg.trial_type.id ) } , children: [
             swatch , Dom.el( "span" , { class: "flex-grow-1" , text: reg.label } ),
             Dom.el( "span" , { class: "small text-body-secondary" , text: Timing.describe( span ) + " · " + Ui.t( "hrf.fades_in" ).replace( "{s}" , Hrf.decayTime( span.mean , 0.1 , doc.hrf ).toFixed( 1 ) ) } ),

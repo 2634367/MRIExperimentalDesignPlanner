@@ -39,7 +39,7 @@ const Overview = {
     ] } ) ] } ) );
     const body = Dom.el( "tbody" );
     budget.rows.forEach( ( row , index ) => {
-      const link = Dom.el( "a" , { text: row.session.name || Ui.t( "sessions.unnamed" ) , attrs: { href: "#sessions" } } );
+      const link = Dom.el( "a" , { text: row.session.name || Ui.t( "sessions.unnamed" ) , attrs: { href: Nav.url( "sessions" , row.session.id ) } } );
       link.addEventListener( "click" , () => Sessions.focus( row.session.id ) );
       const swatch = Dom.el( "span" , { class: "swatch me-2" } );
       swatch.style.background = this.color( index );
