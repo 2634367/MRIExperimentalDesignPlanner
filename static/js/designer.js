@@ -63,6 +63,8 @@ const Designer = {
     // Runs and scan steps pick from the card library, so it loads up front.
     Scanners.load().then( () => {
       Object.keys( this.stale ).forEach( ( name ) => { this.stale[ name ] = true; } );
+      // A link to a card (/scanners/<label>) can only be read once they are here.
+      this.followLink();
       this.refresh();
     } );
     await Experiments.load();

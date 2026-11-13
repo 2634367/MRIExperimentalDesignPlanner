@@ -165,7 +165,7 @@ The sidebar shows the design screens once an experiment is open.
 | You | Account, Appearance, PIN, API keys | Your own settings and keys. |
 | Admin | Users, Invite links, All API keys | Who gets in. Admins only. |
 
-Every screen has its own address, so Back, Forward, reload and a pasted link all land where you were. A design screen is `/<experiment>/<screen>`, for example `/inner-speech-pilot/overview` or `/inner-speech-pilot/trials/<id>`; `<experiment>` is the name in lowercase with dashes, and two experiments with the same name get `-2`, `-3`. Renaming an experiment changes its address. Other screens are `/experiments`, `/account`, `/scanners` and so on, and a share link's screens are `/s/<link>/<screen>`. Old `/?e=<id>#screen` links still open and are rewritten.
+Every screen has its own address, so Back, Forward, reload and a pasted link all land where you were. A design screen is `/<experiment>/<screen>`, for example `/inner-speech-pilot/overview`, and the session, run, trial type or prompt list open on it is named too: `/inner-speech-pilot/sessions/aim-1-glm-session`. Every part is the name in lowercase with dashes; two things with the same name get `-2`, `-3`, and renaming one changes its address. Other screens are `/experiments`, `/account`, `/scanners/<card-label>` and so on, and a share link's screens are `/s/<link>/<screen>`. Old `/?e=<id>#screen` links still open and are rewritten.
 
 Edits save on their own. Ctrl+Z and Ctrl+Y undo and redo. If two people have one experiment open, each page follows the other's saves within a few seconds, and a real conflict asks whose version to keep.
 

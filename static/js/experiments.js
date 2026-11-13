@@ -30,18 +30,7 @@ const Experiments = {
       else rows.push( { id: Doc.id , name: Doc.doc.name , created: "~" } );
     }
     rows.sort( ( a , b ) => ( a.created < b.created ? -1 : a.created > b.created ? 1 : a.id < b.id ? -1 : 1 ) );
-    const byId = {};
-    const bySlug = {};
-    rows.forEach( ( row ) => {
-      let base = String( row.name || "" ).toLowerCase().normalize( "NFKD" ).replace( /[̀-ͯ]/g , "" )
-        .replace( /[^a-z0-9]+/g , "-" ).replace( /^-+|-+$/g , "" ).slice( 0 , 60 ).replace( /-+$/ , "" ) || "untitled";
-      if ( Nav.isReserved( base ) ) base += "-experiment";
-      let slug = base;
-      for ( let n = 2 ; bySlug[ slug ] ; n += 1 ) slug = base + "-" + n;
-      bySlug[ slug ] = row.id;
-      byId[ row.id ] = slug;
-    } );
-    return { byId , bySlug };
+    return Nav.slugMap( rows , ( base ) => ( Nav.isReserved( base ) ? base + "-experiment" : base ) );
   },
 
   slugOf( id ) {

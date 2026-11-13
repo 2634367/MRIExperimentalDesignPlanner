@@ -21,6 +21,11 @@ const Trials = {
     this.selected = id;
   },
 
+  // What the address names an item by (Nav.url): its name.
+  items() {
+    return Doc.doc.trial_types;
+  },
+
   edit( label , fn , options ) {
     const id = this.selected;
     Doc.change( label , ( d ) => {

@@ -5,7 +5,7 @@
 //
 //   /account, /logs, /scanners/<card>     a screen that stands on its own
 //   /<experiment-slug>/overview           a screen of one experiment
-//   /<experiment-slug>/trials/<id>        ...and the item open on it
+//   /<experiment-slug>/trials/<name-slug> ...and the item open on it
 //   /s/<credential>/runs                  a screen of a share link
 //
 // The address is the only state -- back, forward, reload and a pasted link
@@ -69,6 +69,41 @@ const Nav = {
     this.render();
   },
 
+  // A name as an address part: lowercase, accents dropped, anything but
+  // letters and digits as "-".
+  slugify( text ) {
+    return String( text || "" ).toLowerCase().normalize( "NFKD" ).replace( /[\u0300-\u036f]/g , "" )
+      .replace( /[^a-z0-9]+/g , "-" ).replace( /^-+|-+$/g , "" ).slice( 0 , 60 ).replace( /-+$/ , "" ) || "untitled";
+  },
+
+  // Slugs for a list of { id , name }, in order: a name two share gets -2,
+  // -3 on the later ones. adjust(base) may change a base (a reserved word).
+  slugMap( list , adjust ) {
+    const byId = {};
+    const bySlug = {};
+    list.forEach( ( row ) => {
+      let base = this.slugify( row.name );
+      if ( adjust ) base = adjust( base );
+      let slug = base;
+      for ( let n = 2 ; bySlug[ slug ] ; n += 1 ) slug = base + "-" + n;
+      bySlug[ slug ] = row.id;
+      byId[ row.id ] = slug;
+    } );
+    return { byId , bySlug };
+  },
+
+  // The item slugs of a screen with items (a session, a run, a scanner
+  // card), or null. An address names an item by its name, not its id.
+  itemSlugs( screen ) {
+    const owner = typeof Designer !== "undefined" ? Designer.screens[ screen ] : null;
+    if ( !owner || !owner.items ) return null;
+    try {
+      return this.slugMap( owner.items() );
+    } catch ( error ) {
+      return null;
+    }
+  },
+
   isReserved( slug ) {
     return this.reserved.includes( slug ) || this.topScreens.includes( slug ) || this.docScreens.includes( slug );
   },
@@ -117,7 +152,9 @@ const Nav = {
       if ( !which ) return "/" + this.fallback;
       path = "/" + which + "/" + screen;
     } else path = "/" + screen;
-    return item ? path + "/" + encodeURIComponent( item ) : path;
+    if ( !item ) return path;
+    const items = this.itemSlugs( screen );
+    return path + "/" + encodeURIComponent( items && items.byId[ item ] ? items.byId[ item ] : item );
   },
 
   // Move to an address this page handles: a new history step, or with
@@ -205,9 +242,12 @@ const Nav = {
     return this.available( view.getAttribute( "data-view" ) ) ? card : null;
   },
 
-  // The id after the screen's name, or "".
+  // The id of the item the address names (by its slug; an old link's id
+  // still works), or "".
   item() {
-    return this.where().item;
+    const where = this.where();
+    const items = this.itemSlugs( where.screen );
+    return items && items.bySlug[ where.item ] ? items.bySlug[ where.item ] : where.item;
   },
 
   // Keep the address on what is showing, without a new history step (each

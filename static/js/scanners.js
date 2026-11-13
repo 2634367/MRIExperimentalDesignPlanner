@@ -55,6 +55,11 @@ const Scanners = {
     return this.byId( this.selected );
   },
 
+  // What the address names a card by (Nav.url): its label.
+  items() {
+    return this.cards.map( ( c ) => ( { id: c.id , name: c.label } ) );
+  },
+
   focus( id ) {
     this.selected = id;
     this.page = 0;
