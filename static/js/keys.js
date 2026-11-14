@@ -26,10 +26,17 @@ const Keys = {
     if ( me.api_keys_enabled === false ) return;
 
     Dom.show( Dom.get( "api-keys-panel" ) , true );
-    // What a key can call: openapi.json in app.repo, else the server's own.
+    // What a key can call: api.json in app.repo, else the server's own.
     if ( me.openapi_url ) {
       Dom.get( "key-spec-link" ).setAttribute( "href" , me.openapi_url );
       Dom.show( Dom.get( "key-spec-line" ) , true );
+      // The same reference written for people, config/api.md, where the
+      // repository's site renders it -- RepoFile( "config/api.md" ) on the
+      // server. Only with app.repo: the server keeps no copy of its own.
+      if ( me.repo ) {
+        Dom.get( "key-doc-link" ).setAttribute( "href" , me.repo + "/blob/HEAD/config/api.md" );
+        Dom.show( Dom.get( "key-doc-part" ) , true );
+      }
     }
     // Only an admin is offered the role choice. A non-admin has exactly one
     // option, and an "admin" entry the server would refuse is worse than no

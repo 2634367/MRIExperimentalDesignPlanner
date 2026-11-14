@@ -1,9 +1,9 @@
 # Written by the skill that scaffolded this app; `webserver-upgrade` reads and
 # updates it. Commit it: it is how an update knows where this app started.
 skill: python-webserver
-commit: d943458b9e066a26c1b14819dd513aeab5c05d23
+commit: c396a24338da7adb343ea3dcdf3eccc5586d5301
 project_name: "fMRI Experiment Designer"
 slug: fmri-experiment-designer
 port: 23313
 features: [api_keys, mcp, invite_links, passwords, two_factor]
-skipped: [theme-layers]
+skipped: [bootstrap-grid, theme-layers]

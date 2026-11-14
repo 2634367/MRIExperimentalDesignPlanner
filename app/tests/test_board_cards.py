@@ -17,15 +17,16 @@ from openpyxl import load_workbook
 
 from app.core import bundle, db, psychopy, report
 from app.core.psychopy import RUNNER_DIR
-from app.mcp.registry import Call, Refusal, Registry
+from app.mcp.registry import Call, Refusal
 from app.models import experiments, plans, published, scanner_cards, share_links, users
 from app.models.experiments import NoSuchExperimentError
 from app.models.plans import BadPlanError
 from app.models.scanner_cards import BadCardError
-from app.models.share_links import ShareLinkInvalidError
-from app.routes import mcp_tools_experiments, mcp_tools_scanners
+from app.routes import declared_routes
 from app.routes.experiments import revision_row
-from app.routes.share import _revision
+from app.routes.helpers import Refused
+from app.routes.mcp_tools import build_registry
+from app.routes.share import _load
 
 sys.path.insert(0, str(RUNNER_DIR))
 from fmri_runner import __main__ as runner  # noqa: E402
@@ -47,58 +48,71 @@ class StoreTestCase(unittest.TestCase):
         self.bob = users.create_user(self.store, "Bob", users.ROLE_USER)
 
 
+# The app's own tools: the ones on its routes, not the template's.
+APP_PATHS = ("/api/experiments", "/api/scanner-cards", "/api/psychopy")
+
+
+def app_tool_names() -> list[str]:
+    return sorted(route.tool["name"] for route in declared_routes() if route.tool and route.path.startswith(APP_PATHS))
+
+
 class ScannerToolsTest(StoreTestCase):
+    """The scanner-card tools, run as /mcp runs them: through the registry,
+    each calling its route's handler."""
+
     def setUp(self) -> None:
         super().setUp()
-        self.registry = Registry()
-        mcp_tools_scanners.register(self.registry)
+        self.registry = build_registry()
         self.actor = types.SimpleNamespace(user=self.alice)
+        app = types.SimpleNamespace(state=types.SimpleNamespace(store=self.store))
+        self.request = types.SimpleNamespace(app=app, state=types.SimpleNamespace(actor=self.actor))
 
-    def call(self, function, **args: object) -> dict:
-        return function(Call(actor=self.actor, store=self.store, config=None, request=None, args=args))
+    def call(self, name: str, **args: object) -> dict:
+        tool = self.registry._tools[name]
+        return tool.call(Call(actor=self.actor, store=self.store, config=None, request=self.request, args=args))
 
     def make(self) -> str:
-        return self.call(mcp_tools_scanners.create_scanner_card, card=card())["id"]
+        return self.call("create_scanner_card", card=card())["id"]
 
     def test_a_card_can_be_made_read_and_listed(self) -> None:
         card_id = self.make()
-        self.assertEqual(self.call(mcp_tools_scanners.get_scanner_card, card_id=card_id)["pages"][0]["name"], "CONTRAST")
-        listed = self.call(mcp_tools_scanners.list_scanner_cards)["cards"]
+        self.assertEqual(self.call("get_scanner_card", card_id=card_id)["pages"][0]["name"], "CONTRAST")
+        listed = self.call("list_scanner_cards")["cards"]
         self.assertEqual([row["id"] for row in listed], [card_id])
         self.assertNotIn("pages", listed[0])
 
     def test_saving_needs_the_revision_it_came_from(self) -> None:
         card_id = self.make()
-        current = self.call(mcp_tools_scanners.get_scanner_card, card_id=card_id)
-        self.call(mcp_tools_scanners.save_scanner_card, card_id=card_id, card=card("Renamed"), base_revision=current["revision"])
+        current = self.call("get_scanner_card", card_id=card_id)
+        self.call("save_scanner_card", card_id=card_id, card=card("Renamed"), base_revision=current["revision"])
         with self.assertRaises(Refusal):
-            self.call(mcp_tools_scanners.save_scanner_card, card_id=card_id, card=card("Again"), base_revision=current["revision"])
+            self.call("save_scanner_card", card_id=card_id, card=card("Again"), base_revision=current["revision"])
 
     def test_one_parameter_changes_and_the_rest_stay(self) -> None:
         card_id = self.make()
-        self.call(mcp_tools_scanners.set_scanner_parameter, card_id=card_id, page="CONTRAST", parameter="flip angle (DEG)", value="80")
-        row = self.call(mcp_tools_scanners.get_scanner_card, card_id=card_id)["pages"][0]["rows"][0]
+        self.call("set_scanner_parameter", card_id=card_id, page="CONTRAST", parameter="flip angle (DEG)", value="80")
+        row = self.call("get_scanner_card", card_id=card_id)["pages"][0]["rows"][0]
         self.assertEqual((row["parameter"], row["value"]), ("Flip angle (deg)", "80"))
 
     def test_a_change_is_backed_up(self) -> None:
         card_id = self.make()
-        self.call(mcp_tools_scanners.set_scanner_parameter, card_id=card_id, page="CONTRAST", parameter="Flip angle (deg)", value="80")
+        self.call("set_scanner_parameter", card_id=card_id, page="CONTRAST", parameter="Flip angle (deg)", value="80")
         self.assertEqual(len(scanner_cards.list_backups(self.store, card_id)), 1)
 
     def test_a_parameter_that_is_not_there_is_refused(self) -> None:
         card_id = self.make()
         for page, parameter in (("CONTRAST", "Nothing"), ("NOWHERE", "Flip angle (deg)")):
             with self.assertRaises(Refusal):
-                self.call(mcp_tools_scanners.set_scanner_parameter, card_id=card_id, page=page, parameter=parameter, value="1")
+                self.call("set_scanner_parameter", card_id=card_id, page=page, parameter=parameter, value="1")
 
     def test_a_bad_card_or_a_missing_one_is_refused(self) -> None:
         with self.assertRaises(Refusal):
-            self.call(mcp_tools_scanners.create_scanner_card, card={"label": "x"})
+            self.call("create_scanner_card", card={"label": "x"})
         with self.assertRaises(Refusal):
-            self.call(mcp_tools_scanners.get_scanner_card, card_id="none")
+            self.call("get_scanner_card", card_id="none")
 
     def test_nothing_deletes_a_card(self) -> None:
-        names = list(self.registry._tools)
+        names = [name for name in app_tool_names() if "scanner" in name]
         self.assertEqual(len(names), 8)
         # Restoring a backup only puts an earlier version back; nothing deletes a card.
         self.assertFalse([name for name in names if "delete" in name or ("restore" in name and name != "restore_scanner_card_backup")])
@@ -152,10 +166,10 @@ class FollowingTest(StoreTestCase):
 
     def test_a_share_link_follows_until_it_is_revoked(self) -> None:
         credential, link = share_links.issue_share_link(self.store, self.experiment, "", self.alice.id)
-        self.assertEqual(_revision(self.store, credential)["revision"], self.experiment.revision)
+        self.assertEqual(_load(self.store, credential)[1].revision, self.experiment.revision)
         share_links.revoke_share_link(self.store, self.experiment.id, link.id)
-        with self.assertRaises(ShareLinkInvalidError):
-            _revision(self.store, credential)
+        with self.assertRaises(Refused):
+            _load(self.store, credential)
 
     def test_card_revisions_show_a_change(self) -> None:
         made = scanner_cards.create_card(self.store, self.alice.id, card())
@@ -239,10 +253,9 @@ class DocsTest(unittest.TestCase):
 
     def test_every_tool_is_in_the_api_document(self) -> None:
         api = (self.ROOT / "API.md").read_text(encoding="utf-8")
-        registry = Registry()
-        mcp_tools_scanners.register(registry)
-        mcp_tools_experiments.register(registry)
-        self.assertEqual([name for name in registry._tools if name not in api], [])
+        names = app_tool_names()
+        self.assertGreater(len(names), 15)
+        self.assertEqual([name for name in names if name not in api], [])
 
     def test_the_documents_link_to_each_other(self) -> None:
         readme = (self.ROOT / "README.md").read_text(encoding="utf-8")

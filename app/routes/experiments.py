@@ -4,16 +4,26 @@ The document is stored as the browser sends it (see app/models/experiments.py
 for the few things checked). Every route here works for whoever can edit the
 experiment -- its owner and its editors -- except changing the editors and
 deleting it, which are the owner's.
+
+Each route is also an MCP tool where an agent has a use for it (mcp= in its
+@route), so an agent sees exactly what the browser sees and is refused for the
+same reasons. A save needs the revision it was made from, like the
+browser's, so an agent cannot silently overwrite a person's edit. Deleting and
+restoring need a browser session.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any, Callable, ClassVar, Literal
 
+import msgspec
+from msgspec import Meta
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
 
+from app.apidocs import PATH, SESSION_ONLY, Reply, route
+from app.apidocs import Request as RequestType
 from app.core.db import Store
-from app.core.security import actor_from, check_csrf
+from app.core.security import actor_from
+from app.mcp.registry import Call  # feature:mcp
 from app.models import RestoreError, actions, experiments, media, users
 from app.models.experiments import (
     BadDocumentError,
@@ -22,9 +32,79 @@ from app.models.experiments import (
     NotOwnerError,
     RevisionConflictError,
 )
-from app.routes.helpers import bad_request, conflict, forbidden, get_store, not_found, read_json, restore_refused, run
+from app.routes.helpers import DateTime, Refused, get_store, restore_refusal
 
 NO_SUCH = "no such experiment"
+TAG = "Experiments"
+
+# What get_experiment's doc holds, for the agent reading it.
+DOC_GUIDE = (
+    "The doc holds scanner settings, display defaults, the fixation mark, design-wide jitter, the hours budget, media "
+    "(pictures by sha256), prompt lists (columns + items), trial_types (phases with durations and layers; a layer value "
+    "written {column} is filled from the trial's prompt item; a duration with inherit set follows doc.jitter), runs "
+    "(blocks of trial types) and sessions (steps, each with a repeat count)."
+)
+ACTION_GUIDE = (
+    "action is <thing>.<verb>: things are list, item, trial, phase, run, block, session, step; verbs are add (fields; "
+    "returns the new id), update (id, fields; only those fields change), delete (id; refused while something uses it) "
+    "and move (id, position from 0). An item needs list, a phase trial, a block run, a step session: each the parent's "
+    "id. Also settings.update (section: scanner, display, keys, budget, limits, hrf, jitter, fixation or meta; fields) "
+    "and experiment.update (fields: name, notes). A new thing needs only the fields you care about; the rest get their "
+    "defaults."
+)
+
+ExperimentID = Annotated[str, PATH, Meta(description="The experiment's id, from GET /api/experiments (list_experiments over MCP).")]
+Doc = Annotated[dict[str, Any], Meta(description="The whole design document.")]
+
+
+class ExperimentPath(RequestType):
+    """The experiment a route under /api/experiments/{experiment_id} acts on."""
+
+    experiment_id: ExperimentID
+
+
+class Editor(Reply):
+    api_name: ClassVar[str] = "ExperimentEditor"
+    id: int
+    display_name: str
+
+
+class ExperimentRow(Reply):
+    """An experiment as the list shows it."""
+
+    api_name: ClassVar[str] = "Experiment"
+    id: str
+    name: str
+    owner: Annotated[int, Meta(description="The owner's user id.")]
+    owner_name: str
+    is_owner: Annotated[bool, Meta(description="Whether you own it: only the owner sets editors and deletes it.")]
+    editors: list[Editor]
+    revision: int
+    created_at: DateTime
+    updated_at: DateTime
+    updated_by_name: str
+
+
+class ExperimentDoc(ExperimentRow):
+    """An experiment with its design document."""
+
+    api_name: ClassVar[str] = "ExperimentWithDoc"
+    doc: Doc
+
+
+class RevisionReply(Reply):
+    revision: int
+    updated_by_name: Annotated[str, Meta(description="Who changed it last, or empty when it was you.")]
+
+
+class SavedReply(Reply):
+    id: str
+    revision: int
+    updated_at: DateTime
+
+
+class OKReply(Reply):
+    ok: bool
 
 
 def experiment_row(store: Store, experiment: Experiment, user_id: int, with_doc: bool = False) -> dict[str, Any]:
@@ -46,14 +126,16 @@ def experiment_row(store: Store, experiment: Experiment, user_id: int, with_doc:
     return row
 
 
+def _doc_reply(store: Store, experiment: Experiment, user_id: int) -> ExperimentDoc:
+    return msgspec.convert(experiment_row(store, experiment, user_id, True), ExperimentDoc)
+
+
+def _row_reply(store: Store, experiment: Experiment, user_id: int) -> ExperimentRow:
+    return msgspec.convert(experiment_row(store, experiment, user_id), ExperimentRow)
+
+
 def list_rows(store: Store, user_id: int) -> list[dict[str, Any]]:
-    """Shared with the MCP list_experiments tool."""
     return [experiment_row(store, experiment, user_id) for experiment in experiments.list_for_user(store, user_id)]
-
-
-def open_row(store: Store, experiment_id: str, user_id: int) -> dict[str, Any]:
-    """Shared with the MCP get_experiment tool. Raises NoSuchExperimentError."""
-    return experiment_row(store, experiments.experiment_for(store, experiment_id, user_id), user_id, with_doc=True)
 
 
 def revision_row(store: Store, experiment_id: str, user_id: int) -> dict[str, Any]:
@@ -64,74 +146,111 @@ def revision_row(store: Store, experiment_id: str, user_id: int) -> dict[str, An
     return {"revision": experiment.revision, "updated_by_name": "" if experiment.updated_by == user_id else names.get(experiment.updated_by, "")}
 
 
-def save_row(store: Store, experiment_id: str, user_id: int, doc: object, base_revision: object) -> dict[str, Any]:
-    """Shared with the MCP save_experiment tool."""
-    saved = experiments.save_doc(store, experiment_id, user_id, doc, base_revision)
-    return {"id": saved.id, "revision": saved.revision, "updated_at": saved.updated_at.isoformat()}
+def _user_id(request: Request) -> int:
+    return actor_from(request).user.id
 
 
-async def _checked_body(request: Request) -> dict[str, Any] | Response:
-    body = await read_json(request)
-    if body is None:
-        return bad_request("malformed request body")
-    if not check_csrf(request, body.get("csrf_token")):
-        return forbidden("invalid csrf token")
-    return body
+def list_experiments_tool(call: Call, body: Any, serve: Callable[[Any, Any], Any]) -> dict[str, Any]:  # feature:mcp
+    """The route answers a bare list; a tool answers an object."""  # feature:mcp
+    return {"experiments": msgspec.to_builtins(serve(call.request, body))}  # feature:mcp
 
 
-async def list_experiments(request: Request) -> Response:
-    return JSONResponse(await run(list_rows, get_store(request), actor_from(request).user.id))
+@route(
+    "GET /api/experiments", summary="List experiments",
+    tag=TAG,
+    description="Every experiment this account owns or can edit: id, name, owner, editors, revision and when it last changed.",
+    mcp="list_experiments", read_only=True, call=list_experiments_tool,  # feature:mcp
+)
+def list_experiments(request: Request) -> list[ExperimentRow]:
+    return msgspec.convert(list_rows(get_store(request), _user_id(request)), list[ExperimentRow])
 
 
-async def create_experiment(request: Request) -> Response:
-    body = await _checked_body(request)
-    if isinstance(body, Response):
-        return body
-    store, user_id = get_store(request), actor_from(request).user.id
+class CreateExperiment(RequestType):
+    doc: Annotated[dict[str, Any], Meta(description="A design document: at least {\"name\": ..., \"format_version\": 3}.", extra={"error": "doc must be an object"})]
+
+
+@route(
+    "POST /api/experiments", summary="Create an experiment",
+    tag=TAG, status=201,
+    description="A new experiment owned by this account. doc needs at least name and format_version (3); everything "
+    "left out gets its default when the experiment is opened or changed. Answers the new experiment with its doc.",
+    mcp_note="To start from another experiment, duplicate_experiment is simpler; experiment_action changes it a piece at a time.",  # feature:mcp
+    mcp="create_experiment",
+)
+def create_experiment(request: Request, body: CreateExperiment) -> ExperimentDoc:
+    store, user_id = get_store(request), _user_id(request)
     try:
-        created = await run(experiments.create_experiment, store, user_id, body.get("doc"))
+        created = experiments.create_experiment(store, user_id, body.doc)
     except BadDocumentError as refusal:
-        return bad_request(str(refusal))
-    return JSONResponse(await run(experiment_row, store, created, user_id, True), status_code=201)
+        raise Refused(400, str(refusal)) from None
+    return _doc_reply(store, created, user_id)
 
 
-async def get_experiment(request: Request) -> Response:
+@route(
+    "GET /api/experiments/{experiment_id}", summary="Read an experiment",
+    tag=TAG, errors=(404,),
+    description="One experiment's full design document (doc) and its revision. " + DOC_GUIDE,
+    mcp="get_experiment", read_only=True,
+)
+def get_experiment(request: Request, body: ExperimentPath) -> ExperimentDoc:
+    store, user_id = get_store(request), _user_id(request)
     try:
-        row = await run(open_row, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id)
+        experiment = experiments.experiment_for(store, body.experiment_id, user_id)
     except NoSuchExperimentError:
-        return not_found(NO_SUCH)
-    return JSONResponse(row)
+        raise Refused(404, NO_SUCH) from None
+    return _doc_reply(store, experiment, user_id)
 
 
-async def get_revision(request: Request) -> Response:
+@route(
+    "GET /api/experiments/{experiment_id}/revision", summary="An experiment's revision",
+    tag=TAG, errors=(404,),
+    description="Only the revision, and who changed it last if not you: a cheap way to see whether an experiment "
+    "changed since it was read. An open page asks every few seconds.",
+    mcp="experiment_revision", read_only=True,
+)
+def get_revision(request: Request, body: ExperimentPath) -> RevisionReply:
     try:
-        return JSONResponse(await run(revision_row, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id))
+        return RevisionReply(**revision_row(get_store(request), body.experiment_id, _user_id(request)))
     except NoSuchExperimentError:
-        return not_found("no such experiment")
+        raise Refused(404, NO_SUCH) from None
 
 
-async def save_experiment(request: Request) -> Response:
-    body = await _checked_body(request)
-    if isinstance(body, Response):
-        return body
+class SaveExperiment(RequestType):
+    experiment_id: ExperimentID
+    doc: Annotated[dict[str, Any], Meta(description="The whole design document.", extra={"error": "doc must be an object"})]
+    base_revision: Annotated[int, Meta(ge=1, description="The revision the doc was read at.", extra={"error": "base_revision must be a revision number"})]
+
+
+@route(
+    "POST /api/experiments/{experiment_id}/save", summary="Save an experiment",
+    tag=TAG, errors=(404, 409),
+    description="Replace an experiment's design document. Send the whole doc as read, changed, with base_revision "
+    "set to the revision it came from. Refused with 409 (and the current revision) if it has changed since; read it "
+    "again and reapply. Anyone with the experiment open in a browser sees the change within a few seconds.",
+    mcp_note="Read it with get_experiment.",  # feature:mcp
+    mcp="save_experiment",
+)
+def save_experiment(request: Request, body: SaveExperiment) -> SavedReply:
     try:
-        row = await run(
-            save_row, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id,
-            body.get("doc"), body.get("base_revision"),
-        )
+        saved = experiments.save_doc(get_store(request), body.experiment_id, _user_id(request), body.doc, body.base_revision)
     except NoSuchExperimentError:
-        return not_found(NO_SUCH)
+        raise Refused(404, NO_SUCH) from None
     except BadDocumentError as refusal:
-        return bad_request(str(refusal))
+        raise Refused(400, str(refusal)) from None
     except RevisionConflictError as stale:
-        return conflict(str(stale), revision=stale.current)
-    return JSONResponse(row)
+        raise Refused(409, str(stale), revision=stale.current) from None
+    return SavedReply(id=saved.id, revision=saved.revision, updated_at=saved.updated_at.isoformat())
 
 
-def _duplicate(store: Store, experiment_id: str, user_id: int, name: object) -> Experiment:
+class DuplicateExperiment(RequestType):
+    experiment_id: ExperimentID
+    name: Annotated[str, Meta(description="The copy's name. Left out or blank, it keeps the original's.")] = ""
+
+
+def _duplicate(store: Store, experiment_id: str, user_id: int, name: str) -> Experiment:
     source = experiments.experiment_for(store, experiment_id, user_id)
     doc = dict(source.doc)
-    if isinstance(name, str) and name.strip():
+    if name.strip():
         doc["name"] = name.strip()
     copy = experiments.create_experiment(store, user_id, doc)
     shas = [entry.get("id") for entry in source.doc.get("media") or [] if isinstance(entry, dict)]
@@ -139,92 +258,117 @@ def _duplicate(store: Store, experiment_id: str, user_id: int, name: object) -> 
     return copy
 
 
-async def duplicate_experiment(request: Request) -> Response:
-    body = await _checked_body(request)
-    if isinstance(body, Response):
-        return body
-    store, user_id = get_store(request), actor_from(request).user.id
+@route(
+    "POST /api/experiments/{experiment_id}/duplicate", summary="Duplicate an experiment",
+    tag=TAG, status=201, errors=(404,),
+    description="A copy of an experiment, owned by this account, with its pictures. name is the copy's name; left "
+    "out, it keeps the original's. Answers the copy with its doc.",
+    mcp="duplicate_experiment",
+)
+def duplicate_experiment(request: Request, body: DuplicateExperiment) -> ExperimentDoc:
+    store, user_id = get_store(request), _user_id(request)
     try:
-        copy = await run(_duplicate, store, request.path_params["experiment_id"], user_id, body.get("name"))
+        copy = _duplicate(store, body.experiment_id, user_id, body.name)
     except NoSuchExperimentError:
-        return not_found(NO_SUCH)
+        raise Refused(404, NO_SUCH) from None
     except BadDocumentError as refusal:
-        return bad_request(str(refusal))
-    return JSONResponse(await run(experiment_row, store, copy, user_id, True), status_code=201)
+        raise Refused(400, str(refusal)) from None
+    return _doc_reply(store, copy, user_id)
 
 
-def _set_editors(store: Store, experiment_id: str, user_id: int, editors: object) -> dict[str, Any]:
-    if not isinstance(editors, list) or not all(isinstance(e, int) and not isinstance(e, bool) for e in editors):
-        raise BadDocumentError("editors must be a list of user ids")
+class SetEditors(RequestType):
+    experiment_id: ExperimentID
+    editors: Annotated[list[int], Meta(description="User ids, from GET /api/team (list_team over MCP).", extra={"error": "editors must be a list of user ids"})]
+
+
+@route(
+    "POST /api/experiments/{experiment_id}/editors", summary="Choose who can edit an experiment",
+    tag=TAG, errors=(403, 404),
+    description="Replaces the list of people, by user id, who may edit an experiment besides its owner. Only the owner may.",
+    mcp="set_experiment_editors",
+)
+def set_editors(request: Request, body: SetEditors) -> ExperimentRow:
+    store, user_id = get_store(request), _user_id(request)
     known = {user.id for user in users.list_users(store) if not user.disabled}
-    unknown = [editor for editor in editors if editor not in known]
+    unknown = [editor for editor in body.editors if editor not in known]
     if unknown:
-        raise BadDocumentError(f"no such user: {unknown[0]}")
-    updated = experiments.set_editors(store, experiment_id, user_id, editors)
-    return experiment_row(store, updated, user_id)
-
-
-async def set_editors(request: Request) -> Response:
-    body = await _checked_body(request)
-    if isinstance(body, Response):
-        return body
+        raise Refused(400, f"no such user: {unknown[0]}")
     try:
-        row = await run(
-            _set_editors, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id,
-            body.get("editors"),
-        )
+        updated = experiments.set_editors(store, body.experiment_id, user_id, body.editors)
     except NoSuchExperimentError:
-        return not_found(NO_SUCH)
+        raise Refused(404, NO_SUCH) from None
     except NotOwnerError as refusal:
-        return forbidden(str(refusal))
+        raise Refused(403, str(refusal)) from None
     except BadDocumentError as refusal:
-        return bad_request(str(refusal))
-    return JSONResponse(row)
+        raise Refused(400, str(refusal)) from None
+    return _row_reply(store, updated, user_id)
 
 
-async def delete_experiment(request: Request) -> Response:
-    body = await _checked_body(request)
-    if isinstance(body, Response):
-        return body
+@route(
+    "POST /api/experiments/{experiment_id}/delete", summary="Delete an experiment",
+    tag=TAG, access=SESSION_ONLY, errors=(403, 404),
+    description="Deletes an experiment; the owner can restore it for a while. Only the owner may.",
+)
+def delete_experiment(request: Request, body: ExperimentPath) -> OKReply:
     try:
-        await run(experiments.delete_experiment, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id)
+        experiments.delete_experiment(get_store(request), body.experiment_id, _user_id(request))
     except NoSuchExperimentError:
-        return not_found(NO_SUCH)
+        raise Refused(404, NO_SUCH) from None
     except NotOwnerError as refusal:
-        return forbidden(str(refusal))
-    return JSONResponse({"ok": True})
+        raise Refused(403, str(refusal)) from None
+    return OKReply(ok=True)
 
 
-async def restore_experiment(request: Request) -> Response:
-    body = await _checked_body(request)
-    if isinstance(body, Response):
-        return body
-    store, user_id = get_store(request), actor_from(request).user.id
+@route(
+    "POST /api/experiments/{experiment_id}/restore", summary="Undo deleting an experiment",
+    tag=TAG, access=SESSION_ONLY, errors=(403, 404, 409),
+    description="Brings back an experiment deleted a short while ago.",
+)
+def restore_experiment(request: Request, body: ExperimentPath) -> ExperimentRow:
+    store, user_id = get_store(request), _user_id(request)
     try:
-        restored = await run(experiments.restore_experiment, store, request.path_params["experiment_id"], user_id)
+        restored = experiments.restore_experiment(store, body.experiment_id, user_id)
     except RestoreError as refusal:
-        return restore_refused(refusal)
-    return JSONResponse(await run(experiment_row, store, restored, user_id))
+        raise restore_refusal(refusal) from None
+    return _row_reply(store, restored, user_id)
 
 
-def action_row(store: Store, experiment_id: str, user_id: int, body: dict[str, Any]) -> dict[str, Any]:
-    """Shared with the MCP experiment_action tool: one small edit, see
-    app/models/actions.py."""
-    return actions.run_action(store, experiment_id, user_id, body.get("action"), body)
+class RunAction(RequestType):
+    experiment_id: ExperimentID
+    action: Annotated[Literal[actions.ACTIONS], Meta(description="<thing>.<verb>.")]  # type: ignore[valid-type]
+    id: Annotated[str, Meta(description="What to update, delete or move.")] | msgspec.UnsetType = msgspec.UNSET
+    fields: Annotated[dict[str, Any], Meta(description="The fields to set.")] | msgspec.UnsetType = msgspec.UNSET
+    position: Annotated[int, Meta(ge=0, description="Where to move it, from 0.")] | msgspec.UnsetType = msgspec.UNSET
+    section: Annotated[str, Meta(description="For settings.update.")] | msgspec.UnsetType = msgspec.UNSET
+    list: Annotated[str, Meta(description="The prompt list, for an item action.")] | msgspec.UnsetType = msgspec.UNSET
+    trial: Annotated[str, Meta(description="The trial type, for a phase action.")] | msgspec.UnsetType = msgspec.UNSET
+    run: Annotated[str, Meta(description="The run, for a block action.")] | msgspec.UnsetType = msgspec.UNSET
+    session: Annotated[str, Meta(description="The session, for a step action.")] | msgspec.UnsetType = msgspec.UNSET
 
 
-async def run_action(request: Request) -> Response:
-    body = await read_json(request)
-    if body is None:
-        return bad_request("malformed request body")
-    if not check_csrf(request, body.get("csrf_token")):
-        return forbidden("invalid csrf token")
+class ActionReply(Reply):
+    """What an action answers: the new revision, and for an add the new
+    thing's id."""
+
+    api_name: ClassVar[str] = "ActionResult"
+    revision: int
+    id: str | msgspec.UnsetType = msgspec.UNSET
+
+
+@route(
+    "POST /api/experiments/{experiment_id}/action", summary="Make one change to an experiment",
+    tag=TAG, errors=(404, 409),
+    description="One small edit, without sending the whole document. " + ACTION_GUIDE,
+    mcp="experiment_action",
+)
+def run_action(request: Request, body: RunAction) -> ActionReply:
+    args = {name: value for name, value in msgspec.structs.asdict(body).items() if value is not msgspec.UNSET}
     try:
-        row = await run(action_row, get_store(request), request.path_params["experiment_id"], actor_from(request).user.id, body)
+        result = actions.run_action(get_store(request), body.experiment_id, _user_id(request), body.action, args)
     except NoSuchExperimentError:
-        return not_found(NO_SUCH)
+        raise Refused(404, NO_SUCH) from None
     except (actions.BadActionError, BadDocumentError) as refusal:
-        return bad_request(str(refusal))
+        raise Refused(400, str(refusal)) from None
     except RevisionConflictError as stale:
-        return conflict(str(stale), revision=stale.current)
-    return JSONResponse(row)
+        raise Refused(409, f"{stale} -- try again", revision=stale.current) from None
+    return msgspec.convert(result, ActionReply)

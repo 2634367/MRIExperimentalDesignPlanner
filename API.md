@@ -4,8 +4,10 @@ How a script, a runner or an agent talks to the MRI Experiment Designer.
 
 There are two doors, and both use the same API keys and the same roles:
 
-- **HTTP routes** under `/api/`. `app/routes/__init__.py` is the complete list.
+- **HTTP routes** under `/api/`. Each is declared once, with `@route(...)` on its handler in `app/routes/`.
 - **MCP** at `POST /mcp`, for agents. It is JSON-RPC over plain HTTP.
+
+The complete reference is generated from those declarations by `scripts/api_docs.sh`, and a test fails until it is current: `config/api.md` (every route, its fields, limits and answers), `config/mcp.md` (every tool), and `config/api.json` / `config/mcp.json` for programs. This page is the guide; where they differ, the generated files are right.
 
 Examples use these:
 
@@ -50,10 +52,11 @@ curl -sS "$BASE/api/me" -H "Authorization: Bearer $KEY"
 
 ### What a key cannot do
 
-A key never creates a credential and never deletes anything that cannot be put back. If a leaked key could make another credential, revoking it would not end the compromise. So these routes need a browser session, and a key gets 403:
+A key never makes another key, and never deletes anything of this app's that cannot be put back. An admin-scoped key may manage accounts, login links, invite links and devices (see Admin below); every link records the key that made it, and revoking or deleting that key voids the ones still usable, so revoking a leaked key still ends what it handed out. A key whose role is below its account's cannot make its own account a login link. These routes need a browser session, and a key gets 403:
 
 - making, revoking, deleting or restoring API keys
-- making accounts, login links, invite links, share links or PINs
+- setting your own password, PIN or two-factor
+- making share links
 - deleting or restoring experiments and scanner cards
 - starting, watching or stopping a PsychoPy launch, which opens windows on the server's machine
 
@@ -154,8 +157,10 @@ One library, shared by every signed-in user.
 |---|---|---|
 | `GET /api/scanner-cards` | Key | Every card, with its pages. |
 | `GET /api/scanner-cards/revisions` | Key | `{card id: revision}`. |
+| `GET /api/scanner-cards/{id}` | Key | One card, with its pages. |
 | `POST /api/scanner-cards` | Key | `{card}`. Answers 201. |
 | `POST /api/scanner-cards/{id}/save` | Key | `{card, base_revision}`. 409 if it changed since. |
+| `POST /api/scanner-cards/{id}/set-parameter` | Key | `{page, parameter, value}`: one row that already exists. 409 if it changed meanwhile. |
 | `GET /api/scanner-cards/{id}/backups` | Key | Earlier versions, the last 25. |
 | `POST /api/scanner-cards/{id}/backups/restore` | Key | `{revision}`. |
 | `POST /api/scanner-cards/{id}/delete` | Session | 409 for the last card in the library. |
@@ -198,16 +203,12 @@ These need the admin role. "Admin key" means an admin-scoped key or an admin's s
 
 | Method and path | Auth |
 |---|---|
-| `GET /api/admin/users` | Admin key |
-| `POST /api/admin/users/{id}/disabled` | Admin key |
-| `POST /api/admin/users/{id}/revoke-access` | Admin key |
-| `POST /api/admin/users` | Admin session |
-| `POST /api/admin/users/{id}/reissue-login` | Admin session |
-| `POST /api/admin/users/{id}/delete` | Admin session |
-| `GET /api/admin/invite-links` | Admin key |
-| `POST /api/admin/invite-links/{id}/revoke` | Admin key |
-| `POST /api/admin/invite-links` | Admin session |
-| `POST /api/admin/invite-links/{id}/delete`, `/restore` | Admin session |
+| `GET /api/admin/users`, `POST /api/admin/users` | Admin key |
+| `POST /api/admin/users/{id}/rename`, `/role`, `/disabled`, `/revoke-access`, `/delete`, `/reset-two-factor` | Admin key |
+| `POST /api/admin/users/{id}/reissue-login`, `/cancel-login-link` | Admin key |
+| `GET /api/admin/users/{id}/sessions`, `POST .../sessions/{session_id}/revoke` | Admin key |
+| `GET /api/admin/invite-links`, `POST /api/admin/invite-links` | Admin key |
+| `POST /api/admin/invite-links/{id}/rename`, `/limits`, `/switch-on`, `/revoke`, `/delete`, `/restore` | Admin key |
 | `GET /api/admin/keys` | Admin session |
 | `POST /api/admin/keys/{id}/revoke`, `/delete`, `/restore` | Admin session |
 
@@ -286,12 +287,12 @@ Any key:
 | `experiment_action` | `experiment_id`, `action`, and see below | `{revision}`, with `id` after an add. |
 | `list_scanner_cards` | none | `{cards}`: id, label, role, note and revision, no pages. |
 | `get_scanner_card` | `card_id` | The whole card and its revision. |
-| `create_scanner_card` | `card` | The card, without its pages. Its id comes from its label. |
-| `save_scanner_card` | `card_id`, `card`, `base_revision` | The card, without its pages. Replaces it for everyone, and keeps a backup. |
-| `set_scanner_parameter` | `card_id`, `page`, `parameter`, `value` | The card, without its pages. Sets one row that already exists; `parameter` ignores case. `value` is a string. Keeps a backup. |
-| `scanner_card_revisions` | none | `{revisions}`: each card's id and revision. |
+| `create_scanner_card` | `card` | The card. Its id comes from its label. |
+| `save_scanner_card` | `card_id`, `card`, `base_revision` | The card. Replaces it for everyone, and keeps a backup. |
+| `set_scanner_parameter` | `card_id`, `page`, `parameter`, `value` | The card. Sets one row that already exists; `parameter` ignores case. `value` is a string. Keeps a backup. |
+| `scanner_card_revisions` | none | `{card id: revision}`. |
 | `list_scanner_card_backups` | `card_id` | `{backups}`: the earlier versions kept when the card was saved over. |
-| `restore_scanner_card_backup` | `card_id`, `revision` | The card, without its pages. Makes that backup the card again, for everyone, and keeps what it replaced. |
+| `restore_scanner_card_backup` | `card_id`, `revision` | The card. Makes that backup the card again, for everyone, and keeps what it replaced. |
 | `create_experiment` | `doc` | The new experiment's row and `doc`. `doc` needs at least `name` and `format_version` (3); the rest gets its defaults. |
 | `experiment_revision` | `experiment_id` | `{revision, updated_by_name}`, as `GET /api/experiments/{id}/revision`. |
 | `duplicate_experiment` | `experiment_id`, `name` (optional) | The copy's row and `doc`, owned by you, with its pictures. |
@@ -301,19 +302,23 @@ Any key:
 | `revoke_share_link` | `experiment_id`, `link_id` | `{ok}`. The link stops working for good. Destructive. |
 | `psychopy_status` | `refresh` (optional) | As `GET /api/psychopy`. |
 
-The template's own account tools are there too (`rename_account`, `set_shortcuts`, `set_themes`, `set_theme`, and for admins the theme defaults). `config/mcp.json` lists every tool with the route it stands for. A route a key may call that has no tool says why in `config/openapi.json` (`x-mcp-http`): pictures, the bundle, the report and published files are files, publishing needs the plans the browser compiles, and the PsychoPy runner's records stay its own HTTP exchange.
+The template's own account tools are there too (`rename_account`, `set_shortcuts`, `set_themes`, `set_theme`, and for admins the theme defaults). `config/mcp.json` lists every tool with the route it stands for. A route a key may call that has no tool says why in `config/api.json` (`x-mcp-http`): pictures, the bundle, the report and published files are files, publishing needs the plans the browser compiles, and the PsychoPy runner's records stay its own HTTP exchange.
 
 Admin-scoped keys only:
 
 | Tool | Arguments | Answer |
 |---|---|---|
 | `admin_list_users` | none | `{users}`: every account, with its role and which is the owner. |
-| `admin_set_user_disabled` | `user_id`, `disabled` | `{ok}`. Reversible. Not for the owner or your own account. |
-| `admin_revoke_access` | `user_id` | `{ok, revoked}`. Ends every session and voids every unused login link and key. Not for the owner or your own account. Destructive. |
-| `admin_list_invite_links` | none | `{invite_links}`. |
-| `admin_revoke_invite_link` | `link_id` | `{ok}`. Cannot be switched back on. Destructive. |
+| `admin_create_user` | `display_name`, `role`, link limits | The account and a full `login_url` to hand to the person. |
+| `admin_rename_user`, `admin_set_user_role`, `admin_set_user_disabled`, `admin_reset_two_factor`, `admin_delete_user` | `user_id`, and the new value | Not for the owner; only the owner acts on another admin. |
+| `admin_reissue_login`, `admin_cancel_login_link` | `user_id` | A new `login_url`, or the live one stops working. |
+| `admin_revoke_access` | `user_id` | Ends every session and voids every unused login link and key. Destructive. |
+| `admin_list_user_sessions`, `admin_revoke_user_session` | `user_id` (and `session_id`) | An account's signed-in devices, or end one. |
+| `admin_list_invite_links`, `admin_create_invite_link`, `admin_rename_invite_link`, `admin_set_invite_link_limits`, `admin_switch_on_invite_link`, `admin_revoke_invite_link`, `admin_delete_invite_link`, `admin_restore_invite_link` | `link_id` and the change | Invite links, as the Invite links screen manages them. |
 
-Deliberately missing: creating accounts, login links, invite links, PINs, keys and share links, and deleting anything. Those need a browser session.
+Any key also has `list_my_sessions`, `label_my_session`, `revoke_my_session`, `revoke_my_other_sessions`, `create_my_login_link` and `cancel_my_login_link`. `config/mcp.md` has every tool's arguments and answer.
+
+Deliberately missing: making, revoking or deleting keys; your own password, PIN and two-factor; share links; and deleting experiments or scanner cards. Those need a browser session.
 
 ### experiment_action
 
