@@ -19,7 +19,7 @@ CONFIG = assets.CODE_ROOT / "config"
 # What the route table has that is not an API: the pages a link opens, and the
 # catch-alls. The /s/... ones are the pages a share link opens (see share.py).
 NOT_DOCUMENTED = {
-    "/login/{credential:path}", "/join/{credential:path}", "/api/{rest:path}", "/{path:path}",
+    "/login/{credential:path}", "/join/{credential:path}", "/docs/{page:path}", "/api/{rest:path}", "/{path:path}",
     "/s/{credential}", "/s/{credential}/{screen}", "/s/{credential}/{screen}/{item}",
 }
 

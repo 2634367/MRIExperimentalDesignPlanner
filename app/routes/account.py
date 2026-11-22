@@ -2,6 +2,7 @@
 a login link for another device, log out. The account screen itself is static/js/app.js, calling these."""
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Annotated, ClassVar, Literal
 
 from msgspec import UNSET, Meta, UnsetType
@@ -16,10 +17,13 @@ from app.core.encryption import BadKeyError, CipherTextError
 from app.core.logs import KIND_AUTH
 from app.core.security import actor_from, clear_session_cookie, decrypt_cookie
 from app.models import login_tokens, sessions, users
+from app.models import api_keys
 from app.models import passwords
 from app.models import pins
 from app.models import themes
 from app.models import two_factor
+from app.routes.api_docs_md import api_doc_url
+from app.routes.api_docs_md import mcp_doc_url
 from app.routes.admin import CancelLoginLinkReply, DisplayName, ExpiresInMinutes, LoginLink, LoginLinkReply, MaxUses, OkReply, RenameUserReply, link_options, link_reply
 from app.routes.helpers import Refused, get_config, get_store, run
 from app.routes.logs import audit
@@ -32,42 +36,48 @@ class Me(Reply, kw_only=True):
 
     api_name: ClassVar[str] = "Me"
     authenticated: bool
+    contract: Annotated[int, Meta(description="Which version of the portal contract this app speaks (ProjectPortal's CROSS_PROJECT.md).")]
+    capabilities: Annotated[list[str], Meta(description="The optional parts of that contract this app has on now: viewer_role, account_expiry, key_minting, invite_links, key_sign_in.")]
     id: int
     display_name: str
-    role: Annotated[str, Meta(description="The effective role: never higher than an API key's own.")]
-    account_role: str
+    role: Annotated[Literal["admin", "user", "viewer"], Meta(description="The effective role: never higher than an API key's own. A viewer may read, and change nothing.")]
+    account_role: Literal["admin", "user", "viewer"]
     is_owner: bool
     login_link: Annotated[LoginLink | None, Meta(description="Your own live login link, or null.")]
-    maintenance: Literal["none", "read_only", "full"]
+    maintenance: Annotated[Literal["none", "read_only", "full"], Meta(extra_json_schema={"x-feature": "maintenance"})]
     version: Annotated[str, Meta(description="The running build. dev when none was stamped.")]
     announcement: Annotated[str, Meta(description="server.announcement. Empty when there is none.")]
     repo: Annotated[str, Meta(description="app.repo without a trailing / or .git: where the source lives. Empty when it is not set.")]
     description: Annotated[str, Meta(description="app.description. Empty when there is none.")]
-    show_about: Annotated[bool, Meta(description="app.show_about: whether the menu has About.")]
-    openapi_url: Annotated[str, Meta(description="Where to read this API's reference: config/api.json in app.repo, or /api/api.json when there is no repo.")]
-    mcp_url: Annotated[str, Meta(description="Where to read the MCP reference: config/mcp.json in app.repo, or /api/mcp.json when there is no repo. Only with server.mcp on.")]
-    shortcuts: Annotated[dict[str, str], Meta(description="The keyboard shortcuts you changed, by action. Mod is Cmd on a Mac and Ctrl elsewhere.")]
-    themes: Annotated[list[Theme] | None, Meta(description="Your themes (see the Theme schema): your own list, else the app's defaults, else null for the built-in ones.")]
-    themes_custom: Annotated[bool, Meta(description="Whether you have your own list rather than following the defaults.")]
-    theme_id: Annotated[str, Meta(description="The theme you use. Empty: the first.")]
-    has_pin: bool
-    username: str
-    has_password: bool
-    password_blocked: bool
-    two_factor: bool
-    passwords_enabled: bool
-    two_factor_enabled: bool
+    show_about: Annotated[bool, Meta(description="app.show_about: whether the menu has About.", extra_json_schema={"x-feature": "about"})]
+    openapi_url: Annotated[str, Meta(description="Where to read this API's reference: config/api.json in app.repo, or /api/api.json when there is no repo.", extra_json_schema={"x-feature": "openapi"})]
+    mcp_url: Annotated[str, Meta(description="Where to read the MCP reference: config/mcp.json in app.repo, or /api/mcp.json when there is no repo. Only with server.mcp on.", extra_json_schema={"x-feature": "mcp"})]
+    api_doc_url: Annotated[str, Meta(description="Where to read the API reference as a page for people: config/api.md in app.repo, or /docs/api when there is no repo.", extra_json_schema={"x-feature": "openapi"})]
+    mcp_doc_url: Annotated[str, Meta(description="Where to read the MCP tools as a page for people: config/mcp.md in app.repo, or /docs/mcp when there is no repo.", extra_json_schema={"x-feature": "mcp"})]
+    shortcuts: Annotated[dict[str, str], Meta(description="The keyboard shortcuts you changed, by action. Mod is Cmd on a Mac and Ctrl elsewhere.", extra_json_schema={"x-feature": "shortcuts"})]
+    themes: Annotated[list[Theme] | None, Meta(description="Your themes (see the Theme schema): your own list, else the app's defaults, else null for the built-in ones.", extra_json_schema={"x-feature": "appearance"})]
+    themes_custom: Annotated[bool, Meta(description="Whether you have your own list rather than following the defaults.", extra_json_schema={"x-feature": "appearance"})]
+    themes_builtins: Annotated[int, Meta(description="Which built-in themes that list has seen (see builtins on POST /api/account/themes).", extra_json_schema={"x-feature": "appearance"})]
+    theme_id: Annotated[str, Meta(description="The theme you use. Empty: the first.", extra_json_schema={"x-feature": "appearance"})]
+    has_pin: Annotated[bool, Meta(extra_json_schema={"x-feature": "invite_links"})]
+    username: Annotated[str, Meta(extra_json_schema={"x-feature": "passwords"})]
+    has_password: Annotated[bool, Meta(extra_json_schema={"x-feature": "passwords"})]
+    password_blocked: Annotated[bool, Meta(extra_json_schema={"x-feature": "passwords"})]
+    two_factor: Annotated[bool, Meta(extra_json_schema={"x-feature": "two_factor"})]
+    passwords_enabled: Annotated[bool, Meta(extra_json_schema={"x-feature": "passwords"})]
+    two_factor_enabled: Annotated[bool, Meta(extra_json_schema={"x-feature": "two_factor"})]
     auth: str
-    api_keys_enabled: bool
-    mcp_enabled: Annotated[bool, Meta(description="server.mcp: whether POST /mcp answers.")]
-    files_enabled: Annotated[bool, Meta(description="files.enabled: whether the Files screen and routes are on.")]
-    invite_links_enabled: Annotated[bool, Meta(description="Whether invite links are on.")]
-    webhooks_enabled: Annotated[bool, Meta(description="webhooks.enabled: whether webhooks are sent.")]
-    logs_enabled: bool
-    logs_ui_clicks: bool
+    api_keys_enabled: Annotated[bool, Meta(extra_json_schema={"x-feature": "api_keys"})]
+    mcp_enabled: Annotated[bool, Meta(description="server.mcp: whether POST /mcp answers.", extra_json_schema={"x-feature": "mcp"})]
+    files_enabled: Annotated[bool, Meta(description="files.enabled: whether the Files screen and routes are on.", extra_json_schema={"x-feature": "files"})]
+    invite_links_enabled: Annotated[bool, Meta(description="Whether invite links are on.", extra_json_schema={"x-feature": "invite_links"})]
+    webhooks_enabled: Annotated[bool, Meta(description="webhooks.enabled: whether webhooks are sent.", extra_json_schema={"x-feature": "webhooks"})]
+    logs_enabled: Annotated[bool, Meta(extra_json_schema={"x-feature": "logs"})]
+    logs_ui_clicks: Annotated[bool, Meta(extra_json_schema={"x-feature": "logs"})]
     csrf_token: Annotated[str, Meta(description="Browser sessions only.")] | UnsetType = UNSET
-    api_key_id: Annotated[str, Meta(description="API keys only.")] | UnsetType = UNSET
-    api_key_name: Annotated[str, Meta(description="API keys only.")] | UnsetType = UNSET
+    api_key_id: Annotated[str, Meta(description="API keys only.", extra_json_schema={"x-feature": "api_keys"})] | UnsetType = UNSET
+    api_key_name: Annotated[str, Meta(description="API keys only.", extra_json_schema={"x-feature": "api_keys"})] | UnsetType = UNSET
+    may_mint_keys: Annotated[bool, Meta(description="API keys only: whether this key may make keys for other accounts.", extra_json_schema={"x-feature": "api_keys"})] | UnsetType = UNSET
 
 
 @route(
@@ -94,14 +104,16 @@ def me(request: Request) -> Me:
     # is_owner tells the UI which account-management buttons to offer; the
     # server checks ownership again on every request that depends on it.
     owner_id = users.get_owner_id(store)
-    my_themes, themes_custom = themes.mine(store, actor.user.themes)
+    my_themes, themes_custom, themes_builtins = themes.mine(store, actor.user.themes, actor.user.themes_builtins)
     link = login_tokens.live_login_link(store, actor.user.id)
     reply = Me(
         authenticated=True,
+        contract=PORTAL_CONTRACT,
+        capabilities=capabilities(cfg),
         id=actor.user.id,
         display_name=actor.user.display_name,
-        role=actor.role,
-        account_role=actor.user.role,
+        role=actor.role,  # type: ignore[arg-type]
+        account_role=actor.user.role,  # type: ignore[arg-type]
         is_owner=actor.user.id == owner_id,
         login_link=LoginLink(**link) if link is not None else None,
         maintenance=cfg.maintenance,
@@ -112,9 +124,12 @@ def me(request: Request) -> Me:
         show_about=cfg.show_about,
         openapi_url=open_api_url(cfg),
         mcp_url=mcp_url(cfg),
+        api_doc_url=api_doc_url(cfg),
+        mcp_doc_url=mcp_doc_url(cfg),
         shortcuts=actor.user.shortcuts,
         themes=theme_list(my_themes),
         themes_custom=themes_custom,
+        themes_builtins=themes_builtins,
         theme_id=actor.user.theme_id,
         has_pin=pins.has_pin(actor.user),
         username=actor.user.username,
@@ -141,7 +156,27 @@ def me(request: Request) -> Me:
     if actor.api_key is not None:
         reply.api_key_id = actor.api_key.id
         reply.api_key_name = actor.api_key.name
+        reply.may_mint_keys = actor.api_key.may_mint_keys
     return reply
+
+
+# The portal contract version this template speaks (ProjectPortal's
+# CROSS_PROJECT.md, "Portal contract v2"). The portal turns a part of its
+# Manage screen on only when capabilities lists it.
+PORTAL_CONTRACT = 2
+
+
+def capabilities(cfg: Config) -> list[str]:
+    """The parts of the portal contract this app answers right now. Features
+    switched off while the server runs drop out of the list with them."""
+    found = ["viewer_role", "account_expiry"]
+    if cfg.api_keys_enabled:
+        found.append("key_minting")
+    if cfg.invite_links_enabled:
+        found.append("invite_links")
+    if cfg.api_keys_enabled:
+        found.append("key_sign_in")
+    return found
 
 
 def open_api_url(cfg: Config) -> str:
@@ -220,12 +255,13 @@ class MyLoginLink(RequestType):
 @route(
     "POST /api/account/login-link", summary="A login link for yourself",
     tag="Account",
-    description="A link that signs your own account in on a browser or another device. Only a key with your "
-    "account's full role may ask: one scoped down to user on an admin account is refused.",
-    mcp_note="Answers with login_url (open it to sign in; it works once unless max_uses says otherwise), "
-    "expires_at and max_uses. Any older link the account could still use stops working; its signed-in "
-    "devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs "
-    "out every device it signed in.",
+    description="A link that signs your own account in on a browser or another device. An API key may ask "
+    "only if your account let it, from a browser session (POST /api/keys/{key_id}/sign-in); its link works "
+    "once, for at most 15 minutes.",
+    mcp_note="Only works if this key was allowed to make sign-in links, on the API keys card. Answers with "
+    "login_url (open it to sign in; it works once, for at most 15 minutes), expires_at and max_uses. Any "
+    "older link the account could still use stops working; its signed-in devices stay signed in. Revoking "
+    "or deleting this API key voids the link while it is unused, and signs out every device it signed in.",
     mcp="create_my_login_link", call=with_login_url,
 )
 def create_my_login_link(request: Request, body: MyLoginLink) -> LoginLinkReply:
@@ -235,14 +271,22 @@ def create_my_login_link(request: Request, body: MyLoginLink) -> LoginLinkReply:
     has the same effect: any link the account could still use stops working,
     and existing sessions stay signed in.
 
-    An API key may ask too, but only one that carries the account's full
-    role: the link becomes a session, and a session acts with the account's
-    role, so a key scoped down to "user" on an admin's account would otherwise
-    climb. Revoking the key voids the link while it can still be used."""
+    A browser session may always ask. An API key may only when its account
+    turned that on for it, from a session (POST /api/keys/{key_id}/sign-in):
+    the link becomes an ordinary browser session, which opens everything kept
+    from keys (the API keys card, the owner's screens, minting keys) to
+    whoever holds the key. A key's link works once and for at most 15
+    minutes, whatever it asked for, and revoking the key voids it while it is
+    unused."""
     actor = actor_from(request)
-    if actor.via_api_key and actor.role != actor.user.role:
-        raise Refused(403, "this key acts with less than your account's role, so it cannot make a login link")
+    if actor.api_key is not None and not actor.api_key.may_sign_in:
+        raise Refused(403, "this key may not make sign-in links: turn that on for it on the API keys card")
     options = link_options(request, body)
+    if actor.api_key is not None:
+        ttl = options.ttl_seconds
+        if ttl <= 0 or ttl > api_keys.KEY_LOGIN_LINK_TTL_SECONDS:
+            ttl = api_keys.KEY_LOGIN_LINK_TTL_SECONDS
+        options = replace(options, max_uses=1, unlimited=False, ttl_seconds=ttl)
     credential, info = login_tokens.issue_login_link(get_store(request), actor.user.id, options)
     audit(request, KIND_AUTH, "own login link created", {"max_uses": info["max_uses"], "expires_at": info["expires_at"]})
     return LoginLinkReply(**link_reply(credential, info))
@@ -291,7 +335,7 @@ async def destroy_cookie_session(request: Request) -> None:
     the record rather than only the cookie is what matters: a copy of the
     cookie taken earlier is then dead too."""
     cfg = get_config(request)
-    raw = request.cookies.get(cfg.cookie_name, "")
+    raw = request.cookies.get(cfg.session_cookie_name, "")
     if not raw:
         return
     try:

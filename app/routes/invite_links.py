@@ -38,6 +38,7 @@ class InviteLinkRow(Reply, kw_only=True):
     live: bool
     expires_at: DateTime
     revoked: bool
+    role: Annotated[Literal["user", "viewer"], Meta(description="The role each person who joins gets.")]
     created_by: int
     created_by_name: str | UnsetType = UNSET
 
@@ -57,6 +58,7 @@ def _row(link: InviteLink, creator: User | None) -> InviteLinkRow:
         live=live,
         expires_at=link.expires_at.isoformat(),
         revoked=link.revoked_at is not None,
+        role=link.role,  # type: ignore[arg-type]
         created_by=link.created_by,
     )
     if creator is not None:
@@ -98,6 +100,7 @@ class CreateInviteLink(RequestType):
     label: Annotated[str, Meta(min_length=1, max_length=80, extra={"error": INVITE_LINK_LIMITS})]
     max_uses: Annotated[int, Meta(ge=1, le=INVITE_LINK_MAX_USES, extra={"error": INVITE_LINK_LIMITS})]
     days: Annotated[int, Meta(ge=1, le=INVITE_LINK_MAX_DAYS, extra={"error": INVITE_LINK_LIMITS})]
+    role: Annotated[Literal["user", "viewer"], Meta(description="The role each person who joins gets: user, or viewer (reads only).", extra={"error": "role must be user or viewer"})] = "user"
 
 
 class NewInviteLink(InviteLinkRow, kw_only=True):
@@ -108,8 +111,8 @@ class NewInviteLink(InviteLinkRow, kw_only=True):
 @route(
     "POST /api/admin/invite-links", summary="Create an invite link",
     tag="Invite links", role=ADMIN, feature="invite_links", status=201,
-    description="One link for a group: each person who opens it joins as a new user, up to max_uses people, "
-    "for days days.",
+    description="One link for a group: each person who opens it joins as a new account with role (user, the "
+    "default, or viewer), up to max_uses people, for days days.",
     mcp_note="Answers with join_url (shown only now) and the link's details. Revoking or deleting this API "
     "key switches the link off.",
     mcp="admin_create_invite_link", enabled=invite_links_on, call=with_join_url,
@@ -120,8 +123,8 @@ def create_invite_link(request: Request, body: CreateInviteLink) -> NewInviteLin
     if not invite_links.valid_invite_link(body.label, body.max_uses, body.days):
         raise Refused(400, INVITE_LINK_LIMITS)
     actor = actor_from(request)
-    credential, link = invite_links.issue_invite_link(get_store(request), body.label, body.max_uses, timedelta(days=body.days), actor.user.id, actor.key_id)
-    audit(request, KIND_ADMIN, "invite link created", {"link_id": link.id, "label": link.label, "max_uses": link.max_uses})
+    credential, link = invite_links.issue_invite_link(get_store(request), body.label, body.max_uses, timedelta(days=body.days), actor.user.id, actor.key_id, body.role)
+    audit(request, KIND_ADMIN, "invite link created", {"link_id": link.id, "label": link.label, "max_uses": link.max_uses, "role": link.role})
     request.app.state.webhooks.emit(webhooks.EVENT_INVITE_LINK_CREATED, {"link_id": link.id, "label": link.label})
     return NewInviteLink(**msgspec.structs.asdict(_row(link, actor.user)), join_path=f"/join/{credential}")
 
@@ -203,6 +206,7 @@ def set_invite_link_limits(request: Request, body: SetInviteLinkLimits) -> Invit
 
 @route(
     "POST /api/admin/invite-links/{link_id}/switch-on", summary="Switch an invite link back on",
+    bulk=True,
     tag="Invite links", role=ADMIN, feature="invite_links",
     mcp_note="Undo admin_revoke_invite_link: anyone still holding the link can use it again. The link then "
     "counts as this key's: revoking the key switches it off.",
@@ -222,6 +226,7 @@ def switch_on_invite_link(request: Request, body: LinkIDPath) -> InviteLinkRow:
 
 @route(
     "POST /api/admin/invite-links/{link_id}/revoke", summary="Switch off an invite link",
+    bulk=True,
     tag="Invite links", role=ADMIN, feature="invite_links",
     description="Stop an invite link from letting anyone else join or sign in through it. Accounts it "
     "already made keep working. Cannot be switched back on.",
@@ -239,6 +244,7 @@ def revoke_invite_link(request: Request, body: LinkIDPath) -> OkReply:
 
 @route(
     "POST /api/admin/invite-links/{link_id}/delete", summary="Delete an invite link",
+    bulk=True,
     tag="Invite links", role=ADMIN, feature="invite_links",
     description="Take an invite link off the list and stop it working. The accounts it made stay.",
     mcp_note="admin_restore_invite_link undoes it for a few minutes.",
@@ -256,6 +262,7 @@ def delete_invite_link(request: Request, body: LinkIDPath) -> OkReply:
 
 @route(
     "POST /api/admin/invite-links/{link_id}/restore", summary="Undo deleting an invite link",
+    bulk=True,
     tag="Invite links", role=ADMIN, feature="invite_links", errors=(409,),
     description="Bring back an invite link deleted in the last few minutes, working as before. The link "
     "then counts as this key's: revoking the key switches it off.",

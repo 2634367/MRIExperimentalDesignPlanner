@@ -46,6 +46,24 @@ const ThemePalettes = {
     faded_gold: "#e7e3c6",
     off_white: "#f2f1f0",
   },
+  // The Ohio State University. Primary: scarlet, gray and white. Scarlet is
+  // for what you press; it has shades but no tints (nothing lighter).
+  osu: {
+    scarlet: "#ba0c2f",
+    gray: "#a7b1b7",
+    white: "#ffffff",
+    scarlet_dark_40: "#70071c",
+    scarlet_dark_60: "#4a0513",
+    gray_light_20: "#bfc6cb",
+    gray_light_40: "#cfd4d8",
+    gray_light_60: "#dfe3e5",
+    gray_light_80: "#eff1f2",
+    gray_light_90: "#f6f7f8",
+    gray_dark_20: "#868e92",
+    gray_dark_40: "#646a6e",
+    gray_dark_60: "#3f4443",
+    gray_dark_80: "#212325",
+  },
 };
 
 const Theme = {
@@ -63,6 +81,12 @@ const Theme = {
   // Every one has colors for both modes: the ones it starts in, and the other
   // mode's under its name, which the Light/Dark switch swaps in (setMode).
   // WSU comes first and starts light: it is what a new browser shows.
+  //
+  // A theme added after the first ones carries since: one more than the
+  // highest so far. A saved list remembers the highest it has seen
+  // (builtInsSeen), and withNewBuiltIns adds any newer one to it, so a new
+  // theme reaches people who already made their own list. Never reuse or
+  // lower a since; moving a theme in this list does not move it in saved ones.
   builtIn: [
     // Wright State University, and what a new browser shows: Green on Off White
     // under a Dark Green bar with a Gold rule; switched to dark, Gold on WSU
@@ -91,7 +115,49 @@ const Theme = {
       light: { accent: "#2b7a72" , second: "#a0711a" , background: "#f2f4f6" , surface: "#ffffff" } },
     { id: "cerise" , mode: "dark" , accent: "#f06595" , second: "#ffa8d0" , background: "#1f0d16" , surface: "#2a1220" ,
       light: { accent: "#b0164c" , second: "#e64980" , background: "#fdf2f6" , surface: "#ffffff" } },
+    // The Ohio State University: Scarlet on Gray Light 90 with Gray Dark 40 for
+    // where you are; switched to dark, Scarlet on Gray Dark 80 with Gray Dark 60 panels.
+    // Text is the gray shades; dark links and outline buttons are gray tints,
+    // never a scarlet tint (no scarlet reads on a dark card). The top bar
+    // (mast) is Scarlet with White words in both modes.
+    { id: "osu" , since: 1 , mode: "light" , accent: ThemePalettes.osu.scarlet , second: ThemePalettes.osu.gray_dark_40 , background: ThemePalettes.osu.gray_light_90 , surface: ThemePalettes.osu.white ,
+      overrides: { text: ThemePalettes.osu.gray_dark_80 , mast: ThemePalettes.osu.scarlet , mastFg: ThemePalettes.osu.white } ,
+      dark: { accent: ThemePalettes.osu.scarlet , second: ThemePalettes.osu.gray , background: ThemePalettes.osu.gray_dark_80 , surface: ThemePalettes.osu.gray_dark_60 ,
+        overrides: { text: ThemePalettes.osu.gray_light_60 , link: ThemePalettes.osu.gray_light_40 , navLink: ThemePalettes.osu.gray_light_40 ,
+          accentText: ThemePalettes.osu.gray_light_40 , mast: ThemePalettes.osu.scarlet , mastFg: ThemePalettes.osu.white } } },
   ],
+
+  // Changes to a built-in theme after people may have saved it: a saved list
+  // holds a copy, so editing builtIn alone never reaches them. Each change
+  // names the theme (id), the mode, an override field, what it was (null:
+  // not set) and what it is now (null: not set, so the worked-out color
+  // shows). A saved theme gets it once, when its list has not seen that
+  // since, and only while the field is still what it was: a color someone
+  // set themselves stays. Give each new batch one more than the highest
+  // since so far, here or in builtIn, and add the same values to builtIn.
+  builtInChanges: [
+    // None yet. This app's built-ins kept their own colors when the template
+    // gave WSU and OSU a brand bar (here the mast, set in builtIn above) and
+    // every theme its own rowEven (here the rows stay "sunk").
+  ],
+
+  // A saved theme with the built-in changes its list has not seen applied,
+  // in place, in the mode it is in and the one it keeps for later.
+  applyBuiltInChanges( theme , seen ) {
+    this.builtInChanges.forEach( ( change ) => {
+      if ( change.since <= seen || change.id !== theme.id ) return;
+      const colors = theme.mode === change.mode ? theme : theme[ change.mode ];
+      if ( !colors || typeof colors !== "object" ) return;
+      const overrides = colors.overrides = Object.assign( {} , colors.overrides || {} );
+      const current = overrides[ change.field ];
+      const same = change.was === null ? current === undefined
+        : String( current || "" ).toLowerCase() === change.was.toLowerCase();
+      if ( !same ) return;
+      if ( change.now === null ) delete overrides[ change.field ];
+      else overrides[ change.field ] = change.now;
+    } );
+    return theme;
+  },
 
   // What a theme leaves out.
   modes: {
@@ -131,7 +197,7 @@ const Theme = {
 
   // How much of the second color goes into each layer, in percent, so a nested
   // card stands off its card and the card off the page.
-  tints: { page: 3.5 , surface: 1.75 , nested: 8.75 , chrome: 10 , info: 14 , infoBorder: 45 },
+  tints: { page: 3.5 , surface: 1.75 , nested: 8.75 , chrome: 10 , info: 14 , infoBorder: 45 , row: 8 },
 
   // Field of colors() -> custom property in style.css, which hands them on to
   // Bootstrap. Every one of them can be overridden.
@@ -139,6 +205,7 @@ const Theme = {
     text: "--app-text",
     accent: "--app-accent",
     accentFg: "--app-accent-fg",
+    accentText: "--app-accent-text",
     second: "--app-second",
     secondFg: "--app-second-fg",
     secondText: "--app-second-text",
@@ -148,6 +215,8 @@ const Theme = {
     surface: "--app-surface",
     nested: "--app-nested",
     chrome: "--app-chrome",
+    rowOdd: "--app-row-odd",
+    rowEven: "--app-row-even",
     info: "--app-info",
     infoBorder: "--app-info-border",
     border: "--app-border",
@@ -168,6 +237,7 @@ const Theme = {
     text_info: [ "text" , "info" ],
     link: [ "link" , "nested" ],
     button: [ "accentFg" , "accent" ],
+    outline_primary: [ "accentText" , "surface" ],
     heading: [ "secondText" , "nested" ],
     active_nav: [ "secondFg" , "second" ],
     sidebar_link: [ "navLink" , "chrome" ],
@@ -188,6 +258,7 @@ const Theme = {
   // A built-in theme with its name filled in, ready to be saved in a list.
   named( theme ) {
     const copy = this.copy( theme );
+    delete copy.since;
     if ( !copy.name ) copy.name = ( typeof I18n === "undefined" ? "" : I18n.get( "theme.preset_" + theme.id ) ) || theme.id;
     return copy;
   },
@@ -252,6 +323,7 @@ const Theme = {
       // Storage blocked (private window, previews) or unreadable: stay light.
     }
     if ( !this.valid( saved ) ) saved = this.builtIn[ 0 ];
+    else this.applyBuiltInChanges( saved , this.keptSeen() );
     this.list = this.builtIn.slice();
     this.current = saved.id;
     this.apply( saved );
@@ -273,8 +345,18 @@ const Theme = {
       if ( plain && JSON.stringify( this.buttonStyle( theme ) ) !== JSON.stringify( this.buttonStyle( this.builtIn[ 0 ] ) ) ) plain = false;
       if ( plain ) window.localStorage.removeItem( this.storageKey );
       else window.localStorage.setItem( this.storageKey , JSON.stringify( theme ) );
+      window.localStorage.setItem( this.storageKey + ".builtins" , String( this.builtInsSeen() ) );
     } catch ( error ) {
       // Not remembered for next time, but still applied now.
+    }
+  },
+
+  // Which built-in changes the theme kept in this browser has seen.
+  keptSeen() {
+    try {
+      return Number( window.localStorage.getItem( this.storageKey + ".builtins" ) ) || 0;
+    } catch ( error ) {
+      return 0;
     }
   },
 
@@ -314,7 +396,7 @@ const Theme = {
     const kept = this.current;
     this.custom = Boolean( me.themes_custom );
     this.list = Array.isArray( me.themes ) && me.themes.length > 0
-      ? me.themes.map( ( theme ) => this.copy( theme ) )
+      ? this.withNewBuiltIns( me.themes.map( ( theme ) => this.copy( theme ) ) , me.themes_builtins || 0 )
       : this.builtIn.map( ( theme ) => this.named( theme ) );
     this.current = this.find( me.theme_id || kept ).id;
     this.show();
@@ -349,8 +431,36 @@ const Theme = {
   // Saves someone's whole list (null: back to the defaults) and which one they
   // use, and takes the server's answer as the new state.
   async store( list , id ) {
-    const reply = await Api.setThemes( list , id );
+    const reply = await Api.setThemes( list , id , this.builtInsSeen() );
     this.load( reply );
+  },
+
+  // Which built-in themes a list saved now has seen: the highest since.
+  builtInsSeen() {
+    return Math.max( 0 , ...this.builtIn.map( ( theme ) => theme.since || 0 ) ,
+      ...this.builtInChanges.map( ( change ) => change.since ) );
+  },
+
+  // A saved list with the built-in changes newer than seen made to its
+  // themes, and every built-in theme newer than seen added, each just after
+  // the built-in before it (or at the end), while there is room (40, the
+  // server's limit). One already there by id is left as it is.
+  withNewBuiltIns( list , seen ) {
+    const result = list.map( ( theme ) => this.applyBuiltInChanges( theme , seen ) );
+    this.builtIn.forEach( ( theme , index ) => {
+      if ( ( theme.since || 0 ) <= seen || result.length >= 40 ) return;
+      if ( result.some( ( item ) => item.id === theme.id ) ) return;
+      let at = result.length;
+      for ( let back = index - 1; back >= 0; back -= 1 ) {
+        const found = result.findIndex( ( item ) => item.id === this.builtIn[ back ].id );
+        if ( found >= 0 ) {
+          at = found + 1;
+          break;
+        }
+      }
+      result.splice( at , 0 , this.named( theme ) );
+    } );
+    return result;
   },
 
   // Every color the page needs, from a theme's few, before its overrides.
@@ -369,6 +479,8 @@ const Theme = {
       text: mode.text,
       accent: theme.accent,
       accentFg: this.readableOn( theme.accent ),
+      // The outline button's label and border, read on the card.
+      accentText: this.asText( theme.accent , card ),
       second: second,
       secondFg: this.readableOn( second ),
       secondText: this.asText( second , nested ),
@@ -378,6 +490,11 @@ const Theme = {
       surface: card,
       nested: nested,
       chrome: chrome,
+      // Table rows alternate: the card, then the card tinted with the second
+      // color. Each built-in theme sets its own (rowEven in its overrides);
+      // colors() keeps these following an edited card.
+      rowOdd: card,
+      rowEven: this.mix( second , card , this.tints.row ),
       info: this.mix( second , card , this.tints.info ),
       infoBorder: this.mix( second , card , this.tints.infoBorder ),
       // From the card, not the page: most borders sit on a card, and a card can be
@@ -435,9 +552,13 @@ const Theme = {
   // What the page uses: the worked-out colors, with the theme's overrides on top.
   colors( theme ) {
     const colors = this.derived( theme );
-    Object.keys( theme.overrides || {} ).forEach( ( field ) => {
-      if ( field in colors ) colors[ field ] = theme.overrides[ field ];
+    const overrides = theme.overrides || {};
+    Object.keys( overrides ).forEach( ( field ) => {
+      if ( field in colors ) colors[ field ] = overrides[ field ];
     } );
+    // Table rows follow an edited card and second color the same way.
+    if ( !overrides.rowOdd ) colors.rowOdd = colors.surface;
+    if ( !overrides.rowEven ) colors.rowEven = this.mix( colors.second , colors.surface , this.tints.row );
     return colors;
   },
 

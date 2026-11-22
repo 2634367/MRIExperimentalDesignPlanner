@@ -4,8 +4,16 @@
   "endpoint": "/mcp",
   "http_only": [
     {
+      "reason": "Manages API keys, which no MCP tool does.",
+      "route": "GET /api/admin/users/{user_id}/keys"
+    },
+    {
       "reason": "The API reference itself; GET /api/mcp.json is the MCP one.",
       "route": "GET /api/api.json"
+    },
+    {
+      "reason": "The API reference itself, for people; GET /api/api.json is the same as JSON.",
+      "route": "GET /api/api.md"
     },
     {
       "reason": "Picture bytes: MCP messages are JSON.",
@@ -28,8 +36,20 @@
       "route": "GET /api/mcp.json"
     },
     {
+      "reason": "The MCP reference itself, for people; tools/list gives the same list.",
+      "route": "GET /api/mcp.md"
+    },
+    {
       "reason": "Scraped by Prometheus over HTTP.",
       "route": "GET /metrics"
+    },
+    {
+      "reason": "Manages API keys, which no MCP tool does.",
+      "route": "POST /api/admin/keys/{key_id}/revoke"
+    },
+    {
+      "reason": "Makes an API key, which no MCP tool does.",
+      "route": "POST /api/admin/users/{user_id}/keys"
     },
     {
       "reason": "A zip download: A file, not JSON: it goes over HTTP, with the same key.",
@@ -120,12 +140,60 @@
     {
       "adminOnly": true,
       "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Stop an account's login link working, for many at once (admin)"
+      },
+      "description": "Runs admin_cancel_login_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "user_id": {
+                  "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_cancel_login_link_bulk",
+      "route": "POST /api/bulk/admin/users/cancel-login-link",
+      "title": "Stop an account's login link working, for many at once (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
         "destructiveHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create an invite link (admin)"
       },
-      "description": "One link for a group: each person who opens it joins as a new user, up to max_uses people, for days days. Answers with join_url (shown only now) and the link's details. Revoking or deleting this API key switches the link off.",
+      "description": "One link for a group: each person who opens it joins as a new account with role (user, the default, or viewer), up to max_uses people, for days days. Answers with join_url (shown only now) and the link's details. Revoking or deleting this API key switches the link off.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -143,6 +211,15 @@
             "maximum": 1000,
             "minimum": 1,
             "type": "integer"
+          },
+          "role": {
+            "default": "user",
+            "description": "The role each person who joins gets: user, or viewer (reads only).",
+            "enum": [
+              "user",
+              "viewer"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -164,10 +241,18 @@
         "readOnlyHint": false,
         "title": "Create an account (admin)"
       },
-      "description": "Make a new account and its first login link, to hand to the person. role is admin or user. Answers with user_id and the link. Answers with login_url (open it to sign in; it works once unless max_uses says otherwise), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.",
+      "description": "Make a new account and its first login link, to hand to the person. role is admin, user or viewer (reads only). account_expires_at, when given, is when the account stops working. Answers with user_id and the link. Answers with login_url (open it to sign in; it works once unless max_uses says otherwise), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "account_expires_at": {
+            "description": "When the account stops working (RFC 3339). Left out: never. expires_in_minutes is the login link's expiry, not this.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "display_name": {
             "maxLength": 80,
             "minLength": 1,
@@ -194,7 +279,8 @@
           "role": {
             "enum": [
               "admin",
-              "user"
+              "user",
+              "viewer"
             ],
             "type": "string"
           }
@@ -241,6 +327,53 @@
         "destructiveHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Delete an invite link, for many at once (admin)"
+      },
+      "description": "Runs admin_delete_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "link_id": {
+                  "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "link_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_delete_invite_link_bulk",
+      "route": "POST /api/bulk/admin/invite-links/delete",
+      "title": "Delete an invite link, for many at once (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
         "title": "Delete an account (admin)"
       },
       "description": "Remove an account for good, with its sessions, login link and API keys. Cannot be undone: admin_set_user_disabled is the reversible version. Only the owner deletes an admin; nobody deletes the owner or themselves.",
@@ -261,6 +394,54 @@
       "name": "admin_delete_user",
       "route": "POST /api/admin/users/{user_id}/delete",
       "title": "Delete an account (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Delete an account, for many at once (admin)"
+      },
+      "description": "Runs admin_delete_user once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "user_id": {
+                  "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_delete_user_bulk",
+      "route": "POST /api/bulk/admin/users/delete",
+      "title": "Delete an account, for many at once (admin)"
     },
     {
       "adminOnly": true,
@@ -633,6 +814,54 @@
     {
       "adminOnly": true,
       "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Turn off an account's two-factor, for many at once (admin)"
+      },
+      "description": "Runs admin_reset_two_factor once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "user_id": {
+                  "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_reset_two_factor_bulk",
+      "route": "POST /api/bulk/admin/users/reset-two-factor",
+      "title": "Turn off an account's two-factor, for many at once (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
         "destructiveHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
@@ -655,6 +884,53 @@
       "name": "admin_restore_invite_link",
       "route": "POST /api/admin/invite-links/{link_id}/restore",
       "title": "Undo deleting an invite link (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Undo deleting an invite link, for many at once (admin)"
+      },
+      "description": "Runs admin_restore_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "link_id": {
+                  "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "link_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_restore_invite_link_bulk",
+      "route": "POST /api/bulk/admin/invite-links/restore",
+      "title": "Undo deleting an invite link, for many at once (admin)"
     },
     {
       "adminOnly": true,
@@ -689,6 +965,54 @@
         "destructiveHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Revoke a user's access, for many at once (admin)"
+      },
+      "description": "Runs admin_revoke_access once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "user_id": {
+                  "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_revoke_access_bulk",
+      "route": "POST /api/bulk/admin/users/revoke-access",
+      "title": "Revoke a user's access, for many at once (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
         "title": "Switch off an invite link (admin)"
       },
       "description": "Stop an invite link from letting anyone else join or sign in through it. Accounts it already made keep working. Cannot be switched back on.",
@@ -708,6 +1032,53 @@
       "name": "admin_revoke_invite_link",
       "route": "POST /api/admin/invite-links/{link_id}/revoke",
       "title": "Switch off an invite link (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Switch off an invite link, for many at once (admin)"
+      },
+      "description": "Runs admin_revoke_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "link_id": {
+                  "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "link_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_revoke_invite_link_bulk",
+      "route": "POST /api/bulk/admin/invite-links/revoke",
+      "title": "Switch off an invite link, for many at once (admin)"
     },
     {
       "adminOnly": true,
@@ -740,6 +1111,59 @@
       "name": "admin_revoke_user_session",
       "route": "POST /api/admin/users/{user_id}/sessions/{session_id}/revoke",
       "title": "Sign out one of an account's devices (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Sign out one of an account's devices, for many at once (admin)"
+      },
+      "description": "Runs admin_revoke_user_session once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "session_id": {
+                  "description": "The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP).",
+                  "type": "string"
+                },
+                "user_id": {
+                  "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "session_id",
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_revoke_user_session_bulk",
+      "route": "POST /api/bulk/admin/users/sessions/revoke",
+      "title": "Sign out one of an account's devices, for many at once (admin)"
     },
     {
       "adminOnly": true,
@@ -795,6 +1219,10 @@
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "builtins": {
+            "description": "Which built-in themes this list has seen: the highest since in Theme.builtIn (static/js/theme.js) when it was saved. Built-in themes added after that join the list the browser shows. Left out: 0, the first ones.",
+            "type": "integer"
+          },
           "themes": {
             "description": "1 to 40 themes. null goes back to the built-in ones.",
             "oneOf": [
@@ -872,7 +1300,7 @@
                               "additionalProperties": {
                                 "type": "string"
                               },
-                              "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                              "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                               "type": "object"
                             },
                             "second": {
@@ -916,7 +1344,7 @@
                               "additionalProperties": {
                                 "type": "string"
                               },
-                              "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                              "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                               "type": "object"
                             },
                             "second": {
@@ -954,7 +1382,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                      "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                       "type": "object"
                     },
                     "second": {
@@ -1026,16 +1454,108 @@
         "destructiveHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Disable or enable a user, for many at once (admin)"
+      },
+      "description": "Runs admin_set_user_disabled once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "disabled": {
+                  "type": "boolean"
+                },
+                "user_id": {
+                  "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {
+              "disabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_set_user_disabled_bulk",
+      "route": "POST /api/bulk/admin/users/disabled",
+      "title": "Disable or enable a user, for many at once (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Set when an account expires (admin)"
+      },
+      "description": "expires_at is when the account stops working (RFC 3339), or null for never. Once it passes the account counts as disabled: sign-in, its sessions and its keys stop, and housekeeping disables it and revokes its access. A later expiry does not re-enable an account housekeeping already disabled. It must be in the future. The owner's account never expires; only the owner sets an admin's.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "description": "When the account stops working (RFC 3339), or null for never.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_id": {
+            "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expires_at",
+          "user_id"
+        ],
+        "type": "object"
+      },
+      "name": "admin_set_user_expiry",
+      "route": "POST /api/admin/users/{user_id}/expiry",
+      "title": "Set when an account expires (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
         "title": "Change an account's role (admin)"
       },
-      "description": "Make an account an admin or an ordinary user. Only the owner takes an admin's rights away; the owner is always an admin, and nobody changes their own role. Becoming an admin ends the account's sessions and live login link.",
+      "description": "Make an account an admin, an ordinary user, or a viewer, who may read but change nothing. Only the owner takes an admin's rights away; the owner is always an admin, and nobody changes their own role. Becoming an admin ends the account's sessions and live login link.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
           "role": {
             "enum": [
               "admin",
-              "user"
+              "user",
+              "viewer"
             ],
             "type": "string"
           },
@@ -1054,6 +1574,71 @@
       "name": "admin_set_user_role",
       "route": "POST /api/admin/users/{user_id}/role",
       "title": "Change an account's role (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Change an account's role, for many at once (admin)"
+      },
+      "description": "Runs admin_set_user_role once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "enum": [
+                    "admin",
+                    "user",
+                    "viewer"
+                  ],
+                  "type": "string"
+                },
+                "user_id": {
+                  "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {
+              "role": {
+                "enum": [
+                  "admin",
+                  "user",
+                  "viewer"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_set_user_role_bulk",
+      "route": "POST /api/bulk/admin/users/role",
+      "title": "Change an account's role, for many at once (admin)"
     },
     {
       "adminOnly": true,
@@ -1098,6 +1683,53 @@
       "name": "admin_switch_on_invite_link",
       "route": "POST /api/admin/invite-links/{link_id}/switch-on",
       "title": "Switch an invite link back on (admin)"
+    },
+    {
+      "adminOnly": true,
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Switch an invite link back on, for many at once (admin)"
+      },
+      "description": "Runs admin_switch_on_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "link_id": {
+                  "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "link_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "admin_switch_on_invite_link_bulk",
+      "route": "POST /api/bulk/admin/invite-links/switch-on",
+      "title": "Switch an invite link back on, for many at once (admin)"
     },
     {
       "adminOnly": false,
@@ -1151,7 +1783,7 @@
         "readOnlyHint": false,
         "title": "A login link for yourself"
       },
-      "description": "A link that signs your own account in on a browser or another device. Only a key with your account's full role may ask: one scoped down to user on an admin account is refused. Answers with login_url (open it to sign in; it works once unless max_uses says otherwise), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.",
+      "description": "A link that signs your own account in on a browser or another device. An API key may ask only if your account let it, from a browser session (POST /api/keys/{key_id}/sign-in); its link works once, for at most 15 minutes. Only works if this key was allowed to make sign-in links, on the API keys card. Answers with login_url (open it to sign in; it works once, for at most 15 minutes), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -1391,6 +2023,53 @@
     {
       "adminOnly": false,
       "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Delete a file, for many at once"
+      },
+      "description": "Runs files_delete once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "file_id": {
+                  "description": "The file's id, from GET /api/files (files_list over MCP).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "files_delete_bulk",
+      "route": "POST /api/bulk/files/delete",
+      "title": "Delete a file, for many at once"
+    },
+    {
+      "adminOnly": false,
+      "annotations": {
         "destructiveHint": false,
         "openWorldHint": false,
         "readOnlyHint": true,
@@ -1581,6 +2260,53 @@
       "name": "files_restore",
       "route": "POST /api/files/{file_id}/restore",
       "title": "Restore a deleted file"
+    },
+    {
+      "adminOnly": false,
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Restore a deleted file, for many at once"
+      },
+      "description": "Runs files_restore once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "file_id": {
+                  "description": "The file's id, from GET /api/files (files_list over MCP).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "files_restore_bulk",
+      "route": "POST /api/bulk/files/restore",
+      "title": "Restore a deleted file, for many at once"
     },
     {
       "adminOnly": false,
@@ -2038,6 +2764,53 @@
         "destructiveHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
+        "title": "Sign out one of your devices, for many at once"
+      },
+      "description": "Runs revoke_my_session once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "One entry per thing to change: its id, and any field that differs from shared.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "session_id": {
+                  "description": "The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "session_id"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "shared": {
+            "additionalProperties": false,
+            "description": "Fields every item gets, unless the item sets its own.",
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "name": "revoke_my_session_bulk",
+      "route": "POST /api/bulk/account/sessions/revoke",
+      "title": "Sign out one of your devices, for many at once"
+    },
+    {
+      "adminOnly": false,
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
         "title": "Revoke a share link"
       },
       "description": "Stops a share link working, for good. link_id is from list_share_links.",
@@ -2295,6 +3068,10 @@
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "builtins": {
+            "description": "Which built-in themes this list has seen: the highest since in Theme.builtIn (static/js/theme.js) when it was saved. Built-in themes added after that join the list the browser shows. Left out: 0, the first ones.",
+            "type": "integer"
+          },
           "theme_id": {
             "description": "The theme you use.",
             "type": "string"
@@ -2376,7 +3153,7 @@
                               "additionalProperties": {
                                 "type": "string"
                               },
-                              "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                              "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                               "type": "object"
                             },
                             "second": {
@@ -2420,7 +3197,7 @@
                               "additionalProperties": {
                                 "type": "string"
                               },
-                              "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                              "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                               "type": "object"
                             },
                             "second": {
@@ -2458,7 +3235,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                      "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                       "type": "object"
                     },
                     "second": {

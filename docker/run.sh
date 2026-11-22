@@ -13,8 +13,25 @@
 # -- the container reads the same config.yaml, mounted writable so the owner's
 # Settings screen can save it, and the key in config/secret.key, mounted
 # read-only.
+#
+# Because config.yaml is writable from inside the container, a change to its
+# docker: section is not acted on until someone at the host agrees to it: the
+# script shows what changed and asks, or takes --accept-docker-changes.
 set -euo pipefail
 cd "$( dirname "${BASH_SOURCE[0]}" )/.."
+
+# --accept-docker-changes: apply changed docker: settings without asking (see
+# confirm_docker_changes in docker/lib.sh). Needed when there is no terminal.
+ACCEPT_DOCKER_CHANGES=false
+for arg in "$@"; do
+  case "$arg" in
+    --accept-docker-changes) ACCEPT_DOCKER_CHANGES=true ;;
+    *)
+      echo "usage: docker/run.sh [--accept-docker-changes]" >&2
+      exit 1
+      ;;
+  esac
+done
 
 source docker/lib.sh
 build_image
@@ -33,8 +50,8 @@ config.yaml configures the server and the container. Review it before the
 first start, in particular:
 
   server.secure_cookies   true behind HTTPS; false only for plain http://localhost
-  server.trust_proxy      true once a reverse proxy you control is in front,
-  server.trusted_proxies  with the address it connects from (see config.yaml)
+  server.trusted_proxies  where cloudflared reaches the app from: the Docker
+                          bridge gateway, 172.17.0.1 by default (see config.yaml)
   docker.bind_address     127.0.0.1 keeps it reachable only from this host
   docker.host_port        the port published there
 
@@ -64,7 +81,8 @@ resolve_data_dir
 # as something a compromised container could have chosen: this script hands
 # that directory to the container's user (chown -R below). The Settings screen
 # refuses to change docker.* from inside the container, but the file itself
-# could be written. So: never the root or a home directory, and only a
+# could be written. A changed data_dir waits for a yes at the host
+# (confirm_docker_changes), and on top of that: never the root or a home directory, and only a
 # directory that is new, empty, or already this app's (it has app.db, or the
 # marker this script leaves).
 DATA_MARKER=".fmri-experiment-designer-data"
@@ -85,18 +103,9 @@ if [ -d "$DATA_DIR" ] && [ -n "$( ls -A "$DATA_DIR" 2>/dev/null )" ] \
 fi
 mkdir -p "$DATA_DIR"
 
-# docker: settings changed since the last start are worth a line: they are
-# what decides what this script mounts and publishes.
+# docker: settings that changed since the last start were shown, and agreed
+# to, by confirm_docker_changes inside build_image above.
 DOCKER_LAST=".run/docker.last"
-if [ -f "$DOCKER_LAST" ] && [ "$( cat "$DOCKER_LAST" )" != "$DOCKER_SETTINGS" ]; then
-  echo "docker: settings changed since the last run (config/config.yaml):"
-  # diff exits 1 when its inputs differ, which they always do here. Under
-  # pipefail that would end the script silently, before the container is
-  # replaced, so the notice is made unable to fail.
-  diff <( cat "$DOCKER_LAST" ) <( printf '%s\n' "$DOCKER_SETTINGS" ) \
-    | sed -n 's/^< /  was  /p; s/^> /  now  /p' || true
-  echo ""
-fi
 
 # secret.key: written with config.yaml on a first run. A config.yaml copied
 # from config.example.yaml comes without one -- fine for a fresh install, not
@@ -273,36 +282,9 @@ docker run -d \
   --cpus "$docker_cpus" \
   "${docker_image}:latest"
 
-# Running is not the same as working. Wait for the image's own HEALTHCHECK
-# (python -m app health) to pass, and if the container dies or turns unhealthy,
-# show why instead of announcing success.
-echo "Waiting for it to answer (up to 30 seconds)..."
-STATUS="starting"
-for _ in $( seq 1 60 ); do
-  sleep 0.5
-  STATE="$( docker inspect -f '{{.State.Status}}' "$docker_container" 2>/dev/null || echo "gone" )"
-  if [ "$STATE" != "running" ]; then
-    STATUS="$STATE"
-    break
-  fi
-  if docker exec "$docker_container" python -m app health >/dev/null 2>&1; then
-    STATUS="healthy"
-    break
-  fi
-done
-
-if [ "$STATUS" != "healthy" ]; then
-  echo "" >&2
-  if [ "$STATUS" = "starting" ]; then
-    echo "ERROR: ${docker_container} is running but not answering after 30 seconds." >&2
-  else
-    echo "ERROR: ${docker_container} stopped (status: ${STATUS}, exit code $( docker inspect -f '{{.State.ExitCode}}' "$docker_container" 2>/dev/null || echo "?" ))." >&2
-  fi
-  echo "       Its last log lines:" >&2
-  echo "" >&2
-  docker logs --tail 40 "$docker_container" 2>&1 | sed 's/^/         /' >&2
-  exit 1
-fi
+# Running is not the same as working: wait for the image's own healthcheck
+# (wait_healthy in docker/lib.sh), and show why if it never passes.
+wait_healthy
 
 mkdir -p .run
 printf '%s\n' "$DOCKER_SETTINGS" > "$DOCKER_LAST"

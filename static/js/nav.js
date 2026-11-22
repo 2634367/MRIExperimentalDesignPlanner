@@ -24,6 +24,9 @@
 // file un-hides its section (Keys.init shows the All API keys screen, and only
 // if the server has them switched on); Nav only offers what was un-hidden. So
 // app.js calls Nav.init() last, once every screen has had its say.
+//
+// After every change of screen Nav sends a "nav" event on window, which is
+// how a screen hears it was opened (Jobs, Sessions and Logs refresh then).
 const Nav = {
   fallback: "experiments",
   // Matches Bootstrap's lg breakpoint, where offcanvas-lg becomes a column.
@@ -58,11 +61,17 @@ const Nav = {
     toggle.addEventListener( "click" , () => this.toggleSidebar() );
     Dom.show( toggle , true );
 
+    // Any link to a screen's or card's path changes screen without a page
+    // load: the sidebar, and links inside screens (shortcuts-list-change).
+    document.addEventListener( "click" , ( event ) => this.follow( event ) );
     // Moving between screens is not an undo step: Back and Forward already
     // are that, and an undo that only changed the screen would get in the way
     // of undoing what was done on it.
     document.addEventListener( "click" , ( event ) => this.onClick( event ) );
-    window.addEventListener( "popstate" , () => this.changed() );
+    // With a newer build waiting, the move is a page load instead (fresh.js).
+    window.addEventListener( "popstate" , () => {
+      if ( !Fresh.swap() ) this.changed();
+    } );
     // A link to a card on this screen (#two-factor-panel) only changes the hash.
     window.addEventListener( "hashchange" , () => this.changed() );
     this.started = true;
@@ -163,7 +172,8 @@ const Nav = {
     const replace = Boolean( options && options.replace );
     const here = window.location.pathname + window.location.search + window.location.hash;
     if ( url !== here ) window.history[ replace ? "replaceState" : "pushState" ]( null , "" , url );
-    this.changed();
+    // With a newer build waiting, the move is a page load instead (fresh.js).
+    if ( !Fresh.swap() ) this.changed();
   },
 
   // The address moved: the sidebar follows, then whoever listens.
@@ -210,6 +220,19 @@ const Nav = {
   refresh() {
     this.offerLinks();
     this.render();
+  },
+
+  // A plain click on a link to a path this page shows. A new tab, a
+  // download, or a path that is not a screen here is left to the browser.
+  follow( event ) {
+    if ( event.defaultPrevented || event.button !== 0 ) return;
+    if ( event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ) return;
+    const link = event.target.closest ? event.target.closest( "a[href^='/']" ) : null;
+    if ( !link || link.target || link.hasAttribute( "download" ) ) return;
+    const path = this.clean( link.getAttribute( "href" ) );
+    if ( !this.find( path ) ) return;
+    event.preventDefault();
+    this.go( path );
   },
 
   // Undo uses this to go back to the screen an action happened on.
@@ -287,6 +310,7 @@ const Nav = {
       window.scrollTo( 0 , 0 );
     }
     this.announce( name );
+    window.dispatchEvent( new CustomEvent( "nav" , { detail: { screen: name } } ) );
   },
 
   // Changing screen reloads nothing, so nothing tells a screen reader or the
@@ -343,7 +367,7 @@ const Nav = {
   },
 
   // On a phone the sidebar is a slide-in panel; picking a screen closes it,
-  // including the one already showing (which changes no hash).
+  // including the one already showing.
   closeSidebar() {
     const panel = window.bootstrap && bootstrap.Offcanvas.getInstance( Dom.get( "sidebar" ) );
     if ( panel ) panel.hide();

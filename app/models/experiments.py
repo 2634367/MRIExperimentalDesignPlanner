@@ -234,7 +234,7 @@ def restore_experiment(store: Store, experiment_id: str, user_id: int) -> Experi
     def mutate(record: Record) -> None:
         if record["owner"] != user_id:
             raise RestoreGoneError()
-        unmark_deleted(record, user_id, False)
+        unmark_deleted(record, user_id, False, None)
 
     updated = store.update_value(BUCKET_EXPERIMENTS, experiment_id, mutate)
     if updated is None:

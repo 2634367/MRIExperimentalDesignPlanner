@@ -355,8 +355,13 @@ def delete_card(store: Store, card_id: str, user_id: int) -> None:
 
 
 def restore_card(store: Store, card_id: str, user_id: int, is_admin: bool) -> Card:
+    # What the owner deleted, only the owner puts back (S14, unmark_deleted).
+    from app.models.users import get_owner_id
+
+    owner_id = get_owner_id(store)
+
     def mutate(record: Record) -> None:
-        unmark_deleted(record, user_id, is_admin)
+        unmark_deleted(record, user_id, is_admin, owner_id)
 
     updated = store.update_value(BUCKET_SCANNER_CARDS, card_id, mutate)
     if updated is None:

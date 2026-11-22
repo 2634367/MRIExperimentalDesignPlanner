@@ -40,10 +40,12 @@ from app.core.security import RequireAdmin, RequireLogin, RequireSession
 from app.core.security import Guard
 from app.core.security import RequireAPIKey
 from app.core.security import RequireOwner
+from app.core.live_reload import Watcher
 from app.core.static_files import StaticServer
 from app.routes import (
     account,
     admin,
+    api_docs_md,
     api_keys,
     auth,
     experiments,
@@ -160,6 +162,7 @@ class RequireLogs(Guard):
 MODULES = [
     account,
     admin,
+    api_docs_md,
     api_keys,
     auth,
     experiments,
@@ -278,6 +281,8 @@ def declared_routes() -> list[Declared]:
             declared = declared_of(value)
             if declared is not None and declared.endpoint is value and declared not in found:
                 found.append(declared)
+                if declared.bulk is not None:
+                    found.append(declared.bulk)
     ordered = sorted(found, key=_order)
     for index, one in enumerate(ordered):
         for other in ordered[index + 1:]:
@@ -289,17 +294,24 @@ def declared_routes() -> list[Declared]:
     return ordered
 
 
-def build_routes(static_server: StaticServer) -> list[BaseRoute]:
+def build_routes(static_server: StaticServer, live_reload: Watcher | None = None) -> list[BaseRoute]:
     routes: list[BaseRoute] = [
         # The pages a login link and an invite link open. Opening one only
         # shows a page; the link is spent by the POST that page sends when the
         # person confirms. See auth.py and join.py.
         Route("/login/{credential:path}", static_server.serve_login_page),
         Route("/join/{credential:path}", static_server.serve_join_page),
+        # The readable API and MCP references (app/routes/api_docs_md.py).
+        Route("/docs/{page:path}", static_server.serve_docs_page),
     ]
     for declared in declared_routes():
         middleware = [Middleware(guard) for guard in declared.guards]
         routes.append(Route(declared.path, declared.endpoint, methods=[declared.method], middleware=middleware))
+    # Open pages wait here to hear about a change to the frontend
+    # (server.live_reload; app/core/live_reload.py, static/js/live.js). Not
+    # part of the API.
+    if live_reload is not None:
+        routes.append(Route("/api/live", live_reload.endpoint))
     return routes + [
         # The read-only share link's pages (see share.py). Holding the link is
         # the permission, checked by every call the page makes; the GET only
@@ -308,7 +320,7 @@ def build_routes(static_server: StaticServer) -> list[BaseRoute]:
         Route("/s/{credential}", static_server.serve_login_page),
         Route("/s/{credential}/{screen}", static_server.serve_share_page),
         Route("/s/{credential}/{screen}/{item}", static_server.serve_share_page),
-        # Any other /api/ path is a JSON 404, not the index.html fallback.
+        # Any other /api/ path is a JSON 404, never the app page.
         Route("/api/{rest:path}", meta.unknown_api),
         # Catch-all static serving. Must stay last -- it matches every
         # remaining path, so anything added after this line never runs.

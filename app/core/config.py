@@ -145,6 +145,7 @@ class ServerSection:
     mcp: bool
     maintenance: str
     announcement: str
+    live_reload: str
     # Deprecated: the key lives in secret.key. This is read only so that a
     # config.yaml from before the move can be migrated
     # (config_secret.migrate_legacy_secret); defaults.yaml has no such key,
@@ -418,14 +419,16 @@ class Config:
     # ranges). The switch alone would let any client that reaches the server
     # directly name its own IP and walk past the rate limiter, so validate()
     # refuses one without the other.
-    trust_proxy: bool = False
-    trusted_proxies: tuple[str, ...] = ()
-    proxy_header: str = "X-Forwarded-For"
+    trust_proxy: bool = True
+    trusted_proxies: tuple[str, ...] = ("172.17.0.1", "127.0.0.1", "::1")
+    proxy_header: str = "CF-Connecting-IP"
 
     # server.maintenance: see app/core/maintenance.py.
     maintenance: str = "none"
     # server.announcement: one line on every signed-in page.
     announcement: str = ""
+    # server.live_reload: auto, always or never. See live_reloads.
+    live_reload: str = "auto"
     # app.repo without a trailing / or .git: where the source lives. Empty
     # when it is not set. See repo_file.
     repo: str = ""
@@ -478,8 +481,27 @@ class Config:
     raw: str = field(default="", repr=False, compare=False)
 
     @property
+    def session_cookie_name(self) -> str:
+        """The session cookie's name: server.cookie_name, with the __Host-
+        prefix whenever cookies are Secure. A browser only accepts a __Host-
+        cookie that is Secure, has Path=/ and names no Domain, so a page on a
+        sibling subdomain cannot plant one here and sign the visitor in as
+        someone else. Switching secure_cookies therefore signs everyone out."""
+        return f"__Host-{self.cookie_name}" if self.secure_cookies else self.cookie_name
+
+    @property
     def listen_address(self) -> str:
         return f"{self.host}:{self.port}"
+
+    def live_reloads(self, version: str) -> bool:
+        """Whether open pages are told about frontend changes, for a build
+        stamped version. auto means a build being worked on: unstamped.
+        Values are not on/off because YAML reads those as true/false."""
+        if self.live_reload == "always":
+            return True
+        if self.live_reload == "never":
+            return False
+        return version == "dev"
 
 
 # ---------------------------------------------------------------------------
@@ -701,6 +723,11 @@ _RESTART = re.compile(r"^(no|always|unless-stopped|on-failure(:[0-9]+)?)$")
 _SIZE = re.compile(r"^[0-9]+[bkmgBKMG]?$")
 _CPUS = re.compile(r"^[0-9]+(\.[0-9]+)?$")
 _SECRET = re.compile(r"^[0-9a-fA-F]{64}$")
+# The whole of an accepted server.public_url: a plain hostname or IP (IPv6 in
+# brackets), an optional port, an optional trailing /. Nothing else, because
+# scripts\run.bat and login.bat print the URL, and cmd would run what follows
+# a & | < > ^ % or ".
+_ORIGIN = re.compile(r"^(?i:https?)://([A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*|\[[0-9A-Fa-f:.]+\])(:[0-9]{1,5})?/?$")
 
 
 def _valid_repo(value: str) -> bool:
@@ -748,6 +775,7 @@ def _valid_public_url(value: str) -> bool:
         and not parts.query
         and not parts.fragment
         and parts.username is None
+        and _ORIGIN.fullmatch(value) is not None
     )
 
 
@@ -764,6 +792,18 @@ def _proxy_network(value: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network 
         return ipaddress.ip_network(value.strip(), strict=False)
     except ValueError:
         return None
+
+
+def _narrow_enough_proxy(network: ipaddress.IPv4Network | ipaddress.IPv6Network) -> bool:
+    """A trusted range no wider than /8 for IPv4 or /16 for IPv6 (an IPv4
+    range written as IPv6, ::ffff:a.b.c.d/n, counts as IPv4). Refusing only
+    /0 missed 0.0.0.0/1 with 128.0.0.0/1, which trusts every address just the
+    same. Cloudflare's widest ranges are /13 and /29."""
+    if network.version == 4:
+        return network.prefixlen >= 8
+    if network.prefixlen >= 96 and network.network_address.ipv4_mapped is not None:
+        return network.prefixlen >= 96 + 8
+    return network.prefixlen >= 16
 
 
 def trusted_proxy_networks(cfg: "Config") -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
@@ -800,7 +840,7 @@ def validate(file: File) -> list[str]:
     check(
         _valid_public_url(server.public_url),
         f"server.public_url {server.public_url!r} must be empty or a bare origin like "
-        "https://app.example.com (http or https, no path)",
+        "https://app.example.com (http or https, a plain hostname or IP, optional port, no path)",
     )
     check(server.cookie_name.strip() != "", "server.cookie_name must not be empty")
     check(server.proxy_header.strip() != "", "server.proxy_header must not be empty")
@@ -813,8 +853,9 @@ def validate(file: File) -> list[str]:
         network = _proxy_network(entry)
         check(network is not None, f"server.trusted_proxies entry {entry!r} must be an IP address or a CIDR range like 10.0.0.0/8")
         check(
-            network is None or network.prefixlen > 0,
-            f"server.trusted_proxies entry {entry!r} trusts every address, which lets any client forge its own IP",
+            network is None or _narrow_enough_proxy(network),
+            f"server.trusted_proxies entry {entry!r} is wider than /8 (IPv4) or /16 (IPv6), so it trusts addresses "
+            "that are not your proxy and lets them forge their own IP -- name the proxy's own address",
         )
     check(server.body_limit_bytes > 0, "server.body_limit_bytes must be positive")
     check(server.rate_limit_max > 0, "server.rate_limit_max must be positive")
@@ -822,6 +863,7 @@ def validate(file: File) -> list[str]:
     check(server.rate_limit_signin_max > 0, "server.rate_limit_signin_max must be positive")
     check(server.rate_limit_upload_max > 0, "server.rate_limit_upload_max must be positive")
     check(server.maintenance in ("none", "read_only", "full"), "server.maintenance must be none, read_only or full")
+    check(server.live_reload in ("auto", "always", "never"), "server.live_reload must be auto, always or never")
     check(len(server.announcement) <= 500, "server.announcement must be 500 characters or fewer")
 
     auth = file.auth
@@ -1104,6 +1146,7 @@ def build_config(file: File, path: Path, paths: "Paths", secret_key: str) -> Con
         psychopy_python=file.psychopy.python.strip(),
         maintenance=file.server.maintenance,
         announcement=file.server.announcement,
+        live_reload=file.server.live_reload,
         repo=clean_repo(file.app.repo),
         description=file.app.description,
         show_about=file.app.show_about,

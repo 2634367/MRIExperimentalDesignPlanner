@@ -107,6 +107,18 @@
           "live": {
             "type": "boolean"
           },
+          "may_mint_keys": {
+            "description": "Whether this key may make keys for other accounts. Only the owner switches it on.",
+            "type": "boolean"
+          },
+          "may_sign_in": {
+            "description": "Whether this key may make a login link for its own account.",
+            "type": "boolean"
+          },
+          "minted_by_key": {
+            "description": "The key that made this one, or empty. Revoking that key revokes this one.",
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -120,7 +132,8 @@
           "role": {
             "enum": [
               "admin",
-              "user"
+              "user",
+              "viewer"
             ],
             "type": "string"
           },
@@ -133,6 +146,9 @@
           "expired",
           "id",
           "live",
+          "may_mint_keys",
+          "may_sign_in",
+          "minted_by_key",
           "name",
           "revoked",
           "role",
@@ -151,6 +167,63 @@
         },
         "required": [
           "revision"
+        ],
+        "type": "object"
+      },
+      "BulkReply": {
+        "properties": {
+          "done": {
+            "description": "How many items worked.",
+            "type": "integer"
+          },
+          "failed": {
+            "description": "How many did not.",
+            "type": "integer"
+          },
+          "results": {
+            "description": "One per item, in the order they were sent.",
+            "items": {
+              "$ref": "#/components/schemas/BulkResult"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "done",
+          "failed",
+          "results"
+        ],
+        "type": "object"
+      },
+      "BulkResult": {
+        "properties": {
+          "error": {
+            "description": "When it failed: the route's words for why.",
+            "type": "string"
+          },
+          "index": {
+            "description": "The item's place in items, from 0.",
+            "type": "integer"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "reply": {
+            "description": "When it worked: the route's own reply, if it has one.",
+            "type": "object"
+          },
+          "request_id": {
+            "description": "On a 5xx: the reference that finds this failure in the log.",
+            "type": "string"
+          },
+          "status": {
+            "description": "When it failed: the status the route would have answered.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index",
+          "ok"
         ],
         "type": "object"
       },
@@ -402,6 +475,14 @@
           "revoked": {
             "type": "boolean"
           },
+          "role": {
+            "description": "The role each person who joins gets.",
+            "enum": [
+              "user",
+              "viewer"
+            ],
+            "type": "string"
+          },
           "used": {
             "type": "integer"
           }
@@ -415,6 +496,7 @@
           "max_uses",
           "remaining",
           "revoked",
+          "role",
           "used"
         ],
         "type": "object"
@@ -623,28 +705,52 @@
       "Me": {
         "properties": {
           "account_role": {
+            "enum": [
+              "admin",
+              "user",
+              "viewer"
+            ],
             "type": "string"
           },
           "announcement": {
             "description": "server.announcement. Empty when there is none.",
             "type": "string"
           },
+          "api_doc_url": {
+            "description": "Where to read the API reference as a page for people: config/api.md in app.repo, or /docs/api when there is no repo.",
+            "type": "string",
+            "x-feature": "openapi"
+          },
           "api_key_id": {
             "description": "API keys only.",
-            "type": "string"
+            "type": "string",
+            "x-feature": "api_keys"
           },
           "api_key_name": {
             "description": "API keys only.",
-            "type": "string"
+            "type": "string",
+            "x-feature": "api_keys"
           },
           "api_keys_enabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "api_keys"
           },
           "auth": {
             "type": "string"
           },
           "authenticated": {
             "type": "boolean"
+          },
+          "capabilities": {
+            "description": "The optional parts of that contract this app has on now: viewer_role, account_expiry, key_minting, invite_links, key_sign_in.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contract": {
+            "description": "Which version of the portal contract this app speaks (ProjectPortal's CROSS_PROJECT.md).",
+            "type": "integer"
           },
           "csrf_token": {
             "description": "Browser sessions only.",
@@ -659,20 +765,24 @@
           },
           "files_enabled": {
             "description": "files.enabled: whether the Files screen and routes are on.",
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "files"
           },
           "has_password": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "passwords"
           },
           "has_pin": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "invite_links"
           },
           "id": {
             "type": "integer"
           },
           "invite_links_enabled": {
             "description": "Whether invite links are on.",
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "invite_links"
           },
           "is_owner": {
             "type": "boolean"
@@ -689,10 +799,12 @@
             ]
           },
           "logs_enabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "logs"
           },
           "logs_ui_clicks": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "logs"
           },
           "maintenance": {
             "enum": [
@@ -700,32 +812,53 @@
               "read_only",
               "full"
             ],
-            "type": "string"
+            "type": "string",
+            "x-feature": "maintenance"
+          },
+          "may_mint_keys": {
+            "description": "API keys only: whether this key may make keys for other accounts.",
+            "type": "boolean",
+            "x-feature": "api_keys"
+          },
+          "mcp_doc_url": {
+            "description": "Where to read the MCP tools as a page for people: config/mcp.md in app.repo, or /docs/mcp when there is no repo.",
+            "type": "string",
+            "x-feature": "mcp"
           },
           "mcp_enabled": {
             "description": "server.mcp: whether POST /mcp answers.",
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "mcp"
           },
           "mcp_url": {
             "description": "Where to read the MCP reference: config/mcp.json in app.repo, or /api/mcp.json when there is no repo. Only with server.mcp on.",
-            "type": "string"
+            "type": "string",
+            "x-feature": "mcp"
           },
           "openapi_url": {
             "description": "Where to read this API's reference: config/api.json in app.repo, or /api/api.json when there is no repo.",
-            "type": "string"
+            "type": "string",
+            "x-feature": "openapi"
           },
           "password_blocked": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "passwords"
           },
           "passwords_enabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "passwords"
           },
           "repo": {
             "description": "app.repo without a trailing / or .git: where the source lives. Empty when it is not set.",
             "type": "string"
           },
           "role": {
-            "description": "The effective role: never higher than an API key's own.",
+            "description": "The effective role: never higher than an API key's own. A viewer may read, and change nothing.",
+            "enum": [
+              "admin",
+              "user",
+              "viewer"
+            ],
             "type": "string"
           },
           "shortcuts": {
@@ -733,15 +866,18 @@
               "type": "string"
             },
             "description": "The keyboard shortcuts you changed, by action. Mod is Cmd on a Mac and Ctrl elsewhere.",
-            "type": "object"
+            "type": "object",
+            "x-feature": "shortcuts"
           },
           "show_about": {
             "description": "app.show_about: whether the menu has About.",
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "about"
           },
           "theme_id": {
             "description": "The theme you use. Empty: the first.",
-            "type": "string"
+            "type": "string",
+            "x-feature": "appearance"
           },
           "themes": {
             "description": "Your themes (see the Theme schema): your own list, else the app's defaults, else null for the built-in ones.",
@@ -755,20 +891,30 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "x-feature": "appearance"
+          },
+          "themes_builtins": {
+            "description": "Which built-in themes that list has seen (see builtins on POST /api/account/themes).",
+            "type": "integer",
+            "x-feature": "appearance"
           },
           "themes_custom": {
             "description": "Whether you have your own list rather than following the defaults.",
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "appearance"
           },
           "two_factor": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "two_factor"
           },
           "two_factor_enabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "two_factor"
           },
           "username": {
-            "type": "string"
+            "type": "string",
+            "x-feature": "passwords"
           },
           "version": {
             "description": "The running build. dev when none was stamped.",
@@ -776,15 +922,19 @@
           },
           "webhooks_enabled": {
             "description": "webhooks.enabled: whether webhooks are sent.",
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "webhooks"
           }
         },
         "required": [
           "account_role",
           "announcement",
+          "api_doc_url",
           "api_keys_enabled",
           "auth",
           "authenticated",
+          "capabilities",
+          "contract",
           "description",
           "display_name",
           "files_enabled",
@@ -797,6 +947,7 @@
           "logs_enabled",
           "logs_ui_clicks",
           "maintenance",
+          "mcp_doc_url",
           "mcp_enabled",
           "mcp_url",
           "openapi_url",
@@ -808,6 +959,7 @@
           "show_about",
           "theme_id",
           "themes",
+          "themes_builtins",
           "themes_custom",
           "two_factor",
           "two_factor_enabled",
@@ -870,6 +1022,18 @@
           "live": {
             "type": "boolean"
           },
+          "may_mint_keys": {
+            "description": "Whether this key may make keys for other accounts. Only the owner switches it on.",
+            "type": "boolean"
+          },
+          "may_sign_in": {
+            "description": "Whether this key may make a login link for its own account.",
+            "type": "boolean"
+          },
+          "minted_by_key": {
+            "description": "The key that made this one, or empty. Revoking that key revokes this one.",
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -883,7 +1047,8 @@
           "role": {
             "enum": [
               "admin",
-              "user"
+              "user",
+              "viewer"
             ],
             "type": "string"
           },
@@ -897,6 +1062,9 @@
           "expired",
           "id",
           "live",
+          "may_mint_keys",
+          "may_sign_in",
+          "minted_by_key",
           "name",
           "revoked",
           "role",
@@ -1019,13 +1187,15 @@
       "Revoked": {
         "properties": {
           "api_keys": {
-            "type": "integer"
+            "type": "integer",
+            "x-feature": "api_keys"
           },
           "login_links": {
             "type": "integer"
           },
           "passwords": {
-            "type": "integer"
+            "type": "integer",
+            "x-feature": "passwords"
           },
           "sessions": {
             "type": "integer"
@@ -1174,7 +1344,8 @@
           },
           "ip_name": {
             "description": "What the owner calls this address on the Logs screen. The owner's own list only.",
-            "type": "string"
+            "type": "string",
+            "x-feature": "logs"
           },
           "label": {
             "description": "The name you gave this device.",
@@ -1543,7 +1714,7 @@
                     "additionalProperties": {
                       "type": "string"
                     },
-                    "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                    "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                     "type": "object"
                   },
                   "second": {
@@ -1587,7 +1758,7 @@
                     "additionalProperties": {
                       "type": "string"
                     },
-                    "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+                    "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
                     "type": "object"
                   },
                   "second": {
@@ -1625,7 +1796,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
+            "description": "Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back.",
             "type": "object"
           },
           "second": {
@@ -1653,13 +1824,27 @@
             "type": "string"
           },
           "disabled": {
+            "description": "Switched off, or its expiry has passed.",
             "type": "boolean"
           },
           "display_name": {
             "type": "string"
           },
-          "has_password": {
+          "expired": {
+            "description": "Whether expires_at has passed.",
             "type": "boolean"
+          },
+          "expires_at": {
+            "description": "When the account stops working, or null for never.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_password": {
+            "type": "boolean",
+            "x-feature": "passwords"
           },
           "id": {
             "type": "integer"
@@ -1679,27 +1864,33 @@
             "type": "boolean"
           },
           "password_blocked": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "passwords"
           },
           "role": {
             "enum": [
               "admin",
-              "user"
+              "user",
+              "viewer"
             ],
             "type": "string"
           },
           "two_factor": {
-            "type": "boolean"
+            "type": "boolean",
+            "x-feature": "two_factor"
           },
           "username": {
             "description": "Empty until a password is set.",
-            "type": "string"
+            "type": "string",
+            "x-feature": "passwords"
           }
         },
         "required": [
           "created_at",
           "disabled",
           "display_name",
+          "expired",
+          "expires_at",
           "has_password",
           "id",
           "login_link",
@@ -1797,7 +1988,7 @@
         "type": "http"
       },
       "sessionCookie": {
-        "description": "A browser session. Its POSTs carry csrf_token in the body. The cookie's name is server.cookie_name.",
+        "description": "A browser session. Its POSTs carry csrf_token in the body. The cookie's name is server.cookie_name, with the __Host- prefix while server.secure_cookies is on.",
         "in": "cookie",
         "name": "session",
         "type": "apiKey"
@@ -1805,7 +1996,7 @@
     }
   },
   "info": {
-    "description": "Every route this server answers, apart from the pages at /login/*, /join/* and /s/*. Generated from the code by scripts/api_docs.sh: an app's own routes get their docs the same way, and a test fails until they do.",
+    "description": "Every route this server answers, apart from the pages at /login/*, /join/*, /docs/* and /s/*. Generated from the code by scripts/api_docs.sh: an app's own routes get their docs the same way, and a test fails until they do.",
     "title": "fMRI Experiment Designer API",
     "version": "1.0.0"
   },
@@ -1813,7 +2004,7 @@
   "paths": {
     "/api/account/login-link": {
       "post": {
-        "description": "A link that signs your own account in on a browser or another device. Only a key with your account's full role may ask: one scoped down to user on an admin account is refused.",
+        "description": "A link that signs your own account in on a browser or another device. An API key may ask only if your account let it, from a browser session (POST /api/keys/{key_id}/sign-in); its link works once, for at most 15 minutes.",
         "operationId": "post_api_account_login_link",
         "requestBody": {
           "content": {
@@ -2851,6 +3042,10 @@
               "schema": {
                 "additionalProperties": false,
                 "properties": {
+                  "builtins": {
+                    "description": "Which built-in themes this list has seen: the highest since in Theme.builtIn (static/js/theme.js) when it was saved. Built-in themes added after that join the list the browser shows. Left out: 0, the first ones.",
+                    "type": "integer"
+                  },
                   "csrf_token": {
                     "description": "From GET /api/me. Browser sessions only.",
                     "type": "string"
@@ -2906,6 +3101,10 @@
                         }
                       ]
                     },
+                    "themes_builtins": {
+                      "description": "Which built-in themes that list has seen (see builtins on POST /api/account/themes).",
+                      "type": "integer"
+                    },
                     "themes_custom": {
                       "type": "boolean"
                     }
@@ -2914,6 +3113,7 @@
                     "ok",
                     "theme_id",
                     "themes",
+                    "themes_builtins",
                     "themes_custom"
                   ],
                   "type": "object"
@@ -3814,7 +4014,7 @@
         "x-required-role": "admin"
       },
       "post": {
-        "description": "One link for a group: each person who opens it joins as a new user, up to max_uses people, for days days.",
+        "description": "One link for a group: each person who opens it joins as a new account with role (user, the default, or viewer), up to max_uses people, for days days.",
         "operationId": "post_api_admin_invite_links",
         "requestBody": {
           "content": {
@@ -3840,6 +4040,15 @@
                     "maximum": 1000,
                     "minimum": 1,
                     "type": "integer"
+                  },
+                  "role": {
+                    "default": "user",
+                    "description": "The role each person who joins gets: user, or viewer (reads only).",
+                    "enum": [
+                      "user",
+                      "viewer"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -3891,6 +4100,14 @@
                     "revoked": {
                       "type": "boolean"
                     },
+                    "role": {
+                      "description": "The role each person who joins gets.",
+                      "enum": [
+                        "user",
+                        "viewer"
+                      ],
+                      "type": "string"
+                    },
                     "used": {
                       "type": "integer"
                     }
@@ -3905,6 +4122,7 @@
                     "max_uses",
                     "remaining",
                     "revoked",
+                    "role",
                     "used"
                   ],
                   "type": "object"
@@ -4650,7 +4868,8 @@
                     "default": "user",
                     "enum": [
                       "admin",
-                      "user"
+                      "user",
+                      "viewer"
                     ],
                     "type": "string"
                   },
@@ -5061,6 +5280,7 @@
     },
     "/api/admin/keys/{key_id}/revoke": {
       "post": {
+        "description": "Stops the key at once, and every key it made, down the chain. Needs a browser session or a key with may_mint_keys (any other key gets 403 key_minting_off), which may not revoke the owner's keys.",
         "operationId": "post_api_admin_keys_key_id_revoke",
         "parameters": [
           {
@@ -5131,12 +5351,16 @@
         "security": [
           {
             "sessionCookie": []
+          },
+          {
+            "apiKey": []
           }
         ],
         "summary": "Revoke anyone's key",
         "tags": [
           "API keys"
         ],
+        "x-mcp-http": "Manages API keys, which no MCP tool does.",
         "x-required-role": "admin"
       },
       "x-feature": "api_keys"
@@ -5214,6 +5438,10 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "builtins": {
+                      "description": "Which built-in themes that list has seen (see builtins on POST /api/account/themes).",
+                      "type": "integer"
+                    },
                     "themes": {
                       "description": "null while the built-in themes apply.",
                       "oneOf": [
@@ -5230,6 +5458,7 @@
                     }
                   },
                   "required": [
+                    "builtins",
                     "themes"
                   ],
                   "type": "object"
@@ -5277,6 +5506,10 @@
               "schema": {
                 "additionalProperties": false,
                 "properties": {
+                  "builtins": {
+                    "description": "Which built-in themes this list has seen: the highest since in Theme.builtIn (static/js/theme.js) when it was saved. Built-in themes added after that join the list the browser shows. Left out: 0, the first ones.",
+                    "type": "integer"
+                  },
                   "csrf_token": {
                     "description": "From GET /api/me. Browser sessions only.",
                     "type": "string"
@@ -5308,6 +5541,10 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "builtins": {
+                      "description": "Which built-in themes that list has seen (see builtins on POST /api/account/themes).",
+                      "type": "integer"
+                    },
                     "ok": {
                       "type": "boolean"
                     },
@@ -5326,6 +5563,7 @@
                     }
                   },
                   "required": [
+                    "builtins",
                     "ok",
                     "themes"
                   ],
@@ -5495,7 +5733,7 @@
         "x-required-role": "admin"
       },
       "post": {
-        "description": "Make a new account and its first login link, to hand to the person. role is admin or user. Answers with user_id and the link.",
+        "description": "Make a new account and its first login link, to hand to the person. role is admin, user or viewer (reads only). account_expires_at, when given, is when the account stops working. Answers with user_id and the link.",
         "operationId": "post_api_admin_users",
         "requestBody": {
           "content": {
@@ -5503,6 +5741,14 @@
               "schema": {
                 "additionalProperties": false,
                 "properties": {
+                  "account_expires_at": {
+                    "description": "When the account stops working (RFC 3339). Left out: never. expires_in_minutes is the login link's expiry, not this.",
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
                   "csrf_token": {
                     "description": "From GET /api/me. Browser sessions only.",
                     "type": "string"
@@ -5533,7 +5779,8 @@
                   "role": {
                     "enum": [
                       "admin",
-                      "user"
+                      "user",
+                      "viewer"
                     ],
                     "type": "string"
                   }
@@ -5898,6 +6145,288 @@
         ],
         "x-required-role": "admin"
       }
+    },
+    "/api/admin/users/{user_id}/expiry": {
+      "post": {
+        "description": "expires_at is when the account stops working (RFC 3339), or null for never. Once it passes the account counts as disabled: sign-in, its sessions and its keys stop, and housekeeping disables it and revokes its access. A later expiry does not re-enable an account housekeeping already disabled. It must be in the future. The owner's account never expires; only the owner sets an admin's.",
+        "operationId": "post_api_admin_users_user_id_expiry",
+        "parameters": [
+          {
+            "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "expires_at": {
+                    "description": "When the account stops working (RFC 3339), or null for never.",
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "expires_at"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "expires_at": {
+                      "description": "null when it never expires.",
+                      "format": "date-time",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "expires_at",
+                    "ok"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Set when an account expires",
+        "tags": [
+          "Admin"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/api/admin/users/{user_id}/keys": {
+      "get": {
+        "description": "One account's keys, revoked and expired ones included, newest first. Each row says which key minted it (minted_by_key, empty when a person made it). Needs a browser session or a key with may_mint_keys; any other key gets 403 key_minting_off.",
+        "operationId": "get_api_admin_users_user_id_keys",
+        "parameters": [
+          {
+            "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "keys": {
+                      "items": {
+                        "$ref": "#/components/schemas/APIKey"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "keys"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "An account's keys",
+        "tags": [
+          "API keys"
+        ],
+        "x-mcp-http": "Manages API keys, which no MCP tool does.",
+        "x-required-role": "admin"
+      },
+      "post": {
+        "description": "Needs a browser session or a key the owner allowed to make keys (may_mint_keys); any other key gets 403 key_minting_off. The role is capped at the account's own; expires_in_days is required (1-365). Never for the owner. The new key records the key that made it, can never make keys or sign-in links itself, and is revoked when that key is revoked or deleted. Answers with the key and its credential, shown only now.",
+        "operationId": "post_api_admin_users_user_id_keys",
+        "parameters": [
+          {
+            "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "expires_in_days": {
+                    "description": "Required: 1-365. A minted key always expires.",
+                    "maximum": 365,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "role": {
+                    "description": "Capped at the account's own role.",
+                    "enum": [
+                      "admin",
+                      "user",
+                      "viewer"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "expires_in_days",
+                  "name",
+                  "role"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewAPIKey"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Make a key for an account",
+        "tags": [
+          "API keys"
+        ],
+        "x-mcp-http": "Makes an API key, which no MCP tool does.",
+        "x-required-role": "admin"
+      },
+      "x-feature": "api_keys"
     },
     "/api/admin/users/{user_id}/reissue-login": {
       "post": {
@@ -6315,7 +6844,7 @@
     },
     "/api/admin/users/{user_id}/role": {
       "post": {
-        "description": "Make an account an admin or an ordinary user. Only the owner takes an admin's rights away; the owner is always an admin, and nobody changes their own role. Becoming an admin ends the account's sessions and live login link.",
+        "description": "Make an account an admin, an ordinary user, or a viewer, who may read but change nothing. Only the owner takes an admin's rights away; the owner is always an admin, and nobody changes their own role. Becoming an admin ends the account's sessions and live login link.",
         "operationId": "post_api_admin_users_user_id_role",
         "parameters": [
           {
@@ -6342,7 +6871,8 @@
                   "role": {
                     "enum": [
                       "admin",
-                      "user"
+                      "user",
+                      "viewer"
                     ],
                     "type": "string"
                   }
@@ -6655,6 +7185,1400 @@
         "x-mcp-http": "The API reference itself; GET /api/mcp.json is the MCP one."
       },
       "x-feature": "openapi"
+    },
+    "/api/api.md": {
+      "get": {
+        "operationId": "get_api_api_md",
+        "responses": {
+          "200": {
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "The API reference as Markdown tables for people",
+        "tags": [
+          "Monitoring"
+        ],
+        "x-mcp-http": "The API reference itself, for people; GET /api/api.json is the same as JSON."
+      },
+      "x-feature": "openapi"
+    },
+    "/api/bulk/account/sessions/revoke": {
+      "post": {
+        "description": "Runs POST /api/account/sessions/{session_id}/revoke once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_account_sessions_revoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "session_id": {
+                          "description": "The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "session_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Sign out one of your devices, for many at once",
+        "tags": [
+          "Account"
+        ],
+        "x-bulk-of": "POST /api/account/sessions/{session_id}/revoke"
+      },
+      "x-feature": "sessions"
+    },
+    "/api/bulk/admin/invite-links/delete": {
+      "post": {
+        "description": "Runs POST /api/admin/invite-links/{link_id}/delete once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_invite_links_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "link_id": {
+                          "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "link_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Delete an invite link, for many at once",
+        "tags": [
+          "Invite links"
+        ],
+        "x-bulk-of": "POST /api/admin/invite-links/{link_id}/delete",
+        "x-required-role": "admin"
+      },
+      "x-feature": "invite_links"
+    },
+    "/api/bulk/admin/invite-links/restore": {
+      "post": {
+        "description": "Runs POST /api/admin/invite-links/{link_id}/restore once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_invite_links_restore",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "link_id": {
+                          "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "link_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Undo deleting an invite link, for many at once",
+        "tags": [
+          "Invite links"
+        ],
+        "x-bulk-of": "POST /api/admin/invite-links/{link_id}/restore",
+        "x-required-role": "admin"
+      },
+      "x-feature": "invite_links"
+    },
+    "/api/bulk/admin/invite-links/revoke": {
+      "post": {
+        "description": "Runs POST /api/admin/invite-links/{link_id}/revoke once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_invite_links_revoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "link_id": {
+                          "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "link_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Switch off an invite link, for many at once",
+        "tags": [
+          "Invite links"
+        ],
+        "x-bulk-of": "POST /api/admin/invite-links/{link_id}/revoke",
+        "x-required-role": "admin"
+      },
+      "x-feature": "invite_links"
+    },
+    "/api/bulk/admin/invite-links/switch-on": {
+      "post": {
+        "description": "Runs POST /api/admin/invite-links/{link_id}/switch-on once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_invite_links_switch_on",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "link_id": {
+                          "description": "The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "link_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Switch an invite link back on, for many at once",
+        "tags": [
+          "Invite links"
+        ],
+        "x-bulk-of": "POST /api/admin/invite-links/{link_id}/switch-on",
+        "x-required-role": "admin"
+      },
+      "x-feature": "invite_links"
+    },
+    "/api/bulk/admin/users/cancel-login-link": {
+      "post": {
+        "description": "Runs POST /api/admin/users/{user_id}/cancel-login-link once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_users_cancel_login_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "user_id": {
+                          "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Stop an account's login link working, for many at once",
+        "tags": [
+          "Admin"
+        ],
+        "x-bulk-of": "POST /api/admin/users/{user_id}/cancel-login-link",
+        "x-required-role": "admin"
+      }
+    },
+    "/api/bulk/admin/users/delete": {
+      "post": {
+        "description": "Runs POST /api/admin/users/{user_id}/delete once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_users_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "user_id": {
+                          "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Delete an account, for many at once",
+        "tags": [
+          "Admin"
+        ],
+        "x-bulk-of": "POST /api/admin/users/{user_id}/delete",
+        "x-required-role": "admin"
+      }
+    },
+    "/api/bulk/admin/users/disabled": {
+      "post": {
+        "description": "Runs POST /api/admin/users/{user_id}/disabled once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_users_disabled",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "disabled": {
+                          "type": "boolean"
+                        },
+                        "user_id": {
+                          "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {
+                      "disabled": {
+                        "type": "boolean"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Disable or enable a user, for many at once",
+        "tags": [
+          "Admin"
+        ],
+        "x-bulk-of": "POST /api/admin/users/{user_id}/disabled",
+        "x-required-role": "admin"
+      }
+    },
+    "/api/bulk/admin/users/reset-two-factor": {
+      "post": {
+        "description": "Runs POST /api/admin/users/{user_id}/reset-two-factor once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_users_reset_two_factor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "user_id": {
+                          "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Turn off an account's two-factor, for many at once",
+        "tags": [
+          "Admin"
+        ],
+        "x-bulk-of": "POST /api/admin/users/{user_id}/reset-two-factor",
+        "x-required-role": "admin"
+      },
+      "x-feature": "two_factor"
+    },
+    "/api/bulk/admin/users/revoke-access": {
+      "post": {
+        "description": "Runs POST /api/admin/users/{user_id}/revoke-access once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_users_revoke_access",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "user_id": {
+                          "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Revoke a user's access, for many at once",
+        "tags": [
+          "Admin"
+        ],
+        "x-bulk-of": "POST /api/admin/users/{user_id}/revoke-access",
+        "x-required-role": "admin"
+      }
+    },
+    "/api/bulk/admin/users/role": {
+      "post": {
+        "description": "Runs POST /api/admin/users/{user_id}/role once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_users_role",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "role": {
+                          "enum": [
+                            "admin",
+                            "user",
+                            "viewer"
+                          ],
+                          "type": "string"
+                        },
+                        "user_id": {
+                          "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {
+                      "role": {
+                        "enum": [
+                          "admin",
+                          "user",
+                          "viewer"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Change an account's role, for many at once",
+        "tags": [
+          "Admin"
+        ],
+        "x-bulk-of": "POST /api/admin/users/{user_id}/role",
+        "x-required-role": "admin"
+      }
+    },
+    "/api/bulk/admin/users/sessions/revoke": {
+      "post": {
+        "description": "Runs POST /api/admin/users/{user_id}/sessions/{session_id}/revoke once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_admin_users_sessions_revoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "session_id": {
+                          "description": "The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP).",
+                          "type": "string"
+                        },
+                        "user_id": {
+                          "description": "The account's id, from GET /api/admin/users (admin_list_users over MCP).",
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "session_id",
+                        "user_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Sign out one of an account's devices, for many at once",
+        "tags": [
+          "Admin"
+        ],
+        "x-bulk-of": "POST /api/admin/users/{user_id}/sessions/{session_id}/revoke",
+        "x-required-role": "admin"
+      },
+      "x-feature": "sessions"
+    },
+    "/api/bulk/files/delete": {
+      "post": {
+        "description": "Runs POST /api/files/{file_id}/delete once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_files_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "file_id": {
+                          "description": "The file's id, from GET /api/files (files_list over MCP).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "file_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Delete a file, for many at once",
+        "tags": [
+          "Files"
+        ],
+        "x-bulk-of": "POST /api/files/{file_id}/delete"
+      },
+      "x-feature": "files"
+    },
+    "/api/bulk/files/restore": {
+      "post": {
+        "description": "Runs POST /api/files/{file_id}/restore once per item: items holds each one's id and fields, shared the fields they have in common (an item's own win). Each runs as that route would, in order, and one failing does not stop the rest; the reply says how each went. At most 100 items.",
+        "operationId": "post_api_bulk_files_restore",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "items": {
+                    "description": "One entry per thing to change: its id, and any field that differs from shared.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "file_id": {
+                          "description": "The file's id, from GET /api/files (files_list over MCP).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "file_id"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "shared": {
+                    "additionalProperties": false,
+                    "description": "Fields every item gets, unless the item sets its own.",
+                    "properties": {},
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkReply"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Restore a deleted file, for many at once",
+        "tags": [
+          "Files"
+        ],
+        "x-bulk-of": "POST /api/files/{file_id}/restore"
+      },
+      "x-feature": "files"
     },
     "/api/experiments": {
       "get": {
@@ -10536,7 +12460,8 @@
                     "default": "user",
                     "enum": [
                       "admin",
-                      "user"
+                      "user",
+                      "viewer"
                     ],
                     "type": "string"
                   }
@@ -10749,6 +12674,87 @@
           }
         ],
         "summary": "Change when one of your keys expires",
+        "tags": [
+          "API keys"
+        ]
+      },
+      "x-feature": "api_keys"
+    },
+    "/api/keys/{key_id}/mint-keys": {
+      "post": {
+        "description": "Owner only, on one of your own admin-role keys. When on, the key may make keys for other accounts (never the owner's) through POST /api/admin/users/{user_id}/keys, list them, and revoke them. Each key it makes records it, and revoking or deleting this key revokes them all.",
+        "operationId": "post_api_keys_key_id_mint_keys",
+        "parameters": [
+          {
+            "description": "The key's id, from GET /api/keys (GET /api/admin/keys for anyone's).",
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "may_mint_keys": {
+                    "description": "true lets this key make, list and revoke other accounts' keys, each recording this key and revoked with it.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "may_mint_keys"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIKey"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Let one of your keys make keys",
         "tags": [
           "API keys"
         ]
@@ -11010,6 +13016,87 @@
           }
         ],
         "summary": "Revoke one of your keys",
+        "tags": [
+          "API keys"
+        ]
+      },
+      "x-feature": "api_keys"
+    },
+    "/api/keys/{key_id}/sign-in": {
+      "post": {
+        "description": "Off by default. When on, the key may ask POST /api/account/login-link for a link that signs your account in on a browser, which then can do everything you can, including what keys may not. The link works once, for at most 15 minutes.",
+        "operationId": "post_api_keys_key_id_sign_in",
+        "parameters": [
+          {
+            "description": "The key's id, from GET /api/keys (GET /api/admin/keys for anyone's).",
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "csrf_token": {
+                    "description": "From GET /api/me. Browser sessions only.",
+                    "type": "string"
+                  },
+                  "may_sign_in": {
+                    "description": "true lets the key make a login link for your account: one that works once, for at most 15 minutes.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "may_sign_in"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIKey"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Let one of your keys make sign-in links",
         "tags": [
           "API keys"
         ]
@@ -11286,7 +13373,8 @@
                       "type": "string"
                     },
                     "two_factor": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "x-feature": "two_factor"
                     }
                   },
                   "required": [
@@ -11638,6 +13726,49 @@
           "Monitoring"
         ],
         "x-mcp-http": "The MCP reference itself; tools/list gives the same list."
+      },
+      "x-feature": "mcp"
+    },
+    "/api/mcp.md": {
+      "get": {
+        "operationId": "get_api_mcp_md",
+        "responses": {
+          "200": {
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          },
+          "503": {
+            "$ref": "#/components/responses/E503"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "The MCP tools as Markdown tables for people",
+        "tags": [
+          "Monitoring"
+        ],
+        "x-mcp-http": "The MCP reference itself, for people; tools/list gives the same list."
       },
       "x-feature": "mcp"
     },

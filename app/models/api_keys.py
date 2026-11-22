@@ -4,10 +4,18 @@ They exist so that a script, a cron job, a CI pipeline, or another service can
 call the same API a signed-in person calls, without inventing a second
 permission model for them.
 
-A key carries a role from the same set users do -- admin or user -- so
+A key carries a role from the same set users do -- admin, user or viewer -- so
 whatever an admin may do in the UI an admin-scoped key may do over HTTP, and a
 user-scoped key is limited to exactly what a non-admin account is. There is no
 separate scope language to keep in step with the role checks.
+
+Keys are minted from a browser session, with one exception: a key the owner
+let mint keys (may_mint_keys, switched on from the owner's session) may mint
+and revoke keys for other accounts through /api/admin/users/{id}/keys. Every
+key minted that way records the key that minted it (minted_by_key), and
+revoking or deleting a key revokes every key below it, however deep
+(revoke_minted_tx), so pulling one credential still pulls everything it led
+to. A minted key can never mint keys itself, nor make sign-in links.
 
 A key can never outrank its owner. The role stored on a key is a *request*,
 and it is bounded twice: issue_api_key refuses to mint an admin key for a
@@ -27,7 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.core import encryption
-from app.core.db import BUCKET_API_KEYS, BUCKET_USERS, Record, Store
+from app.core.db import BUCKET_API_KEYS, BUCKET_USERS, Record, Store, Transaction
 from app.models import RestoreGoneError, deleted_long_ago, from_iso, mark_deleted, to_iso, unmark_deleted, utc_now
 from app.models import login_tokens
 from app.models.sessions import split_credential
@@ -39,8 +47,11 @@ from app.models.users import (
     RenameConflictError,
     User,
     get_user,
+    lower_role,
     may_act_on_id_tx,
+    owner_id_tx,
     may_act_on_tx,
+    role_rank,
     valid_role,
 )
 
@@ -99,6 +110,11 @@ class APIKeyDeadError(APIKeyError):
         super().__init__("only a live API key can have its expiry changed")
 
 
+class APIKeyNotYoursError(APIKeyError):
+    def __init__(self) -> None:
+        super().__init__("only the account a key acts as may let it make sign-in links")
+
+
 class APIKeyOwnerError(APIKeyError):
     def __init__(self, user_id: int) -> None:
         super().__init__(f"no user with id {user_id}")
@@ -123,6 +139,23 @@ class APIKeyExpiryAdminError(APIKeyError):
 
     def __init__(self) -> None:
         super().__init__("only the owner can change when an admin's keys expire")
+
+
+class APIKeyMintedError(APIKeyError):
+    """A minted key asking for a right a minted key never gets."""
+
+    def __init__(self, what: str) -> None:
+        super().__init__(f"a minted key can never {what}")
+
+
+class APIKeyMintRoleError(APIKeyError):
+    def __init__(self) -> None:
+        super().__init__("only an admin key can mint keys")
+
+
+class APIKeyNotOwnerError(APIKeyError):
+    def __init__(self) -> None:
+        super().__init__("only the owner can let a key mint keys")
 
 
 class APIKeyForAdminError(APIKeyError):
@@ -152,6 +185,21 @@ class APIKey:
     # before this field read as None too. It is what lets the person a key
     # acts as see that someone else made it.
     created_by: int | None = None
+    # Whether this key may ask for a login link for its own account (POST
+    # /api/account/login-link). Off by default: the link becomes an ordinary
+    # browser session, so a key that may make one is as good as a session to
+    # whoever holds it. Only the key's own account turns it on, and only from
+    # a browser session (set_api_key_sign_in). Its links work once and for at
+    # most KEY_LOGIN_LINK_TTL_SECONDS.
+    may_sign_in: bool = False
+    # Whether this key may mint and revoke keys for other accounts (POST
+    # /api/admin/users/{user_id}/keys). Only the owner turns it on, from a
+    # browser session, on one of the owner's own admin keys
+    # (set_api_key_mint_keys). A minted key never has it.
+    may_mint_keys: bool = False
+    # The key that minted this one, "" when a person or a shell did. Revoking
+    # or deleting that key revokes this one too (revoke_minted_tx).
+    minted_by_key: str = ""
 
     @property
     def revoked(self) -> bool:
@@ -186,6 +234,9 @@ class APIKey:
             "deleted_at": to_iso(self.deleted_at),
             "deleted_by": self.deleted_by,
             "created_by": self.created_by,
+            "may_sign_in": self.may_sign_in,
+            "may_mint_keys": self.may_mint_keys,
+            "minted_by_key": self.minted_by_key,
         }
 
     @classmethod
@@ -203,6 +254,9 @@ class APIKey:
             deleted_at=from_iso(record.get("deleted_at")),
             deleted_by=record.get("deleted_by"),
             created_by=record.get("created_by"),
+            may_sign_in=bool(record.get("may_sign_in", False)),
+            may_mint_keys=bool(record.get("may_mint_keys", False)),
+            minted_by_key=record.get("minted_by_key") or "",
         )
 
 
@@ -236,10 +290,11 @@ def narrow_role(account_role: str, key_role: str) -> str:
     Storing the key's role and then re-deriving the effective one, rather than
     trusting what was stored, is what makes demotion work. If an admin mints
     an admin key and later becomes an ordinary user, the row still says admin
-    -- and every request it authenticates is treated as a user."""
-    if account_role == ROLE_ADMIN and key_role == ROLE_ADMIN:
-        return ROLE_ADMIN
-    return ROLE_USER
+    -- and every request it authenticates is treated as a user. A viewer
+    account's admin key acts as a viewer."""
+    if not valid_role(key_role):
+        key_role = ROLE_USER
+    return lower_role(account_role, key_role)
 
 
 def issue_api_key_for(store: Store, actor_id: int, user_id: int, name: str, role: str, ttl_seconds: int) -> tuple[str, APIKey]:
@@ -259,7 +314,7 @@ def issue_api_key_for(store: Store, actor_id: int, user_id: int, name: str, role
     return issue_api_key(store, user_id, name, role, ttl_seconds, created_by=actor_id)
 
 
-def issue_api_key(store: Store, user_id: int, name: str, role: str, ttl_seconds: int, created_by: int | None = None) -> tuple[str, APIKey]:
+def issue_api_key(store: Store, user_id: int, name: str, role: str, ttl_seconds: int, created_by: int | None = None, minted_by_key: str = "", minting: bool = False) -> tuple[str, APIKey]:
     """Returns (credential, key). The credential exists exactly once, here: it
     is never stored and cannot be recovered -- if it is lost, revoke the key
     and mint another.
@@ -267,7 +322,10 @@ def issue_api_key(store: Store, user_id: int, name: str, role: str, ttl_seconds:
     ttl_seconds of zero means the key never expires. That is a deliberate
     option rather than an oversight: a CI job nobody will remember to re-key is
     worse served by a credential that dies silently at 3am. It has to be asked
-    for explicitly; the default comes from configuration."""
+    for explicitly; the default comes from configuration.
+
+    minting is mint_api_key's: the owner's account is refused outright and a
+    role above the account's is capped to it rather than refused."""
     # The owner is loaded inside the transaction below rather than taking the
     # caller's word for the role. Every route into this function -- the HTTP
     # API and the CLI -- then gets the same ceiling without each having to
@@ -287,6 +345,7 @@ def issue_api_key(store: Store, user_id: int, name: str, role: str, ttl_seconds:
         created_at=now,
         expires_at=now + timedelta(seconds=ttl_seconds) if ttl_seconds > 0 else None,
         created_by=created_by,
+        minted_by_key=minted_by_key,
     )
 
     # The owner check, the quota check, and the insert share one transaction.
@@ -298,6 +357,10 @@ def issue_api_key(store: Store, user_id: int, name: str, role: str, ttl_seconds:
         if owner_record is None:
             raise APIKeyOwnerError(user_id)
         owner = User.from_record(owner_record)
+        if minting:
+            if owner_id_tx(tx) == user_id:
+                raise APIKeyForOwnerError()
+            key.role = role = lower_role(role, owner.role)
         try:
             may_act_on_tx(tx, created_by, owner)
         except OwnerProtectedError:
@@ -306,7 +369,7 @@ def issue_api_key(store: Store, user_id: int, name: str, role: str, ttl_seconds:
             raise APIKeyForAdminError() from None
         if owner.disabled:
             raise APIKeyDisabledError()
-        if role == ROLE_ADMIN and not owner.is_admin:
+        if role_rank(role) > role_rank(owner.role):
             raise APIKeyRoleError()
 
         owned = [APIKey.from_record(record) for _, record in tx.all(BUCKET_API_KEYS) if record["user_id"] == user_id]
@@ -393,6 +456,18 @@ def list_api_keys_for_user(store: Store, user_id: int) -> list[APIKey]:
     return [key for key in list_api_keys(store) if key.user_id == user_id]
 
 
+def void_what_keys_made_tx(tx: Transaction, user_id: int) -> int:
+    """login_tokens.void_links_minted_by_key for every API key an account
+    holds, live or not, inside the caller's transaction. Disabling an
+    account, or taking its admin role away, calls it: a login link its key
+    made, and a browser that link signed in, carry the right the account had
+    then, so they end with that right instead of outliving it. So do the keys
+    they minted, down the whole chain (revoke_minted_tx)."""
+    key_ids = [key_id for key_id, record in tx.all(BUCKET_API_KEYS) if record["user_id"] == user_id]
+    voided = sum(login_tokens.void_links_minted_by_key(tx, key_id) for key_id in key_ids)
+    return voided + sum(revoke_minted_tx(tx, key_id) for key_id in key_ids)
+
+
 def count_live_api_keys_for_user(store: Store, user_id: int) -> int:
     return sum(1 for key in list_api_keys_for_user(store, user_id) if key.live)
 
@@ -422,29 +497,69 @@ def revoke_api_key(store: Store, key_id: str, actor_id: int | None = None) -> AP
             record["revoked_at"] = to_iso(utc_now())
             tx.put(BUCKET_API_KEYS, key_id, record)
         login_tokens.void_links_minted_by_key(tx, key_id)
+        revoke_minted_tx(tx, key_id)
     return APIKey.from_record(record)
 
 
-def rename_api_key(store: Store, key_id: str, name: str, expect: str | None = None) -> bool:
+def revoke_minted_tx(tx: Transaction, key_id: str) -> int:
+    """Revoke every key key_id minted, and every key those minted, down the
+    whole chain, inside the caller's transaction, and void what each of them
+    made (login_tokens.void_links_minted_by_key). Returns how many keys it
+    revoked. Revoking, deleting, revoke-access, deleting an account and an
+    account expiring all call it, so no way of ending a key leaves its
+    descendants working.
+
+    Walked breadth first over the whole bucket, with a seen set: a chain is
+    short in practice, and the set keeps a damaged row pointing in a circle
+    from looping."""
+    if not key_id:
+        return 0
+    children: dict[str, list[tuple[str, Record]]] = {}
+    for other_id, record in tx.all(BUCKET_API_KEYS):
+        parent = record.get("minted_by_key") or ""
+        if parent:
+            children.setdefault(parent, []).append((other_id, record))
+    now = to_iso(utc_now())
+    revoked, seen, queue = 0, {key_id}, [key_id]
+    while queue:
+        for child_id, record in children.get(queue.pop(0), []):
+            if child_id in seen:
+                continue
+            seen.add(child_id)
+            queue.append(child_id)
+            if record.get("revoked_at") is None and record.get("deleted_at") is None:
+                record["revoked_at"] = now
+                tx.put(BUCKET_API_KEYS, child_id, record)
+                revoked += 1
+            login_tokens.void_links_minted_by_key(tx, child_id)
+    return revoked
+
+
+def rename_api_key(store: Store, key_id: str, actor_id: int | None, name: str, expect: str | None = None) -> bool:
     """Change a key's label, which is all a name is: nothing about what the
     key may do hangs off it, so a dead key can be renamed too. False if there
     is no such key or it is deleted.
 
     expect, when given, is the name the caller believes is stored, as in
     users.rename_user: RenameConflictError if it is not, which keeps an undo
-    from overwriting a rename made somewhere else."""
-    found = False
+    from overwriting a rename made somewhere else.
 
-    def mutate(record: Record) -> None:
-        nonlocal found
-        if record.get("deleted_at") is not None:
-            return
-        found = True
+    actor_id is who is asking (None for none, as from a shell). A name is what
+    the owner goes by when deciding which key to revoke, so renaming someone
+    else's key follows the same ladder as everything else done to it (S14):
+    nobody renames the owner's keys (OwnerProtectedError), and only the owner
+    renames another admin's (OwnerRequiredError)."""
+    with store.transaction() as tx:
+        record = tx.get(BUCKET_API_KEYS, key_id)
+        if record is None or record.get("deleted_at") is not None:
+            return False
+        if actor_id is not None:
+            may_act_on_id_tx(tx, actor_id, record["user_id"])
         if expect is not None and record["name"] != expect.strip():
             raise RenameConflictError(record["name"])
         record["name"] = name.strip()
-
-    return store.update_value(BUCKET_API_KEYS, key_id, mutate) is not None and found
+        tx.put(BUCKET_API_KEYS, key_id, record)
+    return True
 
 
 def set_api_key_expiry(store: Store, key_id: str, actor_id: int, ttl_seconds: int) -> APIKey | None:
@@ -481,6 +596,80 @@ def set_api_key_expiry(store: Store, key_id: str, actor_id: int, ttl_seconds: in
     return key
 
 
+# The longest a login link made by an API key works for. Such a link always
+# works once, whatever the request asked.
+KEY_LOGIN_LINK_TTL_SECONDS = 15 * 60
+
+
+def set_api_key_sign_in(store: Store, key_id: str, user_id: int, on: bool) -> APIKey | None:
+    """Turn may_sign_in on or off. Only the account the key acts as may change
+    it, not an admin, not even the owner: it decides whether that key is as
+    good as a browser session to that account, which is the account's own
+    call. A dead key cannot be turned on (APIKeyDeadError); turning it off
+    always works, and voids any link the key made that is still unused.
+    Browsers those links already signed in stay signed in: the switch off is
+    "no more links", and revoking the key is "sign them out too". None when
+    there is no such key or it is deleted."""
+    with store.transaction() as tx:
+        record = tx.get(BUCKET_API_KEYS, key_id)
+        if record is None:
+            return None
+        key = APIKey.from_record(record)
+        if key.deleted:
+            return None
+        if key.user_id != user_id:
+            raise APIKeyNotYoursError()
+        if on and not key.live:
+            raise APIKeyDeadError()
+        if on and key.minted_by_key:
+            raise APIKeyMintedError("make sign-in links")
+        key.may_sign_in = on
+        tx.put(BUCKET_API_KEYS, key_id, key.to_record())
+        if not on:
+            login_tokens.void_unused_links_minted_by_key(tx, key_id)
+    return key
+
+
+def set_api_key_mint_keys(store: Store, key_id: str, user_id: int, on: bool) -> APIKey | None:
+    """Turn may_mint_keys on or off for one of the owner's own keys. Only the
+    owner may (APIKeyNotOwnerError), on its own key (anyone else's is None,
+    "no such key"), and only on a live admin key that was not itself minted:
+    a key that mints keys is as good as an admin session for every account
+    but the owner's, so the right starts at the owner and goes no further.
+    Turning it off always works and leaves the keys it already minted alone;
+    revoking the key is what ends those. None when there is no such key or
+    it is deleted."""
+    with store.transaction() as tx:
+        record = tx.get(BUCKET_API_KEYS, key_id)
+        if record is None:
+            return None
+        key = APIKey.from_record(record)
+        if key.deleted or key.user_id != user_id:
+            return None
+        if owner_id_tx(tx) != user_id:
+            raise APIKeyNotOwnerError()
+        if on:
+            if not key.live:
+                raise APIKeyDeadError()
+            if key.minted_by_key:
+                raise APIKeyMintedError("mint keys")
+            if key.role != ROLE_ADMIN:
+                raise APIKeyMintRoleError()
+        key.may_mint_keys = on
+        tx.put(BUCKET_API_KEYS, key_id, key.to_record())
+    return key
+
+
+def mint_api_key(store: Store, actor_id: int, minted_by_key: str, user_id: int, name: str, role: str, ttl_seconds: int) -> tuple[str, APIKey]:
+    """A key minted for another account through /api/admin/users/{id}/keys,
+    by a minting key (minted_by_key its id) or an admin session (""). The
+    role is capped at the account's own; the owner's keys are never minted
+    this way (APIKeyForOwnerError); the ladder for everyone else is
+    issue_api_key's (only the owner mints for another admin)."""
+    created_by = None if actor_id == user_id else actor_id
+    return issue_api_key(store, user_id, name, role, ttl_seconds, created_by=created_by, minted_by_key=minted_by_key, minting=True)
+
+
 def delete_api_key(store: Store, key_id: str, actor_id: int | None) -> bool:
     """Take a key off every listing and stop it working, now; False if there
     is no such key or it is already deleted.
@@ -504,6 +693,7 @@ def delete_api_key(store: Store, key_id: str, actor_id: int | None) -> bool:
         mark_deleted(record, actor_id)
         tx.put(BUCKET_API_KEYS, key_id, record)
         login_tokens.void_links_minted_by_key(tx, key_id)
+        revoke_minted_tx(tx, key_id)
     return True
 
 
@@ -520,7 +710,7 @@ def restore_api_key(store: Store, key_id: str, actor_id: int, actor_is_admin: bo
         # Bringing a key back is as much power over its account as minting
         # one, so the rule is the key's account's, not the deleter's.
         may_act_on_id_tx(tx, actor_id, record["user_id"])
-        unmark_deleted(record, actor_id, actor_is_admin)
+        unmark_deleted(record, actor_id, actor_is_admin, owner_id_tx(tx))
         key = APIKey.from_record(record)
         if key.live:
             owned = (APIKey.from_record(other) for _, other in tx.all(BUCKET_API_KEYS) if other["user_id"] == key.user_id)

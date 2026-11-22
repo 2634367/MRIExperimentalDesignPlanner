@@ -67,6 +67,7 @@ def sample_value(key: Any) -> Any:
         "server.proxy_header": "X-Real-IP",
         "server.maintenance": "read_only",
         "psychopy.launch": "off",
+        "server.live_reload": "always",
         "server.host": "0.0.0.0",
         "server.port": 9999,
         "logs.max_file_mb": 10,

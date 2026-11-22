@@ -13,10 +13,13 @@ Every tool POST /mcp offers. Written by scripts/api_docs.sh from the registered 
 | Tool | Route | Who | What |
 |---|---|---|---|
 | [`admin_cancel_login_link`](#admin_cancel_login_link) | [`POST /api/admin/users/{user_id}/cancel-login-link`](api.md#post-apiadminusersuser_idcancel-login-link) | admin keys | Stop an account's login link working (admin) |
+| [`admin_cancel_login_link_bulk`](#admin_cancel_login_link_bulk) | [`POST /api/bulk/admin/users/cancel-login-link`](api.md#post-apibulkadminuserscancel-login-link) | admin keys | Stop an account's login link working, for many at once (admin) |
 | [`admin_create_invite_link`](#admin_create_invite_link) | [`POST /api/admin/invite-links`](api.md#post-apiadmininvite-links) | admin keys | Create an invite link (admin) |
 | [`admin_create_user`](#admin_create_user) | [`POST /api/admin/users`](api.md#post-apiadminusers) | admin keys | Create an account (admin) |
 | [`admin_delete_invite_link`](#admin_delete_invite_link) | [`POST /api/admin/invite-links/{link_id}/delete`](api.md#post-apiadmininvite-linkslink_iddelete) | admin keys | Delete an invite link (admin) |
+| [`admin_delete_invite_link_bulk`](#admin_delete_invite_link_bulk) | [`POST /api/bulk/admin/invite-links/delete`](api.md#post-apibulkadmininvite-linksdelete) | admin keys | Delete an invite link, for many at once (admin) |
 | [`admin_delete_user`](#admin_delete_user) | [`POST /api/admin/users/{user_id}/delete`](api.md#post-apiadminusersuser_iddelete) | admin keys | Delete an account (admin) |
+| [`admin_delete_user_bulk`](#admin_delete_user_bulk) | [`POST /api/bulk/admin/users/delete`](api.md#post-apibulkadminusersdelete) | admin keys | Delete an account, for many at once (admin) |
 | [`admin_get_theme_defaults`](#admin_get_theme_defaults) | [`GET /api/admin/theme-defaults`](api.md#get-apiadmintheme-defaults) | admin keys | Default themes (admin) |
 | [`admin_list_files`](#admin_list_files) | [`GET /api/admin/files`](api.md#get-apiadminfiles) | admin keys | List everyone's files (admin) |
 | [`admin_list_invite_links`](#admin_list_invite_links) | [`GET /api/admin/invite-links`](api.md#get-apiadmininvite-links) | admin keys | List invite links (admin) |
@@ -26,16 +29,25 @@ Every tool POST /mcp offers. Written by scripts/api_docs.sh from the registered 
 | [`admin_rename_invite_link`](#admin_rename_invite_link) | [`POST /api/admin/invite-links/{link_id}/rename`](api.md#post-apiadmininvite-linkslink_idrename) | admin keys | Rename an invite link (admin) |
 | [`admin_rename_user`](#admin_rename_user) | [`POST /api/admin/users/{user_id}/rename`](api.md#post-apiadminusersuser_idrename) | admin keys | Rename someone (admin) |
 | [`admin_reset_two_factor`](#admin_reset_two_factor) | [`POST /api/admin/users/{user_id}/reset-two-factor`](api.md#post-apiadminusersuser_idreset-two-factor) | admin keys | Turn off an account's two-factor (admin) |
+| [`admin_reset_two_factor_bulk`](#admin_reset_two_factor_bulk) | [`POST /api/bulk/admin/users/reset-two-factor`](api.md#post-apibulkadminusersreset-two-factor) | admin keys | Turn off an account's two-factor, for many at once (admin) |
 | [`admin_restore_invite_link`](#admin_restore_invite_link) | [`POST /api/admin/invite-links/{link_id}/restore`](api.md#post-apiadmininvite-linkslink_idrestore) | admin keys | Undo deleting an invite link (admin) |
+| [`admin_restore_invite_link_bulk`](#admin_restore_invite_link_bulk) | [`POST /api/bulk/admin/invite-links/restore`](api.md#post-apibulkadmininvite-linksrestore) | admin keys | Undo deleting an invite link, for many at once (admin) |
 | [`admin_revoke_access`](#admin_revoke_access) | [`POST /api/admin/users/{user_id}/revoke-access`](api.md#post-apiadminusersuser_idrevoke-access) | admin keys | Revoke a user's access (admin) |
+| [`admin_revoke_access_bulk`](#admin_revoke_access_bulk) | [`POST /api/bulk/admin/users/revoke-access`](api.md#post-apibulkadminusersrevoke-access) | admin keys | Revoke a user's access, for many at once (admin) |
 | [`admin_revoke_invite_link`](#admin_revoke_invite_link) | [`POST /api/admin/invite-links/{link_id}/revoke`](api.md#post-apiadmininvite-linkslink_idrevoke) | admin keys | Switch off an invite link (admin) |
+| [`admin_revoke_invite_link_bulk`](#admin_revoke_invite_link_bulk) | [`POST /api/bulk/admin/invite-links/revoke`](api.md#post-apibulkadmininvite-linksrevoke) | admin keys | Switch off an invite link, for many at once (admin) |
 | [`admin_revoke_user_session`](#admin_revoke_user_session) | [`POST /api/admin/users/{user_id}/sessions/{session_id}/revoke`](api.md#post-apiadminusersuser_idsessionssession_idrevoke) | admin keys | Sign out one of an account's devices (admin) |
+| [`admin_revoke_user_session_bulk`](#admin_revoke_user_session_bulk) | [`POST /api/bulk/admin/users/sessions/revoke`](api.md#post-apibulkadminuserssessionsrevoke) | admin keys | Sign out one of an account's devices, for many at once (admin) |
 | [`admin_set_invite_link_limits`](#admin_set_invite_link_limits) | [`POST /api/admin/invite-links/{link_id}/limits`](api.md#post-apiadmininvite-linkslink_idlimits) | admin keys | Change an invite link's places and expiry (admin) |
 | [`admin_set_theme_defaults`](#admin_set_theme_defaults) | [`POST /api/admin/theme-defaults`](api.md#post-apiadmintheme-defaults) | admin keys | Replace the default themes (admin) |
 | [`admin_set_user_disabled`](#admin_set_user_disabled) | [`POST /api/admin/users/{user_id}/disabled`](api.md#post-apiadminusersuser_iddisabled) | admin keys | Disable or enable a user (admin) |
+| [`admin_set_user_disabled_bulk`](#admin_set_user_disabled_bulk) | [`POST /api/bulk/admin/users/disabled`](api.md#post-apibulkadminusersdisabled) | admin keys | Disable or enable a user, for many at once (admin) |
+| [`admin_set_user_expiry`](#admin_set_user_expiry) | [`POST /api/admin/users/{user_id}/expiry`](api.md#post-apiadminusersuser_idexpiry) | admin keys | Set when an account expires (admin) |
 | [`admin_set_user_role`](#admin_set_user_role) | [`POST /api/admin/users/{user_id}/role`](api.md#post-apiadminusersuser_idrole) | admin keys | Change an account's role (admin) |
+| [`admin_set_user_role_bulk`](#admin_set_user_role_bulk) | [`POST /api/bulk/admin/users/role`](api.md#post-apibulkadminusersrole) | admin keys | Change an account's role, for many at once (admin) |
 | [`admin_storage`](#admin_storage) | [`GET /api/admin/storage`](api.md#get-apiadminstorage) | admin keys | Storage for everyone (admin) |
 | [`admin_switch_on_invite_link`](#admin_switch_on_invite_link) | [`POST /api/admin/invite-links/{link_id}/switch-on`](api.md#post-apiadmininvite-linkslink_idswitch-on) | admin keys | Switch an invite link back on (admin) |
+| [`admin_switch_on_invite_link_bulk`](#admin_switch_on_invite_link_bulk) | [`POST /api/bulk/admin/invite-links/switch-on`](api.md#post-apibulkadmininvite-linksswitch-on) | admin keys | Switch an invite link back on, for many at once (admin) |
 | [`cancel_my_login_link`](#cancel_my_login_link) | [`POST /api/account/login-link/cancel`](api.md#post-apiaccountlogin-linkcancel) | any key | Stop your own login link working |
 | [`create_experiment`](#create_experiment) | [`POST /api/experiments`](api.md#post-apiexperiments) | any key | Create an experiment |
 | [`create_my_login_link`](#create_my_login_link) | [`POST /api/account/login-link`](api.md#post-apiaccountlogin-link) | any key | A login link for yourself |
@@ -44,12 +56,14 @@ Every tool POST /mcp offers. Written by scripts/api_docs.sh from the registered 
 | [`experiment_action`](#experiment_action) | [`POST /api/experiments/{experiment_id}/action`](api.md#post-apiexperimentsexperiment_idaction) | any key | Make one change to an experiment |
 | [`experiment_revision`](#experiment_revision) | [`GET /api/experiments/{experiment_id}/revision`](api.md#get-apiexperimentsexperiment_idrevision) | any key | An experiment's revision |
 | [`files_delete`](#files_delete) | [`POST /api/files/{file_id}/delete`](api.md#post-apifilesfile_iddelete) | any key | Delete a file |
+| [`files_delete_bulk`](#files_delete_bulk) | [`POST /api/bulk/files/delete`](api.md#post-apibulkfilesdelete) | any key | Delete a file, for many at once |
 | [`files_download_url`](#files_download_url) | [`GET /api/files/{file_id}/download`](api.md#get-apifilesfile_iddownload) | any key | Where to download a file |
 | [`files_finish_upload`](#files_finish_upload) | [`POST /api/files/{file_id}/finish`](api.md#post-apifilesfile_idfinish) | any key | Finish an upload |
 | [`files_get`](#files_get) | [`GET /api/files/{file_id}`](api.md#get-apifilesfile_id) | any key | One of your files |
 | [`files_list`](#files_list) | [`GET /api/files`](api.md#get-apifiles) | any key | List your files |
 | [`files_rename`](#files_rename) | [`POST /api/files/{file_id}/rename`](api.md#post-apifilesfile_idrename) | any key | Rename a file |
 | [`files_restore`](#files_restore) | [`POST /api/files/{file_id}/restore`](api.md#post-apifilesfile_idrestore) | any key | Restore a deleted file |
+| [`files_restore_bulk`](#files_restore_bulk) | [`POST /api/bulk/files/restore`](api.md#post-apibulkfilesrestore) | any key | Restore a deleted file, for many at once |
 | [`files_start_upload`](#files_start_upload) | [`POST /api/files`](api.md#post-apifiles) | any key | Start uploading a file |
 | [`get_experiment`](#get_experiment) | [`GET /api/experiments/{experiment_id}`](api.md#get-apiexperimentsexperiment_id) | any key | Read an experiment |
 | [`get_published`](#get_published) | [`GET /api/experiments/{experiment_id}/published`](api.md#get-apiexperimentsexperiment_idpublished) | any key | What was last published |
@@ -67,6 +81,7 @@ Every tool POST /mcp offers. Written by scripts/api_docs.sh from the registered 
 | [`restore_scanner_card_backup`](#restore_scanner_card_backup) | [`POST /api/scanner-cards/{card_id}/backups/restore`](api.md#post-apiscanner-cardscard_idbackupsrestore) | any key | Put a scanner card back to a backup |
 | [`revoke_my_other_sessions`](#revoke_my_other_sessions) | [`POST /api/account/sessions/revoke-others`](api.md#post-apiaccountsessionsrevoke-others) | any key | Sign out all your devices |
 | [`revoke_my_session`](#revoke_my_session) | [`POST /api/account/sessions/{session_id}/revoke`](api.md#post-apiaccountsessionssession_idrevoke) | any key | Sign out one of your devices |
+| [`revoke_my_session_bulk`](#revoke_my_session_bulk) | [`POST /api/bulk/account/sessions/revoke`](api.md#post-apibulkaccountsessionsrevoke) | any key | Sign out one of your devices, for many at once |
 | [`revoke_share_link`](#revoke_share_link) | [`POST /api/experiments/{experiment_id}/share-links/{link_id}/revoke`](api.md#post-apiexperimentsexperiment_idshare-linkslink_idrevoke) | any key | Revoke a share link |
 | [`save_experiment`](#save_experiment) | [`POST /api/experiments/{experiment_id}/save`](api.md#post-apiexperimentsexperiment_idsave) | any key | Save an experiment |
 | [`save_scanner_card`](#save_scanner_card) | [`POST /api/scanner-cards/{card_id}/save`](api.md#post-apiscanner-cardscard_idsave) | any key | Save a scanner card |
@@ -94,9 +109,27 @@ Void an account's live login link without making a new one: a link that went som
 |---|---|---|---|---|
 | `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
 
+## admin_cancel_login_link_bulk
+
+Runs admin_cancel_login_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/users/cancel-login-link`](api.md#post-apibulkadminuserscancel-login-link) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+
 ## admin_create_invite_link
 
-One link for a group: each person who opens it joins as a new user, up to max_uses people, for days days. Answers with join_url (shown only now) and the link's details. Revoking or deleting this API key switches the link off.
+One link for a group: each person who opens it joins as a new account with role (user, the default, or viewer), up to max_uses people, for days days. Answers with join_url (shown only now) and the link's details. Revoking or deleting this API key switches the link off.
 
 |  |  |
 |---|---|
@@ -111,10 +144,11 @@ One link for a group: each person who opens it joins as a new user, up to max_us
 | `days` | integer | yes | 1 to 365 |  |
 | `label` | string | yes | 1 to 80 characters |  |
 | `max_uses` | integer | yes | 1 to 1000 |  |
+| `role` | string | no | one of `user`, `viewer`; default `user` | The role each person who joins gets: user, or viewer (reads only). |
 
 ## admin_create_user
 
-Make a new account and its first login link, to hand to the person. role is admin or user. Answers with user_id and the link. Answers with login_url (open it to sign in; it works once unless max_uses says otherwise), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.
+Make a new account and its first login link, to hand to the person. role is admin, user or viewer (reads only). account_expires_at, when given, is when the account stops working. Answers with user_id and the link. Answers with login_url (open it to sign in; it works once unless max_uses says otherwise), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.
 
 |  |  |
 |---|---|
@@ -126,10 +160,11 @@ Make a new account and its first login link, to hand to the person. role is admi
 
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
+| `account_expires_at` | string (date-time) or null | no |  | When the account stops working (RFC 3339). Left out: never. expires_in_minutes is the login link's expiry, not this. |
 | `display_name` | string | yes | 1 to 80 characters |  |
 | `expires_in_minutes` | integer or null | no | 0 to 525600 | 0 never expires. Default auth.login_token_ttl_seconds for a link that works once, auth.multi_use_login_token_ttl_seconds otherwise. |
 | `max_uses` | integer or null | no | 0 to 1000 | Sign-ins the link allows: 1-1000, or 0 for unlimited. Default 1. |
-| `role` | string | yes | one of `admin`, `user` |  |
+| `role` | string | yes | one of `admin`, `user`, `viewer` |  |
 
 ## admin_delete_invite_link
 
@@ -147,6 +182,24 @@ Take an invite link off the list and stop it working. The accounts it made stay.
 |---|---|---|---|---|
 | `link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
 
+## admin_delete_invite_link_bulk
+
+Runs admin_delete_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/invite-links/delete`](api.md#post-apibulkadmininvite-linksdelete) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+
 ## admin_delete_user
 
 Remove an account for good, with its sessions, login link and API keys. Cannot be undone: admin_set_user_disabled is the reversible version. Only the owner deletes an admin; nobody deletes the owner or themselves.
@@ -162,6 +215,24 @@ Remove an account for good, with its sessions, login link and API keys. Cannot b
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
 | `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+
+## admin_delete_user_bulk
+
+Runs admin_delete_user once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/users/delete`](api.md#post-apibulkadminusersdelete) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
 
 ## admin_get_theme_defaults
 
@@ -326,6 +397,24 @@ For someone who lost both their phone and their recovery codes: switches their t
 |---|---|---|---|---|
 | `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
 
+## admin_reset_two_factor_bulk
+
+Runs admin_reset_two_factor once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/users/reset-two-factor`](api.md#post-apibulkadminusersreset-two-factor) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+
 ## admin_restore_invite_link
 
 Bring back an invite link deleted in the last few minutes, working as before. The link then counts as this key's: revoking the key switches it off.
@@ -341,6 +430,24 @@ Bring back an invite link deleted in the last few minutes, working as before. Th
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
 | `link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
+
+## admin_restore_invite_link_bulk
+
+Runs admin_restore_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/invite-links/restore`](api.md#post-apibulkadmininvite-linksrestore) |
+| Read only | no |
+| Destructive | no |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
 
 ## admin_revoke_access
 
@@ -358,6 +465,24 @@ For an account that may be compromised: ends every session and voids its live lo
 |---|---|---|---|---|
 | `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
 
+## admin_revoke_access_bulk
+
+Runs admin_revoke_access once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/users/revoke-access`](api.md#post-apibulkadminusersrevoke-access) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+
 ## admin_revoke_invite_link
 
 Stop an invite link from letting anyone else join or sign in through it. Accounts it already made keep working. Cannot be switched back on.
@@ -373,6 +498,24 @@ Stop an invite link from letting anyone else join or sign in through it. Account
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
 | `link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
+
+## admin_revoke_invite_link_bulk
+
+Runs admin_revoke_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/invite-links/revoke`](api.md#post-apibulkadmininvite-linksrevoke) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
 
 ## admin_revoke_user_session
 
@@ -390,6 +533,25 @@ End one of an account's sessions, rather than all of them with admin_revoke_acce
 |---|---|---|---|---|
 | `session_id` | string | yes |  | The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP). |
 | `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+
+## admin_revoke_user_session_bulk
+
+Runs admin_revoke_user_session once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/users/sessions/revoke`](api.md#post-apibulkadminuserssessionsrevoke) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].session_id` | string | yes |  | The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP). |
+| `items[].user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
 
 ## admin_set_invite_link_limits
 
@@ -423,6 +585,7 @@ Replace the theme list everyone without their own list sees, 1 to 40 themes in t
 
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
+| `builtins` | integer | no |  | Which built-in themes this list has seen: the highest since in Theme.builtIn (static/js/theme.js) when it was saved. Built-in themes added after that join the list the browser shows. Left out: 0, the first ones. |
 | `themes` | array of object or null | no |  | 1 to 40 themes. null goes back to the built-in ones. |
 | `themes[].accent` | string | yes |  | The main color: what you can press. |
 | `themes[].background` | string | no |  | The page. Left out: the mode's own. |
@@ -434,19 +597,19 @@ Replace the theme list everyone without their own list sees, 1 to 40 themes in t
 | `themes[].dark` | object or null | no |  | A light theme's colors for dark mode, kept while it is light. Switching the theme to dark swaps them in. A light theme's light (or a dark theme's dark) is dropped. |
 | `themes[].dark.accent` | string | yes |  | The main color: what you can press. |
 | `themes[].dark.background` | string | no |  | The page. Left out: the mode's own. |
-| `themes[].dark.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
+| `themes[].dark.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
 | `themes[].dark.second` | string | yes |  | Says where you are: active nav item, headings, info. |
 | `themes[].dark.surface` | string | no |  | Cards. Left out: the mode's own. |
 | `themes[].id` | string | yes |  | Lower-case letters, digits, - and _, up to 32. |
 | `themes[].light` | object or null | no |  | A dark theme's colors for light mode, kept while it is dark. Switching the theme to light swaps them in. |
 | `themes[].light.accent` | string | yes |  | The main color: what you can press. |
 | `themes[].light.background` | string | no |  | The page. Left out: the mode's own. |
-| `themes[].light.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
+| `themes[].light.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
 | `themes[].light.second` | string | yes |  | Says where you are: active nav item, headings, info. |
 | `themes[].light.surface` | string | no |  | Cards. Left out: the mode's own. |
 | `themes[].mode` | string | yes | one of `light`, `dark` |  |
 | `themes[].name` | string | yes |  | 1 to 60 characters. |
-| `themes[].overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
+| `themes[].overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
 | `themes[].second` | string | yes |  | Says where you are: active nav item, headings, info. |
 | `themes[].surface` | string | no |  | Cards. Left out: the mode's own. |
 
@@ -467,9 +630,46 @@ Switch an account off (disabled: true) or back on (false). Disabling signs it ou
 | `disabled` | boolean | yes |  |  |
 | `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
 
+## admin_set_user_disabled_bulk
+
+Runs admin_set_user_disabled once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/users/disabled`](api.md#post-apibulkadminusersdisabled) |
+| Read only | no |
+| Destructive | no |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].disabled` | boolean | no |  |  |
+| `items[].user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+| `shared.disabled` | boolean | no |  |  |
+
+## admin_set_user_expiry
+
+expires_at is when the account stops working (RFC 3339), or null for never. Once it passes the account counts as disabled: sign-in, its sessions and its keys stop, and housekeeping disables it and revokes its access. A later expiry does not re-enable an account housekeeping already disabled. It must be in the future. The owner's account never expires; only the owner sets an admin's.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/admin/users/{user_id}/expiry`](api.md#post-apiadminusersuser_idexpiry) |
+| Read only | no |
+| Destructive | no |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `expires_at` | string (date-time) or null | yes |  | When the account stops working (RFC 3339), or null for never. |
+| `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+
 ## admin_set_user_role
 
-Make an account an admin or an ordinary user. Only the owner takes an admin's rights away; the owner is always an admin, and nobody changes their own role. Becoming an admin ends the account's sessions and live login link.
+Make an account an admin, an ordinary user, or a viewer, who may read but change nothing. Only the owner takes an admin's rights away; the owner is always an admin, and nobody changes their own role. Becoming an admin ends the account's sessions and live login link.
 
 |  |  |
 |---|---|
@@ -481,8 +681,28 @@ Make an account an admin or an ordinary user. Only the owner takes an admin's ri
 
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
-| `role` | string | yes | one of `admin`, `user` |  |
+| `role` | string | yes | one of `admin`, `user`, `viewer` |  |
 | `user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+
+## admin_set_user_role_bulk
+
+Runs admin_set_user_role once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/users/role`](api.md#post-apibulkadminusersrole) |
+| Read only | no |
+| Destructive | no |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].role` | string | no | one of `admin`, `user`, `viewer` |  |
+| `items[].user_id` | integer | yes | at least 1 | The account's id, from GET /api/admin/users (admin_list_users over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+| `shared.role` | string | no | one of `admin`, `user`, `viewer` |  |
 
 ## admin_storage
 
@@ -514,6 +734,24 @@ Undo admin_revoke_invite_link: anyone still holding the link can use it again. T
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
 | `link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
+
+## admin_switch_on_invite_link_bulk
+
+Runs admin_switch_on_invite_link once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/admin/invite-links/switch-on`](api.md#post-apibulkadmininvite-linksswitch-on) |
+| Read only | no |
+| Destructive | no |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].link_id` | string | yes |  | The link's id, from GET /api/admin/invite-links (admin_list_invite_links over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
 
 ## cancel_my_login_link
 
@@ -548,7 +786,7 @@ A new experiment owned by this account. doc needs at least name and format_versi
 
 ## create_my_login_link
 
-A link that signs your own account in on a browser or another device. Only a key with your account's full role may ask: one scoped down to user on an admin account is refused. Answers with login_url (open it to sign in; it works once unless max_uses says otherwise), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.
+A link that signs your own account in on a browser or another device. An API key may ask only if your account let it, from a browser session (POST /api/keys/{key_id}/sign-in); its link works once, for at most 15 minutes. Only works if this key was allowed to make sign-in links, on the API keys card. Answers with login_url (open it to sign in; it works once, for at most 15 minutes), expires_at and max_uses. Any older link the account could still use stops working; its signed-in devices stay signed in. Revoking or deleting this API key voids the link while it is unused, and signs out every device it signed in.
 
 |  |  |
 |---|---|
@@ -653,6 +891,24 @@ Move one of your files to the bin. It can be restored for ten minutes; after tha
 |---|---|---|---|---|
 | `file_id` | string | yes |  | The file's id, from GET /api/files (files_list over MCP). |
 
+## files_delete_bulk
+
+Runs files_delete once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/files/delete`](api.md#post-apibulkfilesdelete) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].file_id` | string | yes |  | The file's id, from GET /api/files (files_list over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+
 ## files_download_url
 
 The address of one of your files. GET it over HTTP with the same Authorization: Bearer header this MCP connection uses; the bytes do not come through MCP.
@@ -754,6 +1010,24 @@ Bring back a file you deleted, while it is still in the bin and your storage quo
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
 | `file_id` | string | yes |  | The file's id, from GET /api/files (files_list over MCP). |
+
+## files_restore_bulk
+
+Runs files_restore once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/files/restore`](api.md#post-apibulkfilesrestore) |
+| Read only | no |
+| Destructive | no |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].file_id` | string | yes |  | The file's id, from GET /api/files (files_list over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
 
 ## files_start_upload
 
@@ -1031,6 +1305,24 @@ End one of your signed-in sessions; that browser has to sign in again.
 |---|---|---|---|---|
 | `session_id` | string | yes |  | The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP). |
 
+## revoke_my_session_bulk
+
+Runs revoke_my_session once per item: items holds each call's arguments, shared the arguments they have in common (an item's own win). In order; one failing does not stop the rest, and the reply says how each went. At most 100 items.
+
+|  |  |
+|---|---|
+| Route | [`POST /api/bulk/account/sessions/revoke`](api.md#post-apibulkaccountsessionsrevoke) |
+| Read only | no |
+| Destructive | yes |
+
+**Arguments**
+
+| Field | Type | Required | Limits | Description |
+|---|---|---|---|---|
+| `items` | array of object | yes |  | One entry per thing to change: its id, and any field that differs from shared. |
+| `items[].session_id` | string | yes |  | The device's id, from GET /api/account/sessions or GET /api/admin/users/{user_id}/sessions (list_my_sessions or admin_list_user_sessions over MCP). |
+| `shared` | object | no |  | Fields every item gets, unless the item sets its own. |
+
 ## revoke_share_link
 
 Stops a share link working, for good. link_id is from list_share_links.
@@ -1181,6 +1473,7 @@ Replace your whole list of color themes (1 to 40) and pick the one you use. them
 
 | Field | Type | Required | Limits | Description |
 |---|---|---|---|---|
+| `builtins` | integer | no |  | Which built-in themes this list has seen: the highest since in Theme.builtIn (static/js/theme.js) when it was saved. Built-in themes added after that join the list the browser shows. Left out: 0, the first ones. |
 | `theme_id` | string | no |  | The theme you use. |
 | `themes` | array of object or null | no |  | Your whole list, 1 to 40 themes. null goes back to following the app's defaults. |
 | `themes[].accent` | string | yes |  | The main color: what you can press. |
@@ -1193,19 +1486,19 @@ Replace your whole list of color themes (1 to 40) and pick the one you use. them
 | `themes[].dark` | object or null | no |  | A light theme's colors for dark mode, kept while it is light. Switching the theme to dark swaps them in. A light theme's light (or a dark theme's dark) is dropped. |
 | `themes[].dark.accent` | string | yes |  | The main color: what you can press. |
 | `themes[].dark.background` | string | no |  | The page. Left out: the mode's own. |
-| `themes[].dark.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
+| `themes[].dark.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
 | `themes[].dark.second` | string | yes |  | Says where you are: active nav item, headings, info. |
 | `themes[].dark.surface` | string | no |  | Cards. Left out: the mode's own. |
 | `themes[].id` | string | yes |  | Lower-case letters, digits, - and _, up to 32. |
 | `themes[].light` | object or null | no |  | A dark theme's colors for light mode, kept while it is dark. Switching the theme to light swaps them in. |
 | `themes[].light.accent` | string | yes |  | The main color: what you can press. |
 | `themes[].light.background` | string | no |  | The page. Left out: the mode's own. |
-| `themes[].light.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
+| `themes[].light.overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
 | `themes[].light.second` | string | yes |  | Says where you are: active nav item, headings, info. |
 | `themes[].light.surface` | string | no |  | Cards. Left out: the mode's own. |
 | `themes[].mode` | string | yes | one of `light`, `dark` |  |
 | `themes[].name` | string | yes |  | 1 to 60 characters. |
-| `themes[].overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
+| `themes[].overrides` | map of string | no |  | Worked-out colors replaced by name: text, accent, accentFg, accentText, second, secondFg, secondText, link, navLink, background, surface, nested, chrome, info, infoBorder, border, the Wright State roles (mast, mastFg, rule, heading, active, sunk), and for each button variant V (Secondary, Success, Danger, Warning, Info, Light, Dark) btnV, btnVFg and btnVText. Leaving one out puts the readable color back. |
 | `themes[].second` | string | yes |  | Says where you are: active nav item, headings, info. |
 | `themes[].surface` | string | no |  | Cards. Left out: the mode's own. |
 
@@ -1230,13 +1523,18 @@ Routes an API key may call that have no tool, and why.
 
 | Route | Why |
 |---|---|
+| [`GET /api/admin/users/{user_id}/keys`](api.md#get-apiadminusersuser_idkeys) | Manages API keys, which no MCP tool does. |
 | [`GET /api/api.json`](api.md#get-apiapijson) | The API reference itself; GET /api/mcp.json is the MCP one. |
+| [`GET /api/api.md`](api.md#get-apiapimd) | The API reference itself, for people; GET /api/api.json is the same as JSON. |
 | [`GET /api/experiments/{experiment_id}/media/{filename}`](api.md#get-apiexperimentsexperiment_idmediafilename) | Picture bytes: MCP messages are JSON. |
 | [`GET /api/experiments/{experiment_id}/published/figures/{name}`](api.md#get-apiexperimentsexperiment_idpublishedfiguresname) | Figure bytes: MCP messages are JSON. |
 | [`GET /api/experiments/{experiment_id}/published/plans/{name}`](api.md#get-apiexperimentsexperiment_idpublishedplansname) | A runner fetches its plans over HTTP with its key; get_published lists them. |
 | [`GET /api/experiments/{experiment_id}/results`](api.md#get-apiexperimentsexperiment_idresults) | The PsychoPy runner's exchange with the designer (runner/), over HTTP with the same key. |
 | [`GET /api/mcp.json`](api.md#get-apimcpjson) | The MCP reference itself; tools/list gives the same list. |
+| [`GET /api/mcp.md`](api.md#get-apimcpmd) | The MCP reference itself, for people; tools/list gives the same list. |
 | [`GET /metrics`](api.md#get-metrics) | Scraped by Prometheus over HTTP. |
+| [`POST /api/admin/keys/{key_id}/revoke`](api.md#post-apiadminkeyskey_idrevoke) | Manages API keys, which no MCP tool does. |
+| [`POST /api/admin/users/{user_id}/keys`](api.md#post-apiadminusersuser_idkeys) | Makes an API key, which no MCP tool does. |
 | [`POST /api/experiments/{experiment_id}/bundle`](api.md#post-apiexperimentsexperiment_idbundle) | A zip download: A file, not JSON: it goes over HTTP, with the same key. |
 | [`POST /api/experiments/{experiment_id}/media`](api.md#post-apiexperimentsexperiment_idmedia) | Picture bytes: MCP messages are JSON. Send the file to this route with the same key. |
 | [`POST /api/experiments/{experiment_id}/media/url`](api.md#post-apiexperimentsexperiment_idmediaurl) | Adding pictures is part of editing a design in the browser; a picture's bytes never pass through MCP. |

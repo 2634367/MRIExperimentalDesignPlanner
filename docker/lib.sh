@@ -1,4 +1,4 @@
-# Shared by docker/build.sh and docker/run.sh. Sourced, not run, from the
+# Shared by the docker/*.sh scripts. Sourced, not run, from the
 # project root -- which is also the build context.
 #
 # build_image builds the image and then reads config.yaml *through it*: the
@@ -117,12 +117,58 @@ build_image() {
   eval "$assignments"
   DOCKER_SETTINGS="$assignments"
 
+  # Before anything acts on docker.*: the tag below, and whatever the calling
+  # script does with the container name, data_dir and ports.
+  confirm_docker_changes
+
   docker tag "$IMAGE_ID" "${docker_image}:latest"
   if [ -n "$extra_tag" ]; then
     docker tag "$IMAGE_ID" "${docker_image}:${extra_tag}"
     echo "Also tagged ${docker_image}:${extra_tag}"
   fi
   echo "Built ${docker_image}:latest (${VERSION}, image ${IMAGE_ID#sha256:})"
+}
+
+# confirm_docker_changes stops when the docker: section differs from the one
+# the last start used, until someone at the host says yes. config.yaml is
+# mounted writable so the Settings screen can save it, which means code inside
+# a compromised container could rewrite docker.* -- the container name this
+# script `docker rm -f`s, the address it publishes on, the image tag, the
+# limits. The copy that counts is .run/docker.last: written here on the host,
+# never mounted into the container. No copy yet (a first start) means nothing
+# to compare, so it carries on. ACCEPT_DOCKER_CHANGES=true (docker/run.sh
+# --accept-docker-changes) says yes without asking. A yes is recorded at once.
+confirm_docker_changes() {
+  local last=".run/docker.last"
+  [ -f "$last" ] || return 0
+  [ "$( cat "$last" )" != "$DOCKER_SETTINGS" ] || return 0
+  echo "docker: settings changed since the last run (config/config.yaml):"
+  # diff exits 1 when its inputs differ, which they always do here. Under
+  # pipefail that would end the script silently, so the notice is made unable
+  # to fail.
+  diff <( cat "$last" ) <( printf '%s\n' "$DOCKER_SETTINGS" ) \
+    | sed -n 's/^< /  was  /p; s/^> /  now  /p' || true
+  echo ""
+  if [ "${ACCEPT_DOCKER_CHANGES:-false}" != "true" ]; then
+    if [ ! -t 0 ]; then
+      echo "ERROR: not applying changed docker: settings without a yes. config.yaml can" >&2
+      echo "       be written from inside the container, so check them above, then run" >&2
+      echo "       docker/run.sh --accept-docker-changes (or answer at a terminal)." >&2
+      exit 1
+    fi
+    local answer=""
+    read -r -p "Apply these docker: changes? [y/N] " answer || true
+    case "$answer" in
+      y|Y|yes|YES) ;;
+      *)
+        echo "Not applied. Nothing was started or replaced." >&2
+        exit 1
+        ;;
+    esac
+  fi
+  mkdir -p .run
+  printf '%s\n' "$DOCKER_SETTINGS" > "$last"
+  echo ""
 }
 
 # resolve_data_dir sets DATA_DIR. docker.data_dir is relative to the project
@@ -153,4 +199,58 @@ create_secret() {
 # secret.key existed. It prints only when it did something.
 migrate_config() {
   config_dir_run migrate --dir /work
+}
+
+# load_last_deployment sets the docker_* values (docker_container, docker_url,
+# ...) of the last successful docker/run.sh, from .run/docker.last: written on
+# the host, never mounted into the container, so -- unlike config.yaml, which
+# the container can write -- it is safe to act on without a rebuild. For the
+# scripts that work on the running deployment rather than build one
+# (docker/restart.sh, docker/logs.sh).
+load_last_deployment() {
+  local last=".run/docker.last"
+  if [ ! -f "$last" ]; then
+    echo "ERROR: no deployment from this checkout yet (no ${last})." >&2
+    echo "       Start one with docker/run.sh first." >&2
+    exit 1
+  fi
+  eval "$( cat "$last" )"
+  if [ -z "$( docker ps -a -q --filter "name=^${docker_container}\$" )" ]; then
+    echo "ERROR: there is no ${docker_container} container. Start it with docker/run.sh." >&2
+    exit 1
+  fi
+}
+
+# wait_healthy waits up to 30 seconds for the container to pass the image's
+# own healthcheck (python -m app health). If it stops or never answers, it
+# says which, shows the last log lines, and exits 1 instead of announcing a
+# success that is not there.
+wait_healthy() {
+  local status="starting" state
+  echo "Waiting for it to answer (up to 30 seconds)..."
+  for _ in $( seq 1 60 ); do
+    sleep 0.5
+    state="$( docker inspect -f '{{.State.Status}}' "$docker_container" 2>/dev/null || echo "gone" )"
+    if [ "$state" != "running" ]; then
+      status="$state"
+      break
+    fi
+    if docker exec "$docker_container" python -m app health >/dev/null 2>&1; then
+      status="healthy"
+      break
+    fi
+  done
+
+  if [ "$status" != "healthy" ]; then
+    echo "" >&2
+    if [ "$status" = "starting" ]; then
+      echo "ERROR: ${docker_container} is running but not answering after 30 seconds." >&2
+    else
+      echo "ERROR: ${docker_container} stopped (status: ${status}, exit code $( docker inspect -f '{{.State.ExitCode}}' "$docker_container" 2>/dev/null || echo "?" ))." >&2
+    fi
+    echo "       Its last log lines:" >&2
+    echo "" >&2
+    docker logs --tail 40 "$docker_container" 2>&1 | sed 's/^/         /' >&2
+    exit 1
+  fi
 }
