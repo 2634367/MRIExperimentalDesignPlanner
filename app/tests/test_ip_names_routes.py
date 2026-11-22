@@ -47,8 +47,8 @@ class IPNameRoutesTest(RoutesTestCase):
         self.assertNotIn("ip_name", self.devices(self.owner_cookie)[0])
 
     def test_bad_input_is_refused(self) -> None:
-        self.assertEqual(self.post(NAMES, self.owner_cookie, target="laptop", name="x"), (400, {"error": "bad_ip_target"}))
-        self.assertEqual(self.post(NAMES, self.owner_cookie, target="10.0.0.1", name="  "), (400, {"error": "bad_ip_name"}))
+        self.assertEqual(self.post(NAMES, self.owner_cookie, target="laptop", name="x"), (400, {"error": "bad_ip_target", "code": "invalid"}))
+        self.assertEqual(self.post(NAMES, self.owner_cookie, target="10.0.0.1", name="  "), (400, {"error": "bad_ip_name", "code": "invalid"}))
         status, _ = self.call("POST", NAMES, cookie=self.owner_cookie, body={"target": "10.0.0.1", "name": "x"})
         self.assertEqual(status, 403)
 

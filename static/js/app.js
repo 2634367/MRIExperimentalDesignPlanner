@@ -213,6 +213,7 @@ const App = {
     // Side by side: the wait is the slowest screen, not all of them added up.
     const loading = [];
     loading.push( Keys.init( me ) );
+    loading.push( Portal.init( me ) );
     Mcp.init( me );
     loading.push( Devices.init() );
     loading.push( Files.init( me ) );
@@ -603,6 +604,7 @@ const App = {
       const username = user.username ? Dom.el( "div" , { class: "small text-body-secondary" , text: user.username } ) : null;
       const status = [ Dom.badge( I18n.get( statusKey ) , statusTone ) ];
       if ( user.two_factor ) status.push( Dom.el( "span" , { class: "ms-1" , children: [ Dom.badge( I18n.get( "admin.two_factor_badge" ) , "secondary" ) ] } ) );
+      if ( user.kind === "service" ) status.push( Dom.el( "span" , { class: "ms-1" , children: [ Dom.badge( I18n.get( "admin.service_badge" ) , "info" ) ] } ) );
       if ( user.expires_at && !user.expired ) status.push( Dom.el( "div" , { class: "small text-body-secondary" , children: [ document.createTextNode( I18n.get( "admin.expires_line" ).split( "{when}" )[ 0 ] ) , Dom.when( user.expires_at ) ] } ) );
       if ( user.login_link ) status.push( Dom.el( "div" , { class: "small text-body-secondary" , text: LoginLinks.live( user.login_link , "live" ) } ) );
 

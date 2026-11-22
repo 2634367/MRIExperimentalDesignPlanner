@@ -50,5 +50,5 @@ class PageRouteTests(RoutesTestCase):
             self.assertEqual(self.fetch(path).status_code, 404, path)
 
     def test_api_and_files_are_unchanged(self) -> None:
-        self.assertEqual(self.fetch("/api/nope").json(), {"error": "not found"})
+        self.assertEqual(self.fetch("/api/nope").json(), {"error": "not found", "code": "not_found"})
         self.assertEqual(self.client.get("/js/nav.js").status_code, 200)
